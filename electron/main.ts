@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, protocol, net } from 'electron'
+import { registerGhostedDB } from './ghostdb'
 import { execSync, execFileSync } from 'child_process'
 import path from 'path'
 import os from 'os'
@@ -239,6 +240,7 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 app.whenReady().then(() => {
+  registerGhostedDB()
   protocol.handle('ghosted-file', (request) => {
     const filePath = decodeURIComponent(request.url.replace('ghosted-file://', ''))
     return net.fetch(`file://${filePath}`)

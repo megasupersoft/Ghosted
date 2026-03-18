@@ -48,8 +48,10 @@ html, body, #root {
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+*:hover > ::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover { background: var(--border-mid); }
+::-webkit-scrollbar-thumb:active { background: var(--border-bright); }
 
 button {
   font-family: var(--font-ui); cursor: pointer;
@@ -122,7 +124,7 @@ input:focus, textarea:focus {
   width: 48px;
   flex-shrink: 0;
   background: var(--bg-surface);
-  border-right: 3px solid var(--bg-base);
+  border-right: 4px solid var(--bg-base);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;

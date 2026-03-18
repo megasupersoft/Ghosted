@@ -1,5 +1,52 @@
 export {}
 
+// GhostedDB types (mirror of electron/ghostdb.ts)
+export interface GhostedFile {
+  path: string
+  name: string
+  ext: string
+  relativePath: string
+  frontmatter: Record<string, unknown>
+  body: string
+  wikilinks: string[]
+  incomingLinks: string[]
+  mtime: number
+  size: number
+}
+
+export type QueryOp =
+  | { field: string; op: 'eq';       value: unknown }
+  | { field: string; op: 'neq';      value: unknown }
+  | { field: string; op: 'exists'                   }
+  | { field: string; op: 'contains'; value: string  }
+  | { field: string; op: 'gt';       value: number  }
+  | { field: string; op: 'lt';       value: number  }
+
+export interface GhostedQuery {
+  where?:      QueryOp[]
+  ext?:        string | string[]
+  linkedTo?:   string
+  linkedFrom?: string
+  contains?:   string
+  limit?:      number
+  offset?:     number
+  orderBy?:    string
+  orderDir?:   'asc' | 'desc'
+}
+
+export interface GhostedQueryResult {
+  files: GhostedFile[]
+  total: number
+  took:  number
+}
+
+export interface DBStats {
+  total:           number
+  byExt:           Record<string, number>
+  withFrontmatter: number
+  workspace:       string
+}
+
 declare global {
   interface Window {
     electron: {
@@ -23,6 +70,14 @@ declare global {
       }
       dialog: {
         openFolder: () => Promise<string | null>
+      }
+      db: {
+        index:     (workspacePath: string) => Promise<DBStats>
+        query:     (q: GhostedQuery)       => Promise<GhostedQueryResult>
+        get:       (filePath: string)       => Promise<GhostedFile | null>
+        stats:     ()                       => Promise<DBStats>
+        onChange:  (cb: (stats: DBStats) => void) => void
+        offChange: ()                       => void
       }
       git: {
         log: (cwd: string, count?: number) => Promise<{ hash: string; shortHash: string; author: string; email: string; date: string; subject: string; refs: string; parents: string[] }[]>
