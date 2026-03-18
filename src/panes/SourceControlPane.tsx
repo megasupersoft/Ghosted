@@ -318,9 +318,8 @@ export default function SourceControlPane() {
 
   const handleCommit = async () => {
     if (!workspacePath || !commitMsg.trim()) return
-    if (staged.length === 0 && (changed.length > 0 || untracked.length > 0)) {
-      await window.electron.git.stageAll(workspacePath)
-    }
+    // Always stage all — matches VS Code behavior, avoids stale state issues
+    await window.electron.git.stageAll(workspacePath)
     const result = await window.electron.git.commit(workspacePath, commitMsg.trim())
     if (result.ok) {
       useStore.getState().addStatus('info', `Committed: ${commitMsg.trim()}`)

@@ -107,7 +107,7 @@ ipcMain.handle('pty:kill', (_e, id: string) => { terminals.get(id)?.kill(); term
 
 // ── Git IPC ──
 function git(cwd: string, args: string[]): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 10000 }).trim()
+  return execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 30000 }).trim()
 }
 
 ipcMain.handle('gh:run', async (_e, cwd: string, args: string) => {
@@ -204,15 +204,21 @@ ipcMain.handle('git:stageAll', async (_e, cwd: string) => {
 
 ipcMain.handle('git:commit', async (_e, cwd: string, message: string) => {
   try { git(cwd, ['commit', '-m', message]); return { ok: true } }
-  catch (err: any) { return { ok: false, error: err.stderr || err.message } }
+  catch (err: any) {
+    const stderr = typeof err.stderr === 'string' ? err.stderr.trim() : ''
+    const stdout = typeof err.stdout === 'string' ? err.stdout.trim() : ''
+    return { ok: false, error: stderr || stdout || err.message }
+  }
 })
 
 ipcMain.handle('git:push', async (_e, cwd: string) => {
-  try { git(cwd, ['push']); return { ok: true } } catch (err: any) { return { ok: false, error: err.message } }
+  try { git(cwd, ['push']); return { ok: true } }
+  catch (err: any) { return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() } }
 })
 
 ipcMain.handle('git:pull', async (_e, cwd: string) => {
-  try { git(cwd, ['pull']); return { ok: true } } catch (err: any) { return { ok: false, error: err.message } }
+  try { git(cwd, ['pull']); return { ok: true } }
+  catch (err: any) { return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() } }
 })
 
 ipcMain.handle('git:discard', async (_e, cwd: string, filePath: string) => {
