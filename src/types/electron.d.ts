@@ -16,6 +16,7 @@ declare global {
         kill: (id: string) => Promise<void>
         onData: (id: string, cb: (data: string) => void) => void
         onExit: (id: string, cb: () => void) => void
+        removeListeners: (id: string) => void
       }
       shell: {
         openExternal: (url: string) => Promise<void>

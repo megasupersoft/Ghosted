@@ -1,69 +1,85 @@
 import React, { useEffect, useRef, useState } from 'react'
 import 'xterm/css/xterm.css'
 import { useStore } from '@/store'
+import { useSettings } from '@/store/settings'
 
-// ── Global terminal session registry ──
-// Keeps PTY + xterm alive across panel moves (unmount → remount with same leafId)
+// Global registry — survives React unmount/remount cycles
 interface TermSession {
   term: any
   fit: any
-  ptyId: string
-  wrapper: HTMLDivElement // the div xterm rendered into
-  killTimer?: ReturnType<typeof setTimeout>
+  wrapper: HTMLDivElement
+  ro: ResizeObserver
 }
 const sessions = new Map<string, TermSession>()
+const pendingKills = new Map<string, ReturnType<typeof setTimeout>>()
+
+function killSession(key: string) {
+  const s = sessions.get(key)
+  if (s) {
+    s.ro.disconnect()
+    s.term.dispose()
+    sessions.delete(key)
+  }
+  window.electron?.pty?.removeListeners(key)
+  window.electron?.pty?.kill(key)
+}
 
 export default function TerminalPane({ leafId }: { leafId?: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sessionKey = `term-${leafId ?? 'default'}`
-  const { workspacePath } = useStore()
+  const workspacePath = useStore(s => s.workspacePath)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!containerRef.current) return
     const container = containerRef.current
+    if (!container) return
+
+    // Cancel any pending kill for this session (panel was moved)
+    const pending = pendingKills.get(sessionKey)
+    if (pending) {
+      clearTimeout(pending)
+      pendingKills.delete(sessionKey)
+    }
 
     const existing = sessions.get(sessionKey)
     if (existing) {
-      // Reattach existing terminal — cancel any pending kill
-      if (existing.killTimer) {
-        clearTimeout(existing.killTimer)
-        existing.killTimer = undefined
-      }
+      // Reattach
       container.appendChild(existing.wrapper)
-      existing.fit.fit()
-      existing.term.focus()
+      requestAnimationFrame(() => {
+        existing.fit.fit()
+        existing.term.focus()
+      })
       return () => {
-        // On unmount, start grace period — don't kill immediately
-        existing.killTimer = setTimeout(() => {
-          window.electron?.pty?.kill(existing.ptyId)
-          existing.term.dispose()
-          sessions.delete(sessionKey)
-        }, 2000)
-        // Detach DOM but don't destroy
         if (existing.wrapper.parentNode === container) {
           container.removeChild(existing.wrapper)
         }
+        // Grace period — kill only if not reattached within 2s
+        pendingKills.set(sessionKey, setTimeout(() => {
+          pendingKills.delete(sessionKey)
+          killSession(sessionKey)
+        }, 2000))
       }
     }
 
-    // ── Create new terminal session ──
-    let mounted = true
-    const init = async () => {
+    // Create new session
+    let cancelled = false
+
+    ;(async () => {
       try {
         const { Terminal } = await import('xterm')
         const { FitAddon } = await import('@xterm/addon-fit')
         const { WebLinksAddon } = await import('@xterm/addon-web-links')
-        if (!mounted || !container) return
+        if (cancelled) return
 
-        // Create a wrapper div for xterm to render into (we'll reparent this on moves)
         const wrapper = document.createElement('div')
         wrapper.style.cssText = 'width:100%;height:100%;'
         container.appendChild(wrapper)
 
+        const s = useSettings.getState()
         const term = new Terminal({
-          fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, monospace",
-          fontSize: 14, lineHeight: 1.45,
+          fontFamily: s.terminalFontFamily,
+          fontSize: s.terminalFontSize,
+          lineHeight: s.terminalLineHeight,
           theme: {
             background: '#0e0e16', foreground: '#e2e2f0',
             cursor: '#8b7cf8', cursorAccent: '#0e0e16',
@@ -77,32 +93,42 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
             cyan: '#67e8f9',   brightCyan: '#a5f3fc',
             white: '#e2e2f0',  brightWhite: '#ffffff',
           },
-          cursorBlink: true, scrollback: 5000,
+          cursorBlink: s.terminalCursorBlink,
+          cursorStyle: s.terminalCursorStyle,
+          scrollback: s.terminalScrollback,
           allowProposedApi: true,
         })
+
         const fit = new FitAddon()
-        const links = new WebLinksAddon((e, uri) => window.electron.shell.openExternal(uri))
-        term.loadAddon(fit); term.loadAddon(links)
-        term.open(wrapper); fit.fit()
+        const links = new WebLinksAddon((_, uri) => window.electron.shell.openExternal(uri))
+        term.loadAddon(fit)
+        term.loadAddon(links)
+        term.open(wrapper)
+        fit.fit()
+
+        if (cancelled) { term.dispose(); wrapper.remove(); return }
 
         const cols = term.cols
         const rows = term.rows
-
         const cwd = workspacePath ?? (await window.electron.fs.homedir())
-        // Wire up listeners BEFORE creating PTY so we don't miss the initial prompt
+
+        // Wire IPC listeners (removeAllListeners first to prevent stacking)
         window.electron.pty.onData(sessionKey, d => term.write(d))
         window.electron.pty.onExit(sessionKey, () => term.write('\r\n\x1b[35m[process exited]\x1b[0m\r\n'))
+
         const ok = await window.electron.pty.create(sessionKey, cwd, cols, rows)
+        if (cancelled) { term.dispose(); wrapper.remove(); return }
+
         if (ok) {
           term.onData(d => window.electron.pty.write(sessionKey, d))
           term.onResize(({ cols, rows }) => window.electron.pty.resize(sessionKey, cols, rows))
         } else {
-          term.write('\x1b[35m[node-pty unavailable — attach a real process to activate]\x1b[0m\r\n$ ')
+          term.write('\x1b[35m[node-pty unavailable]\x1b[0m\r\n')
         }
 
         term.focus()
 
-        // Debounce resize observer
+        // Debounced resize
         let resizeTimer: ReturnType<typeof setTimeout>
         const ro = new ResizeObserver(() => {
           clearTimeout(resizeTimer)
@@ -110,36 +136,45 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         })
         ro.observe(container)
 
-        // Register session
-        const session: TermSession = { term, fit, ptyId: sessionKey, wrapper }
-        sessions.set(sessionKey, session)
-
-        // Cleanup ref for the ResizeObserver only
-        return () => { clearTimeout(resizeTimer); ro.disconnect() }
-      } catch (err: any) { setError(err.message) }
-    }
-
-    let roCleanup: (() => void) | undefined
-    init().then(cleanup => { roCleanup = cleanup })
+        sessions.set(sessionKey, { term, fit, wrapper, ro })
+      } catch (err: any) {
+        if (!cancelled) setError(err.message)
+      }
+    })()
 
     return () => {
-      mounted = false
-      roCleanup?.()
+      cancelled = true
       const session = sessions.get(sessionKey)
       if (session) {
-        // Grace period — if remounted with same key within 2s, terminal survives
-        session.killTimer = setTimeout(() => {
-          window.electron?.pty?.kill(session.ptyId)
-          session.term.dispose()
-          sessions.delete(sessionKey)
-        }, 2000)
-        // Detach DOM
         if (session.wrapper.parentNode === container) {
           container.removeChild(session.wrapper)
         }
+        pendingKills.set(sessionKey, setTimeout(() => {
+          pendingKills.delete(sessionKey)
+          killSession(sessionKey)
+        }, 2000))
       }
     }
   }, [sessionKey])
+
+  // Sync settings to live terminal
+  const termFontSize = useSettings(s => s.terminalFontSize)
+  const termFontFamily = useSettings(s => s.terminalFontFamily)
+  const termLineHeight = useSettings(s => s.terminalLineHeight)
+  const termCursorBlink = useSettings(s => s.terminalCursorBlink)
+  const termCursorStyle = useSettings(s => s.terminalCursorStyle)
+
+  useEffect(() => {
+    const session = sessions.get(sessionKey)
+    if (!session) return
+    const { term, fit } = session
+    term.options.fontSize = termFontSize
+    term.options.fontFamily = termFontFamily
+    term.options.lineHeight = termLineHeight
+    term.options.cursorBlink = termCursorBlink
+    term.options.cursorStyle = termCursorStyle
+    fit.fit()
+  }, [sessionKey, termFontSize, termFontFamily, termLineHeight, termCursorBlink, termCursorStyle])
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>

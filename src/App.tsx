@@ -5,6 +5,7 @@ import ActivityBar from '@/components/ActivityBar'
 import StatusBar from '@/components/StatusBar'
 import FileTree from '@/panes/FileTree'
 import SourceControlPane from '@/panes/SourceControlPane'
+import SettingsPane from '@/panes/SettingsPane'
 import LayoutRenderer from '@/components/LayoutRenderer'
 import { useStore } from '@/store'
 
@@ -12,6 +13,7 @@ function SidebarContent({ id }: { id: string }) {
   switch (id) {
     case 'explorer': return <FileTree />
     case 'source-control': return <SourceControlPane />
+    case 'settings': return <SettingsPane />
     default: return null
   }
 }

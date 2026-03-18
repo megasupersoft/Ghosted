@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useStore } from '@/store'
+import { useSettings } from '@/store/settings'
 import {
   GitBranch, GitCommitHorizontal, Undo2, Check,
   ChevronDown, ChevronRight, FileCode, FileText,
@@ -288,11 +289,12 @@ export default function SourceControlPane() {
 
   useEffect(() => { refresh() }, [refresh])
 
+  const gitInterval = useSettings(s => s.gitAutoRefreshInterval)
   useEffect(() => {
     if (!workspacePath) return
-    const id = setInterval(refresh, 5000)
+    const id = setInterval(refresh, gitInterval * 1000)
     return () => clearInterval(id)
-  }, [workspacePath, refresh])
+  }, [workspacePath, refresh, gitInterval])
 
 
   const handleCommit = async () => {

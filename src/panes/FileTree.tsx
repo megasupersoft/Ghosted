@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useStore, getEditorLeafId } from '@/store'
+import { useSettings } from '@/store/settings'
 import {
   Folder, FolderOpen, ChevronRight, ChevronDown,
   FileCode, FileText, FileJson, File, FileImage,
@@ -48,12 +49,14 @@ function FileIcon({ name }: { name: string }) {
 function FileRow({ node, depth, onOpen }: { node: FileNode; depth: number; onOpen: (n: FileNode) => void }) {
   const [open, setOpen] = useState(false)
   const [children, setChildren] = useState<FileNode[]>([])
+  const showHidden = useSettings(s => s.showHiddenFiles)
 
   const toggle = async () => {
     if (!node.isDirectory) { onOpen(node); return }
     if (!open) {
       const entries = await window.electron.fs.readdir(node.path)
       setChildren(entries
+        .filter(e => showHidden || !e.name.startsWith('.'))
         .sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name))
         .map(e => ({ id: e.path, name: e.name, path: e.path, isDirectory: e.isDirectory }))
       )
@@ -92,15 +95,17 @@ function FileRow({ node, depth, onOpen }: { node: FileNode; depth: number; onOpe
 
 export default function FileTree() {
   const { workspacePath, setWorkspacePath, openFile, setFocusedLeaf, changeLeafPane, focusedLeafId } = useStore()
+  const showHidden = useSettings(s => s.showHiddenFiles)
   const [roots, setRoots] = useState<FileNode[]>([])
 
   const loadDir = useCallback(async (p: string) => {
     const entries = await window.electron.fs.readdir(p)
     setRoots(entries
+      .filter(e => showHidden || !e.name.startsWith('.'))
       .sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name))
       .map(e => ({ id: e.path, name: e.name, path: e.path, isDirectory: e.isDirectory }))
     )
-  }, [])
+  }, [showHidden])
 
   const openWorkspace = async () => {
     const chosen = await window.electron.dialog.openFolder()
@@ -139,7 +144,7 @@ export default function FileTree() {
   }, [openFile, setFocusedLeaf, changeLeafPane, focusedLeafId])
 
   return (
-    <div style={{ width: '100%', height: '100%', background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <FolderSearch size={14} color="var(--text-muted)" />

@@ -12,8 +12,20 @@ contextBridge.exposeInMainWorld('electron', {
     write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
-    onData: (id: string, cb: (d: string) => void) => ipcRenderer.on(`pty:data:${id}`, (_e, d) => cb(d)),
-    onExit: (id: string, cb: () => void) => ipcRenderer.on(`pty:exit:${id}`, cb),
+    onData: (id: string, cb: (d: string) => void) => {
+      const channel = `pty:data:${id}`
+      ipcRenderer.removeAllListeners(channel)
+      ipcRenderer.on(channel, (_e, d) => cb(d))
+    },
+    onExit: (id: string, cb: () => void) => {
+      const channel = `pty:exit:${id}`
+      ipcRenderer.removeAllListeners(channel)
+      ipcRenderer.on(channel, cb)
+    },
+    removeListeners: (id: string) => {
+      ipcRenderer.removeAllListeners(`pty:data:${id}`)
+      ipcRenderer.removeAllListeners(`pty:exit:${id}`)
+    },
   },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { useStore, OpenFile } from '@/store'
+import { useSettings } from '@/store/settings'
 import {
   FileCode, FileText, Braces, Hash, Globe,
   Settings, File, X, Plus, Ghost, Image, Film,
@@ -118,6 +119,7 @@ function VideoViewer({ file }: { file: OpenFile }) {
 
 export default function EditorPane({ leafId }: { leafId?: string }) {
   const { openFiles, activeFilePath, updateFileContent, markFileDirty, newUntitledFile } = useStore()
+  const settings = useSettings()
   const activeFile = openFiles.find(f => f.path === activeFilePath)
 
   const handleSave = async () => {
@@ -157,19 +159,20 @@ export default function EditorPane({ leafId }: { leafId?: string }) {
                 beforeMount={registerGhostTheme}
                 onChange={v => { if (!activeFilePath || v === undefined) return; updateFileContent(activeFilePath, v); markFileDirty(activeFilePath, true) }}
                 options={{
-                  fontSize: 14,
-                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
-                  fontLigatures: true,
-                  minimap: { enabled: false },
+                  fontSize: settings.editorFontSize,
+                  fontFamily: settings.editorFontFamily,
+                  fontLigatures: settings.editorLigatures,
+                  tabSize: settings.editorTabSize,
+                  minimap: { enabled: settings.editorMinimap },
                   scrollBeyondLastLine: false,
-                  lineNumbers: 'on',
+                  lineNumbers: settings.editorLineNumbers,
                   renderLineHighlight: 'gutter',
-                  bracketPairColorization: { enabled: true },
+                  bracketPairColorization: { enabled: settings.editorBracketColors },
                   padding: { top: 10 },
-                  smoothScrolling: true,
+                  smoothScrolling: settings.editorSmoothScrolling,
                   cursorBlinking: 'smooth',
-                  cursorSmoothCaretAnimation: 'on',
-                  wordWrap: 'on',
+                  cursorSmoothCaretAnimation: settings.editorSmoothCaret ? 'on' : 'off',
+                  wordWrap: settings.editorWordWrap,
                 }}
               />
             </React.Suspense>
