@@ -33,6 +33,17 @@ contextBridge.exposeInMainWorld('electron', {
   dialog: {
     openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   },
+  db: {
+    index:   (workspacePath: string) => ipcRenderer.invoke('db:index', workspacePath),
+    query:   (q: unknown)            => ipcRenderer.invoke('db:query', q),
+    get:     (filePath: string)      => ipcRenderer.invoke('db:get', filePath),
+    stats:   ()                      => ipcRenderer.invoke('db:stats'),
+    onChange: (cb: (stats: unknown) => void) => {
+      ipcRenderer.removeAllListeners('db:changed')
+      ipcRenderer.on('db:changed', (_e, stats) => cb(stats))
+    },
+    offChange: () => ipcRenderer.removeAllListeners('db:changed'),
+  },
   git: {
     log: (cwd: string, count?: number) => ipcRenderer.invoke('git:log', cwd, count),
     diffSummary: (cwd: string) => ipcRenderer.invoke('git:diffSummary', cwd),

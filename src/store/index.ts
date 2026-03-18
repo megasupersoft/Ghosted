@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { DBStats } from '@/types/electron'
 import {
   LayoutNode, LeafNode, PaneId, DEFAULT_LAYOUT, DropZone,
   splitLeaf as splitLeafFn,
@@ -46,6 +47,12 @@ interface GhostedState {
   markFileDirty: (path: string, dirty: boolean) => void
   githubToken: string | null
   setGithubToken: (t: string) => void
+
+  // GhostedDB
+  dbStats: DBStats | null
+  dbReady: boolean
+  setDbStats: (s: DBStats) => void
+  setDbReady: (r: boolean) => void
 
   // Sidebar
   activeSidebar: string | null
@@ -109,6 +116,12 @@ export const useStore = create<GhostedState>((set, get) => ({
   markFileDirty: (path, dirty) => set({ openFiles: get().openFiles.map(f => f.path === path ? { ...f, isDirty: dirty } : f) }),
   githubToken: null,
   setGithubToken: (t) => set({ githubToken: t }),
+
+  // GhostedDB
+  dbStats: null,
+  dbReady: false,
+  setDbStats: (s) => set({ dbStats: s }),
+  setDbReady: (r) => set({ dbReady: r }),
 
   // Sidebar
   activeSidebar: 'explorer',

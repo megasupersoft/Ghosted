@@ -44,6 +44,7 @@
     "@xyflow/react": "^12.0.0",
     "chokidar": "^3.5.0",
     "force-graph": "^1.51.2",
+    "gray-matter": "^4.0.3",
     "lucide-react": "^0.577.0",
     "node-pty": "^1.0.0",
     "react": "^18.0.0",
