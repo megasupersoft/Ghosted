@@ -321,12 +321,12 @@ export default function SourceControlPane() {
     if (staged.length === 0 && (changed.length > 0 || untracked.length > 0)) {
       await window.electron.git.stageAll(workspacePath)
     }
-    const ok = await window.electron.git.commit(workspacePath, commitMsg.trim())
-    if (ok) {
+    const result = await window.electron.git.commit(workspacePath, commitMsg.trim())
+    if (result.ok) {
       useStore.getState().addStatus('info', `Committed: ${commitMsg.trim()}`)
       setCommitMsg('')
     } else {
-      useStore.getState().addStatus('error', 'Commit failed')
+      useStore.getState().addStatus('error', `Commit failed: ${result.error ?? 'unknown error'}`)
     }
     refresh()
   }

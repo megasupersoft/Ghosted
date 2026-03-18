@@ -198,11 +198,13 @@ ipcMain.handle('git:unstage', async (_e, cwd: string, filePath: string) => {
 })
 
 ipcMain.handle('git:stageAll', async (_e, cwd: string) => {
-  try { git(cwd, ['add', '-A']); return true } catch { return false }
+  try { git(cwd, ['add', '-A']); return { ok: true } }
+  catch (err: any) { return { ok: false, error: err.stderr || err.message } }
 })
 
 ipcMain.handle('git:commit', async (_e, cwd: string, message: string) => {
-  try { git(cwd, ['commit', '-m', message]); return true } catch (err: any) { return false }
+  try { git(cwd, ['commit', '-m', message]); return { ok: true } }
+  catch (err: any) { return { ok: false, error: err.stderr || err.message } }
 })
 
 ipcMain.handle('git:push', async (_e, cwd: string) => {

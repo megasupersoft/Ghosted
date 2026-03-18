@@ -31,7 +31,7 @@ declare global {
         stage: (cwd: string, path: string) => Promise<boolean>
         unstage: (cwd: string, path: string) => Promise<boolean>
         stageAll: (cwd: string) => Promise<boolean>
-        commit: (cwd: string, message: string) => Promise<boolean>
+        commit: (cwd: string, message: string) => Promise<{ ok: boolean; error?: string }>
         push: (cwd: string) => Promise<{ ok: boolean; error?: string }>
         pull: (cwd: string) => Promise<{ ok: boolean; error?: string }>
         discard: (cwd: string, path: string) => Promise<boolean>
