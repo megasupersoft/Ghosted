@@ -1,6 +1,6 @@
 ---
 project: Ghosted
-updated: 2026-03-18
+updated: 2026-03-19
 ---
 
 # Ghosted Progress
@@ -22,6 +22,10 @@ v0.1.0 — All six panes scaffolded and rendering. Core IPC (fs + PTY) working.
 - [x] Always-mounted pane pattern (CSS hide/show, no unmount)
 - [x] Folder picker via dialog:openFolder IPC
 - [x] PTY shell with resize support
+- [x] GhostedDB — in-memory markdown index (chokidar watch, gray-matter, [[wikilink]] extraction)
+- [x] useGhostDB hook — auto-indexes workspace, live updates via db:changed
+- [x] Canvas pane — context nodes query GhostedDB, workflow runner pipes through topo-sorted nodes
+- [x] TypeScript 5.9.3 devDependency fixed, native modules externalized in Vite electron build
 
 ## In Flight
 - [ ] Canvas JSON export/import

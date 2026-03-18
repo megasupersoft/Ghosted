@@ -13,7 +13,7 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['node-pty'],
+              external: ['node-pty', 'chokidar', 'gray-matter', 'fsevents'],
             },
           },
         },
