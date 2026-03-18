@@ -189,6 +189,14 @@ ipcMain.handle('git:remote', async (_e, cwd: string) => {
   } catch { return null }
 })
 
+ipcMain.handle('git:aheadBehind', async (_e, cwd: string) => {
+  try {
+    const raw = git(cwd, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'])
+    const [ahead, behind] = raw.split(/\s+/).map(Number)
+    return { ahead: ahead || 0, behind: behind || 0 }
+  } catch { return { ahead: 0, behind: 0 } }
+})
+
 ipcMain.handle('git:stage', async (_e, cwd: string, filePath: string) => {
   try { git(cwd, ['add', '--', filePath]); return true } catch { return false }
 })

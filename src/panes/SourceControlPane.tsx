@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useStore } from '@/store'
 import {
-  GitBranch, GitCommitHorizontal, Plus, Minus, Undo2, Check,
+  GitBranch, GitCommitHorizontal, Undo2, Check,
   ChevronDown, ChevronRight, FileCode, FileText,
-  File, RefreshCw, Sparkles, ArrowUp, ArrowDown,
+  File, RefreshCw, Sparkles, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react'
 
 interface GitFile {
@@ -59,26 +59,9 @@ function SmallFileIcon({ name }: { name: string }) {
   return <File size={sz} color="var(--text-muted)" style={{ flexShrink: 0 }} />
 }
 
-function FileGroup({
-  label, files, cwd, onRefresh, actions,
-}: {
-  label: string
-  files: { file: GitFile; category: FileCategory }[]
-  cwd: string
-  onRefresh: () => void
-  actions: 'stage' | 'unstage'
-}) {
+function ChangesList({ files, cwd, onRefresh }: { files: GitFile[]; cwd: string; onRefresh: () => void }) {
   const [open, setOpen] = useState(true)
   if (files.length === 0) return null
-
-  const handleAction = async (filePath: string) => {
-    if (actions === 'stage') {
-      await window.electron.git.stage(cwd, filePath)
-    } else {
-      await window.electron.git.unstage(cwd, filePath)
-    }
-    onRefresh()
-  }
 
   const handleDiscard = async (filePath: string) => {
     await window.electron.git.discard(cwd, filePath)
@@ -89,12 +72,13 @@ function FileGroup({
     <div>
       <div onClick={() => setOpen(o => !o)} className="scm-group-header">
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <span className="scm-group-label">{label}</span>
+        <span className="scm-group-label">Changes</span>
         <span className="scm-group-count">{files.length}</span>
       </div>
-      {open && files.map(({ file, category }) => {
+      {open && files.map(file => {
         const name = file.path.split('/').pop() ?? file.path
-        const sl = statusLabel(file.x, file.y, category)
+        const cat = categorize(file)
+        const sl = statusLabel(file.x, file.y, cat)
         return (
           <div key={file.path} className="scm-file-row">
             <SmallFileIcon name={name} />
@@ -103,14 +87,11 @@ function FileGroup({
               {file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : ''}
             </span>
             <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
-              {actions === 'stage' && category === 'changed' && (
+              {cat === 'changed' && (
                 <button className="scm-file-action" title="Discard changes" onClick={() => handleDiscard(file.path)}>
                   <Undo2 size={13} />
                 </button>
               )}
-              <button className="scm-file-action" title={actions === 'stage' ? 'Stage' : 'Unstage'} onClick={() => handleAction(file.path)}>
-                {actions === 'stage' ? <Plus size={13} /> : <Minus size={13} />}
-              </button>
               <span className="scm-file-status" style={{ color: statusColor(sl) }}>{sl}</span>
             </span>
           </div>
@@ -126,7 +107,7 @@ function FileGroup({
 const LANE_COLORS = ['#a99cff', '#86efac', '#a5f3fc', '#fcd34d', '#d8b4fe', '#fca5a5']
 const ROW_H = 28
 const LANE_W = 16
-const DOT_R = 5
+const DOT_R = 3
 
 function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentBranch: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -141,23 +122,12 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const dpr = window.devicePixelRatio || 1
-    const graphCols = Math.min(6, Math.max(1, ...Array.from(lanes.current.values())) + 1)
-    const w = graphCols * LANE_W + 8
-    canvas.width = w * dpr
-    canvas.height = commits.length * ROW_H * dpr
-    canvas.style.width = `${w}px`
-    canvas.style.height = `${commits.length * ROW_H}px`
-    ctx.scale(dpr, dpr)
-    ctx.clearRect(0, 0, w, commits.length * ROW_H)
-
-    // Build lane assignments
+    // Build lane assignments FIRST
     const laneMap = new Map<string, number>()
     const activeLanes: (string | null)[] = []
 
     const getLane = (hash: string): number => {
       if (laneMap.has(hash)) return laneMap.get(hash)!
-      // Find first free lane
       let lane = activeLanes.indexOf(null)
       if (lane === -1) { lane = activeLanes.length; activeLanes.push(null) }
       activeLanes[lane] = hash
@@ -167,15 +137,11 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
 
     for (const commit of commits) {
       const lane = getLane(commit.hash)
-      // Free this lane for children
       if (activeLanes[lane] === commit.hash) activeLanes[lane] = null
-
-      // Reserve lanes for parents
       for (let i = 0; i < commit.parents.length; i++) {
         const p = commit.parents[i]
         if (!laneMap.has(p)) {
           if (i === 0) {
-            // First parent takes the same lane
             activeLanes[lane] = p
             laneMap.set(p, lane)
           } else {
@@ -186,6 +152,18 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
     }
 
     lanes.current = laneMap
+
+    // Size canvas based on actual lane count
+    const dpr = window.devicePixelRatio || 1
+    const maxLane = laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) : 0
+    const graphCols = Math.min(6, maxLane + 1)
+    const w = graphCols * LANE_W + 8
+    canvas.width = w * dpr
+    canvas.height = commits.length * ROW_H * dpr
+    canvas.style.width = `${w}px`
+    canvas.style.height = `${commits.length * ROW_H}px`
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, w, commits.length * ROW_H)
 
     // Draw
     for (let i = 0; i < commits.length; i++) {
@@ -206,8 +184,8 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
 
         ctx.beginPath()
         ctx.strokeStyle = pColor
-        ctx.lineWidth = 2
-        ctx.globalAlpha = 0.8
+        ctx.lineWidth = 1
+        ctx.globalAlpha = 0.7
         if (lane === parentLane) {
           ctx.moveTo(x, y)
           ctx.lineTo(px, py)
@@ -229,7 +207,7 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
       if (commit.refs?.includes('HEAD')) {
         ctx.beginPath()
         ctx.strokeStyle = color
-        ctx.lineWidth = 1.5
+        ctx.lineWidth = 1
         ctx.arc(x, y, DOT_R + 2, 0, Math.PI * 2)
         ctx.stroke()
       }
@@ -246,19 +224,17 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
         <span className="scm-group-count">{commits.length}</span>
       </div>
       {open && (
-        <div style={{ overflow: 'auto' }}>
+        <div style={{ position: 'relative' }}>
+          <canvas
+            ref={canvasRef}
+            style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
+          />
           {commits.map((c, i) => {
-            const lane = lanes.current.get(c.hash) ?? 0
-            const graphW = (Math.min(6, Math.max(1, ...Array.from(lanes.current.values())) + 1)) * LANE_W + 8
+            const maxLane = lanes.current.size > 0 ? Math.max(...Array.from(lanes.current.values())) : 0
+            const graphW = Math.min(6, maxLane + 1) * LANE_W + 8
             const refs = c.refs ? c.refs.split(',').map(r => r.trim()).filter(Boolean) : []
             return (
-              <div key={c.hash} className="scm-graph-row" style={{ height: ROW_H }}>
-                {i === 0 && (
-                  <canvas
-                    ref={canvasRef}
-                    style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
-                  />
-                )}
+              <div key={c.hash} className="scm-graph-row" style={{ height: ROW_H, position: 'relative', zIndex: 1 }}>
                 <div style={{ width: graphW, flexShrink: 0 }} />
                 <div className="scm-graph-info">
                   {refs.length > 0 && refs.map(r => (
@@ -289,18 +265,24 @@ export default function SourceControlPane() {
   const [commitMsg, setCommitMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [ahead, setAhead] = useState(0)
+  const [behind, setBehind] = useState(0)
 
   const refresh = useCallback(async () => {
     if (!workspacePath) return
     setLoading(true)
-    const [status, br, log] = await Promise.all([
+    const [status, br, log, ab] = await Promise.all([
       window.electron.git.status(workspacePath),
       window.electron.git.branch(workspacePath),
       window.electron.git.log(workspacePath, 50),
+      window.electron.git.aheadBehind(workspacePath),
     ])
     setFiles(status)
     setBranch(br)
     setCommits(log)
+    setAhead(ab.ahead)
+    setBehind(ab.behind)
     setLoading(false)
   }, [workspacePath])
 
@@ -312,9 +294,6 @@ export default function SourceControlPane() {
     return () => clearInterval(id)
   }, [workspacePath, refresh])
 
-  const staged = files.filter(f => categorize(f) === 'staged').map(f => ({ file: f, category: 'staged' as FileCategory }))
-  const changed = files.filter(f => categorize(f) === 'changed').map(f => ({ file: f, category: 'changed' as FileCategory }))
-  const untracked = files.filter(f => categorize(f) === 'untracked').map(f => ({ file: f, category: 'untracked' as FileCategory }))
 
   const handleCommit = async () => {
     if (!workspacePath || !commitMsg.trim()) return
@@ -327,6 +306,30 @@ export default function SourceControlPane() {
     } else {
       useStore.getState().addStatus('error', `Commit failed: ${result.error ?? 'unknown error'}`)
     }
+    refresh()
+  }
+
+  const handleSync = async () => {
+    if (!workspacePath || syncing) return
+    setSyncing(true)
+    useStore.getState().addStatus('info', 'Syncing...')
+    // Pull first, then push
+    if (behind > 0) {
+      const pullResult = await window.electron.git.pull(workspacePath)
+      if (!pullResult.ok) {
+        useStore.getState().addStatus('error', `Pull failed: ${pullResult.error}`)
+        setSyncing(false)
+        refresh()
+        return
+      }
+    }
+    const pushResult = await window.electron.git.push(workspacePath)
+    if (pushResult.ok) {
+      useStore.getState().addStatus('info', 'Synced successfully')
+    } else {
+      useStore.getState().addStatus('error', `Push failed: ${pushResult.error}`)
+    }
+    setSyncing(false)
     refresh()
   }
 
@@ -424,7 +427,7 @@ export default function SourceControlPane() {
     )
   }
 
-  const totalChanges = changed.length + untracked.length + staged.length
+  const totalChanges = files.length
 
   return (
     <div className="scm-panel">
@@ -469,7 +472,7 @@ export default function SourceControlPane() {
           <button
             onClick={handleCommit}
             disabled={!commitMsg.trim() || totalChanges === 0}
-            title={staged.length === 0 ? 'Stage all & commit' : 'Commit staged'}
+            title="Commit all changes"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 28, borderRadius: 'var(--radius-sm)',
@@ -481,13 +484,29 @@ export default function SourceControlPane() {
             <Check size={14} />
           </button>
         </div>
+        {(ahead > 0 || behind > 0) && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              width: '100%', marginTop: 6, padding: '5px 0',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent)', color: '#fff',
+              fontSize: 12, opacity: syncing ? 0.6 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            <ArrowUpDown size={13} />
+            {syncing ? 'Syncing...' : `Sync Changes ${ahead > 0 ? `${ahead}\u2191` : ''}${behind > 0 ? `${behind}\u2193` : ''}`}
+          </button>
+        )}
       </div>
 
       {/* File lists + graph */}
       <div className="scm-file-list">
-        <FileGroup label="Staged Changes" files={staged} cwd={workspacePath} onRefresh={refresh} actions="unstage" />
-        <FileGroup label="Changes" files={[...changed, ...untracked]} cwd={workspacePath} onRefresh={refresh} actions="stage" />
-        {totalChanges === 0 && !loading && commits.length === 0 && (
+        <ChangesList files={files} cwd={workspacePath} onRefresh={refresh} />
+        {files.length === 0 && !loading && commits.length === 0 && (
           <div style={{ padding: '20px 12px', color: 'var(--text-ghost)', fontSize: 13, textAlign: 'center' }}>
             No changes detected.
           </div>

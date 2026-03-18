@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electron', {
     unstage: (cwd: string, path: string) => ipcRenderer.invoke('git:unstage', cwd, path),
     stageAll: (cwd: string) => ipcRenderer.invoke('git:stageAll', cwd),
     commit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+    aheadBehind: (cwd: string) => ipcRenderer.invoke('git:aheadBehind', cwd),
     push: (cwd: string) => ipcRenderer.invoke('git:push', cwd),
     pull: (cwd: string) => ipcRenderer.invoke('git:pull', cwd),
     discard: (cwd: string, path: string) => ipcRenderer.invoke('git:discard', cwd, path),
