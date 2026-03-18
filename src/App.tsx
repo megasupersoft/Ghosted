@@ -13,18 +13,12 @@ const hDivider: React.CSSProperties = {
   height: 1, background: 'var(--border)', cursor: 'row-resize', flexShrink: 0,
 }
 
+const hidden: React.CSSProperties = {
+  position: 'absolute', width: 0, height: 0, overflow: 'hidden', pointerEvents: 'none', opacity: 0,
+}
+
 export default function App() {
   const { activePane } = useStore()
-
-  const rightPane = () => {
-    switch (activePane) {
-      case 'terminal': return <TerminalPane />
-      case 'graph':    return <GraphPane />
-      case 'canvas':   return <CanvasPane />
-      case 'kanban':   return <KanbanPane />
-      default:         return null
-    }
-  }
 
   const isEditor = activePane === 'editor'
 
@@ -33,9 +27,10 @@ export default function App() {
       <Titlebar />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <FileTree />
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {isEditor ? (
-            <PanelGroup direction="vertical" style={{ flex: 1 }}>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          {/* Editor + Terminal split — always mounted */}
+          <div style={isEditor ? { flex: 1, display: 'flex', flexDirection: 'column' } : hidden}>
+            <PanelGroup direction="vertical" style={{ flex: 1 }} autoSaveId="ghosted-editor-terminal">
               <Panel defaultSize={65} minSize={25}>
                 <EditorPane />
               </Panel>
@@ -44,9 +39,21 @@ export default function App() {
                 <TerminalPane />
               </Panel>
             </PanelGroup>
-          ) : (
-            <div style={{ flex: 1, overflow: 'hidden' }}>{rightPane()}</div>
-          )}
+          </div>
+
+          {/* Standalone panes — always mounted, shown/hidden */}
+          <div style={activePane === 'terminal' ? { flex: 1, overflow: 'hidden' } : hidden}>
+            <TerminalPane />
+          </div>
+          <div style={activePane === 'graph' ? { flex: 1, overflow: 'hidden' } : hidden}>
+            <GraphPane />
+          </div>
+          <div style={activePane === 'canvas' ? { flex: 1, overflow: 'hidden' } : hidden}>
+            <CanvasPane />
+          </div>
+          <div style={activePane === 'kanban' ? { flex: 1, overflow: 'hidden' } : hidden}>
+            <KanbanPane />
+          </div>
         </div>
       </div>
     </div>

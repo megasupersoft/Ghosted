@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
@@ -44,6 +44,15 @@ ipcMain.handle('fs:writefile', async (_e, filePath: string, content: string) => 
 })
 ipcMain.handle('fs:homedir', () => os.homedir())
 ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
+ipcMain.handle('dialog:openFolder', async () => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (!win) return null
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openDirectory'],
+    title: 'Open Workspace',
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
 
 // ── Terminal IPC (node-pty) ──
 let pty: typeof import('node-pty') | null = null

@@ -18,4 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
   },
+  dialog: {
+    openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  },
 })

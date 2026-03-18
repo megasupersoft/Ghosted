@@ -20,6 +20,9 @@ declare global {
       shell: {
         openExternal: (url: string) => Promise<void>
       }
+      dialog: {
+        openFolder: () => Promise<string | null>
+      }
     }
   }
 }

@@ -67,9 +67,10 @@ export default function FileTree() {
   }, [])
 
   const openWorkspace = async () => {
-    const home = await window.electron.fs.homedir()
-    setWorkspacePath(home)
-    loadDir(home)
+    const chosen = await window.electron.dialog.openFolder()
+    if (!chosen) return
+    setWorkspacePath(chosen)
+    loadDir(chosen)
   }
 
   useEffect(() => { if (workspacePath) loadDir(workspacePath) }, [workspacePath, loadDir])

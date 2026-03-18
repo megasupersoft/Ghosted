@@ -2,6 +2,28 @@ import { create } from 'zustand'
 
 export type PaneId = 'editor' | 'terminal' | 'graph' | 'canvas' | 'kanban'
 
+const DEFAULT_PANE_ORDER: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban']
+
+function loadPaneOrder(): PaneId[] {
+  try {
+    const saved = localStorage.getItem('ghosted:paneOrder')
+    if (saved) {
+      const parsed = JSON.parse(saved) as PaneId[]
+      // Validate: must contain all 5 pane IDs
+      if (parsed.length === 5 && DEFAULT_PANE_ORDER.every(id => parsed.includes(id))) return parsed
+    }
+  } catch {}
+  return DEFAULT_PANE_ORDER
+}
+
+function loadActivePane(): PaneId {
+  try {
+    const saved = localStorage.getItem('ghosted:activePane')
+    if (saved && DEFAULT_PANE_ORDER.includes(saved as PaneId)) return saved as PaneId
+  } catch {}
+  return 'editor'
+}
+
 export interface OpenFile {
   path: string; name: string; content: string; isDirty: boolean
 }
@@ -18,6 +40,8 @@ interface GhostedState {
   markFileDirty: (path: string, dirty: boolean) => void
   activePane: PaneId
   setActivePane: (p: PaneId) => void
+  paneOrder: PaneId[]
+  setPaneOrder: (order: PaneId[]) => void
   githubToken: string | null
   setGithubToken: (t: string) => void
 }
@@ -40,8 +64,10 @@ export const useStore = create<GhostedState>((set, get) => ({
   setActiveFile: (path) => set({ activeFilePath: path }),
   updateFileContent: (path, content) => set({ openFiles: get().openFiles.map(f => f.path === path ? { ...f, content } : f) }),
   markFileDirty: (path, dirty) => set({ openFiles: get().openFiles.map(f => f.path === path ? { ...f, isDirty: dirty } : f) }),
-  activePane: 'editor',
-  setActivePane: (p) => set({ activePane: p }),
+  activePane: loadActivePane(),
+  setActivePane: (p) => { localStorage.setItem('ghosted:activePane', p); set({ activePane: p }) },
+  paneOrder: loadPaneOrder(),
+  setPaneOrder: (order) => { localStorage.setItem('ghosted:paneOrder', JSON.stringify(order)); set({ paneOrder: order }) },
   githubToken: null,
   setGithubToken: (t) => set({ githubToken: t }),
 }))
