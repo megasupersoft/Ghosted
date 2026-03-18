@@ -47,7 +47,7 @@ const INITIAL_EDGES: Edge[] = [
 
 let idCounter = 10
 
-export default function CanvasPane() {
+export default function CanvasPane({ leafId }: { leafId?: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES)
   const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_EDGES)
 
@@ -67,15 +67,12 @@ export default function CanvasPane() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '0 12px', height: 36, display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--bg-surface)' }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Agent canvas</span>
-      </div>
       <div style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
           onConnect={onConnect} fitView
-          style={{ background: '#07070d' }}
+          style={{ background: '#0e0e16' }}
         >
           <Background color="#1a1a2e" variant={BackgroundVariant.Dots} gap={24} size={1} />
           <MiniMap style={{ background: '#0e0e16' }} nodeColor={n => (n.style?.borderColor as string) ?? '#333'} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useStore } from '@/store'
 import ForceGraph2D from 'force-graph'
+import { RefreshCw, Ghost } from 'lucide-react'
 
 interface GNode { id: string; label: string }
 interface GEdge { id: string; source: string; target: string }
@@ -10,6 +11,7 @@ async function buildGraph(dirPath: string): Promise<{ nodes: GNode[]; edges: GEd
   const edges: GEdge[] = []
   const seen = new Set<string>()
   const labelToId = new Map<string, string>()
+  const pathToId = new Map<string, string>()
   let edgeId = 0
 
   const scan = async (p: string, depth = 0) => {
@@ -17,28 +19,65 @@ async function buildGraph(dirPath: string): Promise<{ nodes: GNode[]; edges: GEd
     try {
       const entries = await window.electron.fs.readdir(p)
       for (const e of entries) {
-        if (e.name.startsWith('.') || e.name === 'node_modules') continue
+        if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist' || e.name === 'build') continue
         if (e.isDirectory) { await scan(e.path, depth + 1); continue }
-        if (!e.name.match(/\.(md|txt|ts|tsx|js|jsx|py)$/)) continue
+        if (!e.name.match(/\.(md|txt|ts|tsx|js|jsx|py|rs|go)$/)) continue
         if (!seen.has(e.path)) {
           const label = e.name.replace(/\.(md|txt)$/, '')
           nodes.push({ id: e.path, label })
           seen.add(e.path)
           labelToId.set(label.toLowerCase(), e.path)
+          // Map relative path variations for import resolution
+          const relPath = e.path.replace(dirPath + '/', '')
+          pathToId.set(relPath, e.path)
+          // Without extension
+          pathToId.set(relPath.replace(/\.[^.]+$/, ''), e.path)
         }
       }
     } catch {}
   }
   await scan(dirPath)
 
+  const addEdge = (source: string, target: string) => {
+    if (source !== target) edges.push({ id: `e${edgeId++}`, source, target })
+  }
+
   for (const node of nodes) {
-    if (!node.id.endsWith('.md') && !node.id.endsWith('.txt')) continue
     try {
       const content = await window.electron.fs.readfile(node.id)
-      const links = Array.from(content.matchAll(/\[\[([^\]]+)\]\]/g), m => m[1])
-      for (const link of links) {
-        const targetId = labelToId.get(link.toLowerCase())
-        if (targetId) edges.push({ id: `e${edgeId++}`, source: node.id, target: targetId })
+
+      // [[wikilinks]] in markdown/txt
+      if (node.id.endsWith('.md') || node.id.endsWith('.txt')) {
+        const links = Array.from(content.matchAll(/\[\[([^\]]+)\]\]/g), m => m[1])
+        for (const link of links) {
+          const targetId = labelToId.get(link.toLowerCase())
+          if (targetId) addEdge(node.id, targetId)
+        }
+      }
+
+      // import/require in code files
+      if (node.id.match(/\.(ts|tsx|js|jsx)$/)) {
+        // import ... from './path' or import './path'
+        const imports = Array.from(content.matchAll(/(?:import|require)\s*\(?[^'"]*['"]([^'"]+)['"]/g), m => m[1])
+        for (const imp of imports) {
+          if (!imp.startsWith('.')) continue // skip node_modules
+          // Resolve relative to the file's directory
+          const fileDir = node.id.substring(0, node.id.lastIndexOf('/'))
+          const resolved = resolvePath(fileDir, imp).replace(dirPath + '/', '')
+          // Try with and without extensions
+          const targetId = pathToId.get(resolved)
+            ?? pathToId.get(resolved + '/index')
+          if (targetId) addEdge(node.id, targetId)
+        }
+      }
+
+      // import in python
+      if (node.id.endsWith('.py')) {
+        const imports = Array.from(content.matchAll(/from\s+['".]([^'"]+)['"]\s+import|import\s+(\w+)/g), m => m[1] || m[2])
+        for (const imp of imports) {
+          const targetId = labelToId.get(imp.toLowerCase()) ?? labelToId.get(imp.toLowerCase() + '.py')
+          if (targetId) addEdge(node.id, targetId)
+        }
       }
     } catch {}
   }
@@ -46,16 +85,23 @@ async function buildGraph(dirPath: string): Promise<{ nodes: GNode[]; edges: GEd
   return { nodes, edges }
 }
 
-export default function GraphPane() {
+function resolvePath(base: string, rel: string): string {
+  const parts = base.split('/')
+  for (const seg of rel.split('/')) {
+    if (seg === '..') parts.pop()
+    else if (seg !== '.') parts.push(seg)
+  }
+  return parts.join('/')
+}
+
+export default function GraphPane({ leafId }: { leafId?: string }) {
   const { workspacePath } = useStore()
-  const [nodeCount, setNodeCount] = useState(0)
-  const [edgeCount, setEdgeCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const graphElRef = useRef<HTMLDivElement | null>(null)
-  const graphRef = useRef<ReturnType<typeof ForceGraph2D> | null>(null)
+  const graphRef = useRef<any>(null)
 
-  // Create a dedicated DOM element for force-graph (outside React's control)
+  // Create a dedicated DOM element for force-graph
   useEffect(() => {
     if (!wrapperRef.current) return
     const el = document.createElement('div')
@@ -73,11 +119,8 @@ export default function GraphPane() {
     if (!workspacePath || !graphElRef.current) return
     setLoading(true)
     const { nodes, edges } = await buildGraph(workspacePath)
-    setNodeCount(nodes.length)
-    setEdgeCount(edges.length)
 
     if (graphRef.current) { graphRef.current._destructor(); graphRef.current = null }
-    // Clear any leftover DOM from previous graph instance
     if (graphElRef.current) graphElRef.current.innerHTML = ''
 
     if (nodes.length === 0) { setLoading(false); return }
@@ -88,7 +131,7 @@ export default function GraphPane() {
       .graphData({ nodes: nodes as any[], links: edges.map(e => ({ source: e.source, target: e.target })) })
       .width(width)
       .height(height)
-      .backgroundColor('#09090e')
+      .backgroundColor('#0e0e16')
       .nodeColor(() => '#8b7cf8')
       .nodeRelSize(4)
       .nodeLabel((n: any) => n.label)
@@ -102,8 +145,11 @@ export default function GraphPane() {
         ctx.textBaseline = 'top'
         ctx.fillText(label, node.x, node.y + 5)
       })
-      .linkColor(() => '#1e1e2e')
-      .linkWidth(1)
+      .linkColor(() => 'rgba(139, 124, 248, 0.3)')
+      .linkWidth(1.5)
+      .linkDirectionalParticles(1)
+      .linkDirectionalParticleWidth(2)
+      .linkDirectionalParticleColor(() => '#8b7cf8')
       .warmupTicks(50)
       .cooldownTime(3000)
 
@@ -113,37 +159,35 @@ export default function GraphPane() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  // Handle resize
+  // Debounced resize
   useEffect(() => {
     const el = wrapperRef.current
     if (!el) return
+    let timer: ReturnType<typeof setTimeout>
     const ro = new ResizeObserver(() => {
-      if (graphRef.current && graphElRef.current) {
-        const { width, height } = graphElRef.current.getBoundingClientRect()
-        graphRef.current.width(width).height(height)
-      }
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (graphRef.current && graphElRef.current) {
+          const { width, height } = graphElRef.current.getBoundingClientRect()
+          graphRef.current.width(width).height(height)
+        }
+      }, 100)
     })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => { clearTimeout(timer); ro.disconnect() }
   }, [])
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)' }}>
-      <div style={{ padding: '0 12px', height: 36, display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', flexShrink: 0, gap: 8 }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Knowledge graph</span>
-        <span style={{ flex: 1 }} />
-        <button onClick={refresh} style={{ fontSize: 11, color: 'var(--accent)', padding: '2px 8px', borderRadius: 3, border: '1px solid var(--accent-dim)' }}>Refresh</button>
-      </div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
       <div ref={wrapperRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {/* Overlays rendered above the force-graph canvas */}
-        {loading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)', zIndex: 10, pointerEvents: 'none' }}>scanning workspace...</div>}
+        {loading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13, fontFamily: 'var(--font-mono)', zIndex: 10, pointerEvents: 'none' }}>scanning workspace...</div>}
         {!workspacePath && <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-ghost)', gap: 8, zIndex: 10, pointerEvents: 'none' }}>
-          <span style={{ fontSize: 32, opacity: 0.15 }}>👻</span>
-          <span style={{ fontSize: 11 }}>open a workspace to see the graph</span>
+          <Ghost size={32} color="var(--accent)" style={{ opacity: 0.15 }} />
+          <span style={{ fontSize: 13 }}>open a workspace to see the graph</span>
         </div>}
-      </div>
-      <div style={{ padding: '5px 12px', borderTop: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-mono)', display: 'flex', gap: 12 }}>
-        <span>{nodeCount} nodes</span><span>{edgeCount} edges</span>
+        <button onClick={refresh} style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--accent)', padding: '3px 8px', borderRadius: 4, background: 'var(--bg-elevated)', border: '1px solid var(--accent-dim)' }}>
+          <RefreshCw size={11} /> Refresh
+        </button>
       </div>
     </div>
   )

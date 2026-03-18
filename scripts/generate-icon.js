@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+// Generates a 512x512 PNG app icon from the ghost SVG using Electron's nativeImage.
+// Run: node scripts/generate-icon.js
+// Or use the pre-built SVG directly — Electron 29+ supports SVG icons on most platforms.
+
+const fs = require('fs')
+const path = require('path')
+
+// Create a 512x512 SVG with a dark background and the ghost icon centered
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#09090e"/>
+  <g transform="translate(96, 76) scale(13.3)">
+    <path d="M9 10h.01" stroke="#8b7cf8" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M15 10h.01" stroke="#8b7cf8" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" stroke="#8b7cf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="#8b7cf820"/>
+  </g>
+</svg>`
+
+const outDir = path.join(__dirname, '..', 'build')
+fs.mkdirSync(outDir, { recursive: true })
+fs.writeFileSync(path.join(outDir, 'icon.svg'), svg)
+console.log('wrote build/icon.svg (use electron to convert to PNG if needed)')
+
+// Also copy to public for web favicon
+const publicDir = path.join(__dirname, '..', 'public')
+fs.mkdirSync(publicDir, { recursive: true })

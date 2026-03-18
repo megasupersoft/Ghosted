@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electron', {
     homedir: () => ipcRenderer.invoke('fs:homedir'),
   },
   pty: {
-    create: (id: string, cwd: string) => ipcRenderer.invoke('pty:create', id, cwd),
+    create: (id: string, cwd: string, cols?: number, rows?: number) => ipcRenderer.invoke('pty:create', id, cwd, cols, rows),
     write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
@@ -20,5 +20,20 @@ contextBridge.exposeInMainWorld('electron', {
   },
   dialog: {
     openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  },
+  git: {
+    log: (cwd: string, count?: number) => ipcRenderer.invoke('git:log', cwd, count),
+    diffSummary: (cwd: string) => ipcRenderer.invoke('git:diffSummary', cwd),
+    status: (cwd: string) => ipcRenderer.invoke('git:status', cwd),
+    branch: (cwd: string) => ipcRenderer.invoke('git:branch', cwd),
+    stage: (cwd: string, path: string) => ipcRenderer.invoke('git:stage', cwd, path),
+    unstage: (cwd: string, path: string) => ipcRenderer.invoke('git:unstage', cwd, path),
+    stageAll: (cwd: string) => ipcRenderer.invoke('git:stageAll', cwd),
+    commit: (cwd: string, message: string) => ipcRenderer.invoke('git:commit', cwd, message),
+    push: (cwd: string) => ipcRenderer.invoke('git:push', cwd),
+    pull: (cwd: string) => ipcRenderer.invoke('git:pull', cwd),
+    discard: (cwd: string, path: string) => ipcRenderer.invoke('git:discard', cwd, path),
+    remote: (cwd: string) => ipcRenderer.invoke('git:remote', cwd),
+    gh: (cwd: string, args: string) => ipcRenderer.invoke('gh:run', cwd, args),
   },
 })

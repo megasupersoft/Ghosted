@@ -4,6 +4,7 @@
   "description": "Ghosted — the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
+    "postinstall": "bash scripts/setup-mac.sh",
     "dev": "vite",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "preview": "electron .",
@@ -43,6 +44,7 @@
     "@xyflow/react": "^12.0.0",
     "chokidar": "^3.5.0",
     "force-graph": "^1.51.2",
+    "lucide-react": "^0.577.0",
     "node-pty": "^1.0.0",
     "react": "^18.0.0",
     "react-arborist": "^3.4.0",
@@ -63,7 +65,8 @@
       "dist-electron/**/*"
     ],
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "build/icon.svg"
     },
     "linux": {
       "target": "AppImage"

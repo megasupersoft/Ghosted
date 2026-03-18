@@ -32,9 +32,9 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
-  --titlebar-h: 40px;
-  --sidebar-w:  242px;
-  --tab-h:      36px;
+  --titlebar-h: 42px;
+  --sidebar-w:  260px;
+  --tab-h:      32px;
 }
 
 html, body, #root {
@@ -42,11 +42,11 @@ html, body, #root {
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
@@ -64,7 +64,7 @@ input, textarea {
   background: var(--bg-elevated);
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-sm);
-  padding: 4px 8px; font-size: 12px; outline: none;
+  padding: 5px 9px; font-size: 13px; outline: none;
   transition: border-color 0.15s;
 }
 input:focus, textarea:focus {
@@ -77,3 +77,486 @@ input:focus, textarea:focus {
   50% { opacity: 1; }
 }
 .ghost-pulse { animation: ghost-pulse 3s ease-in-out infinite; }
+
+/* ===== Status bar (footer) ===== */
+.status-bar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--bg-base);
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  gap: 8px;
+}
+.status-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.status-bar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.status-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Activity bar (left icon ribbon) ===== */
+.activity-bar {
+  width: 48px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+}
+.activity-bar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+.activity-bar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.activity-bar-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  transition: color 0.1s, background 0.1s;
+  position: relative;
+}
+.activity-bar-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+.activity-bar-btn.active {
+  color: var(--text-primary);
+}
+.activity-bar-btn.active::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+/* ===== Split panel resize handles ===== */
+.ghost-resize-handle {
+  background: var(--bg-base);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.ghost-resize-handle:hover {
+  background: var(--accent-dim);
+}
+.ghost-resize-handle:active,
+.ghost-resize-handle[data-resize-handle-active] {
+  background: var(--accent);
+}
+.ghost-resize-handle[data-panel-group-direction="horizontal"] {
+  width: 3px;
+  cursor: col-resize;
+}
+.ghost-resize-handle[data-panel-group-direction="vertical"] {
+  height: 3px;
+  cursor: row-resize;
+}
+
+/* ===== Leaf view container ===== */
+.leaf-view {
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.leaf-focused {
+  border-color: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px var(--accent-glow);
+}
+
+/* ===== Leaf tab bar ===== */
+.leaf-tab-bar {
+  height: 34px;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px 4px 0;
+  background: var(--bg-base);
+  flex-shrink: 0;
+  gap: 2px;
+  cursor: grab;
+}
+.leaf-tab-bar:active {
+  cursor: grabbing;
+}
+.leaf-tab-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: color 0.1s, background 0.1s;
+  margin-bottom: 4px;
+}
+.leaf-tab-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+/* ===== Pane selector tab ===== */
+.leaf-pane-selector {
+  font-size: 13px;
+  color: var(--text-primary);
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-surface);
+  transition: color 0.1s, background 0.1s;
+}
+.leaf-pane-selector:hover {
+  color: var(--accent-bright);
+}
+
+/* ===== Pane dropdown menu ===== */
+.leaf-pane-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.leaf-pane-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.leaf-pane-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.leaf-pane-dropdown-item.active {
+  color: var(--accent-bright);
+  background: var(--accent-dim);
+}
+
+/* ===== Drag-and-drop zone overlay ===== */
+.drop-zone-overlay {
+  background: var(--accent);
+  opacity: 0.12;
+}
+
+/* ===== Editor tab bar — Obsidian-style single row ===== */
+.editor-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  padding: 4px 4px 0;
+  overflow: hidden;
+}
+
+/* ===== Editor tab — Obsidian overlapping style ===== */
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--tab-h);
+  padding: 0 6px 0 8px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  min-width: 0;
+  flex-shrink: 1;
+  flex-basis: 160px;
+  max-width: 200px;
+  user-select: none;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transition: color 0.1s, background 0.1s;
+  position: relative;
+  z-index: 0;
+  margin-right: -1px;
+  margin-bottom: -1px;
+}
+.editor-tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  z-index: 1;
+}
+.editor-tab:hover .editor-tab-close {
+  opacity: 1;
+}
+.editor-tab-active {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-surface);
+  z-index: 2;
+}
+.editor-tab-active .editor-tab-close {
+  opacity: 0.6;
+}
+.editor-tab-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+.editor-tab-dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  box-shadow: 0 0 4px var(--accent-glow);
+}
+.editor-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+.editor-tab-close:hover {
+  background: var(--bg-selection);
+  color: var(--text-primary);
+  opacity: 1 !important;
+}
+
+/* New tab button */
+.editor-tab-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: var(--tab-h);
+  flex-shrink: 0;
+  color: var(--text-muted);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  margin-bottom: -1px;
+  transition: color 0.1s, background 0.1s;
+}
+.editor-tab-new:hover {
+  color: var(--accent-bright);
+  background: var(--bg-elevated);
+}
+
+/* ===== File tree rows ===== */
+.filetree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  padding-right: 8px;
+  transition: background 0.08s;
+}
+.filetree-row:hover {
+  background: var(--bg-hover);
+}
+.filetree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Source control panel ===== */
+.scm-panel {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scm-commit-area {
+  padding: 10px;
+  flex-shrink: 0;
+}
+.scm-file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.scm-group-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.scm-group-header:hover {
+  color: var(--text-primary);
+}
+.scm-group-label {
+  flex: 1;
+}
+.scm-group-count {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.scm-file-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 24px;
+  height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.08s;
+}
+.scm-file-row:hover {
+  background: var(--bg-hover);
+}
+.scm-file-row:hover .scm-file-action {
+  opacity: 1;
+}
+.scm-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  flex-shrink: 1;
+  min-width: 0;
+}
+.scm-file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-ghost);
+  font-size: 11px;
+  flex-shrink: 10;
+  min-width: 0;
+}
+.scm-file-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+.scm-file-action:hover {
+  background: var(--bg-selection);
+  color: var(--text-primary);
+}
+.scm-file-status {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+/* ===== Git graph rows ===== */
+.scm-graph-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-right: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background 0.08s;
+}
+.scm-graph-row:hover {
+  background: var(--bg-hover);
+}
+.scm-graph-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+.scm-graph-subject {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.scm-graph-ref {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.scm-graph-meta {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-ghost);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
