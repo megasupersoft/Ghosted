@@ -26,14 +26,16 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     let fit: any
     let ro: ResizeObserver
     let created = false
+    let disposed = false
 
     const init = async () => {
+      if (disposed) return
       try {
         const { Terminal } = await import('xterm')
         const { FitAddon } = await import('@xterm/addon-fit')
         const { WebLinksAddon } = await import('@xterm/addon-web-links')
 
-        if (!mounted.current) return
+        if (!mounted.current || disposed) return
 
         const s = useSettings.getState()
         term = new Terminal({
@@ -81,10 +83,9 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         await new Promise(r => requestAnimationFrame(r))
         await new Promise(r => requestAnimationFrame(r))
 
-        if (!mounted.current) { term.dispose(); return }
+        if (!mounted.current || disposed) { term.dispose(); return }
 
         fit.fit()
-
         const cols = term.cols || 80
         const rows = term.rows || 24
         const cwd = workspacePath || await window.electron.fs.homedir()
@@ -95,8 +96,10 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
 
         const ok = await window.electron.pty.create(ptyId, cwd, cols, rows)
 
+        if (disposed) { term.dispose(); return }
         if (!ok) {
-          if (mounted.current) setErr('node-pty unavailable')
+          if (mounted.current) setErr('node-pty unavailable — check console')
+          term.write('\x1b[31m[node-pty unavailable]\x1b[0m\r\n')
           return
         }
 
@@ -129,6 +132,7 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     init()
 
     return () => {
+      disposed = true
       ro?.disconnect()
       if (created) {
         window.electron.pty.removeListeners(ptyId)
