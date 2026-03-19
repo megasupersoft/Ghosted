@@ -54,8 +54,11 @@ export function registerGhostTheme(monaco: any) {
       'editorLineNumber.activeForeground': '#ababc0',
       'editorIndentGuide.background1': '#353550',
       'editorIndentGuide.activeBackground1': '#484858',
-      'scrollbarSlider.background': '#48485880',
-      'scrollbarSlider.hoverBackground': '#555568',
+      'scrollbarSlider.background': '#48485840',
+      'scrollbarSlider.hoverBackground': '#55556880',
+      'scrollbarSlider.activeBackground': '#6a6a8090',
+      'editorOverviewRuler.border': '#00000000',
+      'scrollbar.shadow': '#00000000',
     }
   })
 }
@@ -135,6 +138,16 @@ export default function EditorPane({ leafId, filePath }: { leafId?: string; file
             fontLigatures: settings.editorLigatures,
             tabSize: settings.editorTabSize,
             minimap: { enabled: settings.editorMinimap },
+            scrollbar: {
+              verticalScrollbarSize: 6,
+              horizontalScrollbarSize: 6,
+              verticalSliderSize: 6,
+              horizontalSliderSize: 6,
+              useShadows: false,
+            },
+            overviewRulerLanes: 0,
+            hideCursorInOverviewRuler: true,
+            overviewRulerBorder: false,
             scrollBeyondLastLine: false,
             lineNumbers: settings.editorLineNumbers,
             renderLineHighlight: 'gutter',

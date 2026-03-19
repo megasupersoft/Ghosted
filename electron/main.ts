@@ -4,6 +4,8 @@ import { execSync, execFileSync } from 'child_process'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
+import { createRequire } from 'module'
+const nativeRequire = createRequire(path.join(app.getAppPath(), 'node_modules/'))
 
 const isDev = !app.isPackaged
 const VITE_DEV_SERVER = 'http://localhost:5173'
@@ -193,22 +195,24 @@ ipcMain.handle('dialog:openFolder', async () => {
 
 // ── Terminal IPC (node-pty) ──
 let pty: typeof import('node-pty') | null = null
-try { pty = require('node-pty') } catch {}
+try { pty = nativeRequire('node-pty') } catch (e: any) { console.error('node-pty load failed:', e.message) }
 
 const terminals = new Map<string, import('node-pty').IPty>()
 
 ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?: number) => {
-  if (!pty) return false
+  if (!pty) { console.error('pty:create failed — node-pty not loaded'); return false }
   const sh = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash')
+  console.log(`pty:create id=${id} cwd=${cwd} shell=${sh} cols=${cols} rows=${rows}`)
   const t = pty.spawn(sh, [], {
     name: 'xterm-256color', cols: cols || 80, rows: rows || 24,
     cwd: cwd || os.homedir(),
     env: process.env as Record<string, string>,
   })
   terminals.set(id, t)
-  const win = BrowserWindow.getFocusedWindow()
-  t.onData(data => win?.webContents.send(`pty:data:${id}`, data))
-  t.onExit(() => win?.webContents.send(`pty:exit:${id}`))
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return false
+  t.onData(data => { if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data) })
+  t.onExit(() => { if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`) })
   return true
 })
 ipcMain.handle('pty:write', (_e, id: string, data: string) => terminals.get(id)?.write(data))

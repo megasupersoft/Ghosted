@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/store'
 import { LeafNode, PaneId, DropZone, TabEntry, countLeaves, getActiveTab } from '@/store/layout'
 import {
-  Code, Terminal, Share2, Workflow, Kanban,
+  Code, Terminal, Share2, Workflow, Kanban, Bot,
   PanelRight, PanelBottom, X, Plus, Pin,
 } from 'lucide-react'
 
@@ -17,6 +17,7 @@ const PANE_ICONS: Record<PaneId, React.ReactNode> = {
   graph:    <Share2 size={TAB_ICON_SIZE} />,
   canvas:   <Workflow size={TAB_ICON_SIZE} />,
   kanban:   <Kanban size={TAB_ICON_SIZE} />,
+  ai:       <Bot size={TAB_ICON_SIZE} />,
 }
 
 const PANE_LABELS: Record<PaneId, string> = {
@@ -25,9 +26,10 @@ const PANE_LABELS: Record<PaneId, string> = {
   graph: 'Graph',
   canvas: 'Canvas',
   kanban: 'Kanban',
+  ai: 'Pi',
 }
 
-const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban']
+const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban', 'ai']
 
 // Lazy-load pane components
 const EditorPane = React.lazy(() => import('@/panes/EditorPane'))
@@ -35,6 +37,7 @@ const TerminalPane = React.lazy(() => import('@/panes/TerminalPane'))
 const GraphPane = React.lazy(() => import('@/panes/GraphPane'))
 const CanvasPane = React.lazy(() => import('@/panes/CanvasPane'))
 const KanbanPane = React.lazy(() => import('@/panes/KanbanPane'))
+const AiPane = React.lazy(() => import('@/panes/AiPane'))
 
 // --- Drop zone detection (Obsidian's 33% threshold algorithm) ---
 
@@ -90,6 +93,7 @@ function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: s
       {paneType === 'graph' && <GraphPane leafId={tabId} />}
       {paneType === 'canvas' && <CanvasPane leafId={tabId} filePath={filePath} />}
       {paneType === 'kanban' && <KanbanPane leafId={tabId} />}
+      {paneType === 'ai' && <AiPane leafId={tabId} />}
     </React.Suspense>
   )
 }
