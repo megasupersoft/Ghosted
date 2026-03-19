@@ -299,19 +299,17 @@ export default function SourceControlPane() {
 
   const handleCommit = async () => {
     if (!workspacePath || totalChanges === 0) return
-    let msg = commitMsg.trim()
+    const msg = commitMsg.trim()
     if (!msg) {
-      msg = await generateCommitMsg()
-      if (!msg) return
-      // Let the generated message render before committing
-      await new Promise(r => setTimeout(r, 500))
+      // No message — auto-generate and leave it for the user to review
+      await generateCommitMsg()
+      return
     }
     await window.electron.git.stageAll(workspacePath)
     const result = await window.electron.git.commit(workspacePath, msg)
     if (result.ok) {
       useStore.getState().addStatus('info', `Committed: ${msg}`)
-      // Keep the message visible briefly so the user can see it
-      setTimeout(() => setCommitMsg(''), 2000)
+      setCommitMsg('')
     } else {
       useStore.getState().addStatus('error', `Commit failed: ${result.error ?? 'unknown error'}`)
     }
