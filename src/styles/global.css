@@ -1,30 +1,37 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base:       #09090e;
-  --bg-surface:    #0e0e16;
-  --bg-elevated:   #14141f;
-  --bg-hover:      #1a1a28;
-  --bg-selection:  #1e1e35;
-  --border:        #1e1e2e;
-  --border-mid:    #28283c;
-  --border-bright: #3a3a55;
+  --bg-base:       #1e1e28;
+  --bg-surface:    #252532;
+  --bg-elevated:   #2e2e3c;
+  --bg-hover:      #38384a;
+  --bg-selection:  #40405a;
+  --border:        #484858;
+  --border-mid:    #555568;
+  --border-bright: #6a6a80;
 
-  --text-primary:   #e2e2f0;
-  --text-secondary: #7878a0;
-  --text-muted:     #404060;
-  --text-ghost:     #2a2a45;
+  --text-primary:   #f0f0f5;
+  --text-secondary: #ababc0;
+  --text-muted:     #7e7e95;
+  --text-ghost:     #585868;
 
-  --accent:        #8b7cf8;
-  --accent-dim:    #1e1a3a;
-  --accent-glow:   rgba(139, 124, 248, 0.15);
-  --accent-bright: #a99cff;
+  --accent:        #b0a8f0;
+  --accent-dim:    #363050;
+  --accent-glow:   rgba(176, 168, 240, 0.25);
+  --accent-bright: #c8c2f5;
 
   --green:   #4ade80;
   --amber:   #fbbf24;
   --red:     #f87171;
   --cyan:    #67e8f9;
   --purple:  #c084fc;
+  --blue:    #60a5fa;
+  --pink:    #f472b6;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --rose:    #fda4af;
+  --sky:     #7dd3fc;
+  --lime:    #a3e635;
 
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
   --font-ui:   -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -42,9 +49,11 @@ html, body, #root {
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
 }
+
+svg.lucide { stroke-width: 1px; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -66,7 +75,7 @@ input, textarea {
   background: var(--bg-elevated);
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-sm);
-  padding: 5px 9px; font-size: 13px; outline: none;
+  padding: 5px 9px; font-size: 14px; outline: none;
   transition: border-color 0.15s;
 }
 input:focus, textarea:focus {
@@ -197,49 +206,131 @@ input:focus, textarea:focus {
 
 /* ===== Leaf view container ===== */
 .leaf-view {
-  border: 1px solid transparent;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   overflow: hidden;
-  transition: border-color 0.15s;
 }
-.leaf-focused {
-  border-color: var(--accent-dim);
-  box-shadow: inset 0 0 0 1px var(--accent-glow);
+.leaf-focused .leaf-pane-tab.active {
+  color: var(--accent);
 }
 
 /* ===== Leaf tab bar ===== */
 .leaf-tab-bar {
-  height: 34px;
   display: flex;
   align-items: flex-end;
-  padding: 4px 4px 0;
+  padding: 0 6px 0 16px;
   background: var(--bg-base);
   flex-shrink: 0;
   gap: 2px;
-  cursor: grab;
+  position: relative;
 }
-.leaf-tab-bar:active {
-  cursor: grabbing;
+.tab-insert-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+  pointer-events: none;
+  transition: left 100ms ease-out;
 }
 .leaf-tab-btn {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--text-primary);
   transition: color 0.1s, background 0.1s;
   margin-bottom: 4px;
 }
 .leaf-tab-btn:hover {
-  color: var(--text-secondary);
+  color: var(--accent-bright);
   background: var(--bg-hover);
 }
 
-/* ===== Pane selector tab ===== */
+/* ===== Pane tabs (stacked tabs within a leaf) ===== */
+.leaf-pane-tab {
+  font-size: 14px;
+  color: var(--text-muted);
+  height: 42px;
+  padding: 0 24px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+.leaf-pane-tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+}
+.leaf-pane-tab.active {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  position: relative;
+}
+.leaf-pane-tab.active::before,
+.leaf-pane-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+.leaf-pane-tab.active::before {
+  left: -8px;
+  border-radius: 0 0 8px 0;
+  box-shadow: 4px 0 0 0 var(--bg-surface);
+}
+.leaf-pane-tab.active::after {
+  right: -8px;
+  border-radius: 0 0 0 8px;
+  box-shadow: -4px 0 0 0 var(--bg-surface);
+}
+.leaf-pane-tab-pin {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: color 0.1s, background 0.1s, transform 0.1s;
+  transform: rotate(45deg);
+}
+.leaf-pane-tab-pin.pinned {
+  color: var(--accent);
+  transform: rotate(0deg);
+}
+.leaf-pane-tab-pin:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.leaf-pane-tab-close {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: color 0.1s, background 0.1s;
+}
+.leaf-pane-tab-close:hover {
+  background: var(--bg-selection);
+  color: var(--text-primary);
+}
+
+/* ===== Pane selector dropdown (legacy, used by add-tab) ===== */
 .leaf-pane-selector {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   height: 30px;
   padding: 0 10px;
@@ -274,7 +365,7 @@ input:focus, textarea:focus {
   width: 100%;
   text-align: left;
   padding: 5px 8px;
-  font-size: 13px;
+  font-size: 14px;
   border-radius: 3px;
   color: var(--text-secondary);
   background: transparent;
@@ -314,7 +405,7 @@ input:focus, textarea:focus {
   padding: 0 6px 0 8px;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   min-width: 0;
   flex-shrink: 1;
   flex-basis: 160px;
@@ -406,12 +497,19 @@ input:focus, textarea:focus {
   gap: 4px;
   height: 28px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   padding-right: 8px;
   transition: background 0.08s;
 }
-.filetree-row:hover {
+.filetree-row > .filetree-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background 0.08s;
+}
+.filetree-row:hover > .filetree-content {
   background: var(--bg-hover);
 }
 .filetree-name {
@@ -435,7 +533,7 @@ input:focus, textarea:focus {
   width: 100%;
   text-align: left;
   padding: 5px 10px;
-  font-size: 13px;
+  font-size: 14px;
   border-radius: 3px;
   color: var(--text-secondary);
   background: transparent;
@@ -498,7 +596,7 @@ input:focus, textarea:focus {
   gap: 5px;
   padding: 2px 10px 2px 24px;
   height: 28px;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: background 0.08s;
 }
@@ -631,7 +729,7 @@ input:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   min-width: 0;
 }

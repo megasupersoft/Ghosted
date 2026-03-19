@@ -131,7 +131,7 @@ export default function GraphPane({ leafId }: { leafId?: string }) {
       .graphData({ nodes: nodes as any[], links: edges.map(e => ({ source: e.source, target: e.target })) })
       .width(width)
       .height(height)
-      .backgroundColor('#0e0e16')
+      .backgroundColor('#252532')
       .nodeColor(() => '#8b7cf8')
       .nodeRelSize(4)
       .nodeLabel((n: any) => n.label)
