@@ -130,7 +130,7 @@ input:focus, textarea:focus {
 
 /* ===== Activity bar (left icon ribbon) ===== */
 .activity-bar {
-  width: 48px;
+  width: 56px;
   flex-shrink: 0;
   background: var(--bg-surface);
   border-right: 4px solid var(--bg-base);
@@ -154,8 +154,8 @@ input:focus, textarea:focus {
   gap: 2px;
 }
 .activity-bar-btn {
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,8 +242,15 @@ input:focus, textarea:focus {
   justify-content: center;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  transition: color 0.1s, background 0.1s;
+  transition: color 0.1s, background 0.1s, opacity 0.15s;
   margin-bottom: 4px;
+  opacity: 0;
+}
+.leaf-tab-bar:hover .leaf-tab-btn {
+  opacity: 0.3;
+}
+.leaf-tab-btn:hover {
+  opacity: 1 !important;
 }
 .leaf-tab-btn:hover {
   color: var(--accent-bright);
@@ -294,18 +301,28 @@ input:focus, textarea:focus {
   box-shadow: -4px 0 0 0 var(--bg-surface);
 }
 .leaf-pane-tab-pin {
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   color: var(--text-secondary);
-  transition: color 0.1s, background 0.1s, transform 0.1s;
+  transition: color 0.1s, background 0.1s, opacity 0.15s;
+  opacity: 0;
+}
+.leaf-pane-tab-pin svg {
+  transition: transform 0.15s;
   transform: rotate(45deg);
+}
+.leaf-pane-tab:hover .leaf-pane-tab-pin {
+  opacity: 1;
 }
 .leaf-pane-tab-pin.pinned {
   color: var(--accent);
+  opacity: 1;
+}
+.leaf-pane-tab-pin.pinned svg {
   transform: rotate(0deg);
 }
 .leaf-pane-tab-pin:hover {
@@ -314,14 +331,18 @@ input:focus, textarea:focus {
 }
 .leaf-pane-tab-close {
   margin-left: auto;
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   color: var(--text-secondary);
-  transition: color 0.1s, background 0.1s;
+  transition: color 0.1s, background 0.1s, opacity 0.15s;
+  opacity: 0;
+}
+.leaf-pane-tab:hover .leaf-pane-tab-close {
+  opacity: 1;
 }
 .leaf-pane-tab-close:hover {
   background: var(--bg-selection);
@@ -511,6 +532,9 @@ input:focus, textarea:focus {
 }
 .filetree-row:hover > .filetree-content {
   background: var(--bg-hover);
+}
+.filetree-row:hover .filetree-name {
+  color: var(--text-primary) !important;
 }
 .filetree-name {
   overflow: hidden;
