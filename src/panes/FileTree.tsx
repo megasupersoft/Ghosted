@@ -144,7 +144,7 @@ function FileIcon({ name }: { name: string }) {
       return <FileVideo size={ICON_SIZE} color="var(--pink)" style={s} />
 
     // Audio
-    case 'mp3': case 'wav': case 'flac': case 'aac': case 'ogg': case 'm4a':
+    case 'mp3': case 'wav': case 'flac': case 'aac': case 'm4a':
       return <Music size={ICON_SIZE} color="var(--teal)" style={s} />
 
     // Archives

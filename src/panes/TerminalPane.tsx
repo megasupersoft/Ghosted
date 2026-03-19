@@ -3,198 +3,184 @@ import 'xterm/css/xterm.css'
 import { useStore } from '@/store'
 import { useSettings } from '@/store/settings'
 
-// Global registry — survives React unmount/remount cycles
-interface TermSession {
-  term: any
-  fit: any
-  wrapper: HTMLDivElement
-  ro: ResizeObserver
-}
-const sessions = new Map<string, TermSession>()
-const pendingKills = new Map<string, ReturnType<typeof setTimeout>>()
-
-function killSession(key: string) {
-  const s = sessions.get(key)
-  if (s) {
-    s.ro.disconnect()
-    s.term.dispose()
-    sessions.delete(key)
-  }
-  window.electron?.pty?.removeListeners(key)
-  window.electron?.pty?.kill(key)
-}
-
 export default function TerminalPane({ leafId }: { leafId?: string }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const sessionKey = `term-${leafId ?? 'default'}`
+  const termRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<any>(null)
+  const fitRef = useRef<any>(null)
+  const ptyId = `term-${leafId ?? 'default'}`
   const workspacePath = useStore(s => s.workspacePath)
-  const [error, setError] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
+  const [err, setErr] = useState('')
+  const mounted = useRef(true)
 
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
-    // Cancel any pending kill for this session (panel was moved)
-    const pending = pendingKills.get(sessionKey)
-    if (pending) {
-      clearTimeout(pending)
-      pendingKills.delete(sessionKey)
-    }
+  useEffect(() => {
+    const el = termRef.current
+    if (!el) return
 
-    const existing = sessions.get(sessionKey)
-    if (existing) {
-      // Reattach
-      container.appendChild(existing.wrapper)
-      requestAnimationFrame(() => {
-        existing.fit.fit()
-        existing.term.focus()
-      })
-      return () => {
-        if (existing.wrapper.parentNode === container) {
-          container.removeChild(existing.wrapper)
-        }
-        // Grace period — kill only if not reattached within 2s
-        pendingKills.set(sessionKey, setTimeout(() => {
-          pendingKills.delete(sessionKey)
-          killSession(sessionKey)
-        }, 2000))
-      }
-    }
+    let term: any
+    let fit: any
+    let ro: ResizeObserver
+    let created = false
 
-    // Create new session
-    let cancelled = false
-
-    ;(async () => {
+    const init = async () => {
       try {
         const { Terminal } = await import('xterm')
         const { FitAddon } = await import('@xterm/addon-fit')
         const { WebLinksAddon } = await import('@xterm/addon-web-links')
-        if (cancelled) return
 
-        const wrapper = document.createElement('div')
-        wrapper.style.cssText = 'width:100%;height:100%;'
-        container.appendChild(wrapper)
+        if (!mounted.current) return
 
         const s = useSettings.getState()
-        const term = new Terminal({
+        term = new Terminal({
           fontFamily: s.terminalFontFamily,
           fontSize: s.terminalFontSize,
           lineHeight: s.terminalLineHeight,
-          theme: {
-            background: '#252532', foreground: '#f0f0f5',
-            cursor: '#b0a8f0', cursorAccent: '#252532',
-            selectionBackground: '#40405a',
-            black: '#2e2e3c',  brightBlack: '#7e7e95',
-            red: '#f87171',    brightRed: '#fca5a5',
-            green: '#4ade80',  brightGreen: '#86efac',
-            yellow: '#fbbf24', brightYellow: '#fcd34d',
-            blue: '#8b7cf8',   brightBlue: '#a99cff',
-            magenta: '#c084fc', brightMagenta: '#d8b4fe',
-            cyan: '#67e8f9',   brightCyan: '#a5f3fc',
-            white: '#e2e2f0',  brightWhite: '#ffffff',
-          },
           cursorBlink: s.terminalCursorBlink,
           cursorStyle: s.terminalCursorStyle,
           scrollback: s.terminalScrollback,
-          allowProposedApi: true,
+          theme: {
+            background: '#252532',
+            foreground: '#f0f0f5',
+            cursor: '#b0a8f0',
+            cursorAccent: '#252532',
+            selectionBackground: '#40405a',
+            black: '#2e2e3c',
+            brightBlack: '#7e7e95',
+            red: '#f87171',
+            brightRed: '#fca5a5',
+            green: '#4ade80',
+            brightGreen: '#86efac',
+            yellow: '#fbbf24',
+            brightYellow: '#fcd34d',
+            blue: '#8b7cf8',
+            brightBlue: '#a99cff',
+            magenta: '#c084fc',
+            brightMagenta: '#d8b4fe',
+            cyan: '#67e8f9',
+            brightCyan: '#a5f3fc',
+            white: '#e2e2f0',
+            brightWhite: '#ffffff',
+          },
         })
 
-        const fit = new FitAddon()
-        const links = new WebLinksAddon((_, uri) => window.electron.shell.openExternal(uri))
+        fit = new FitAddon()
         term.loadAddon(fit)
-        term.loadAddon(links)
-        term.open(wrapper)
+        term.loadAddon(new WebLinksAddon((_, uri) => window.electron.shell.openExternal(uri)))
+
+        term.open(el)
+
+        xtermRef.current = term
+        fitRef.current = fit
+
+        // Wait a frame for the DOM to settle, then fit
+        await new Promise(r => requestAnimationFrame(r))
+        await new Promise(r => requestAnimationFrame(r))
+
+        if (!mounted.current) { term.dispose(); return }
+
         fit.fit()
 
-        if (cancelled) { term.dispose(); wrapper.remove(); return }
+        const cols = term.cols || 80
+        const rows = term.rows || 24
+        const cwd = workspacePath || await window.electron.fs.homedir()
 
-        const cols = term.cols
-        const rows = term.rows
-        const cwd = workspacePath ?? (await window.electron.fs.homedir())
+        // Connect PTY
+        window.electron.pty.onData(ptyId, (d: string) => term.write(d))
+        window.electron.pty.onExit(ptyId, () => term.write('\r\n\x1b[90m[exited]\x1b[0m\r\n'))
 
-        // Wire IPC listeners (removeAllListeners first to prevent stacking)
-        window.electron.pty.onData(sessionKey, d => term.write(d))
-        window.electron.pty.onExit(sessionKey, () => term.write('\r\n\x1b[35m[process exited]\x1b[0m\r\n'))
+        const ok = await window.electron.pty.create(ptyId, cwd, cols, rows)
 
-        const ok = await window.electron.pty.create(sessionKey, cwd, cols, rows)
-        if (cancelled) { term.dispose(); wrapper.remove(); return }
-
-        if (ok) {
-          term.onData(d => window.electron.pty.write(sessionKey, d))
-          term.onResize(({ cols, rows }) => window.electron.pty.resize(sessionKey, cols, rows))
-        } else {
-          term.write('\x1b[35m[node-pty unavailable]\x1b[0m\r\n')
+        if (!ok) {
+          if (mounted.current) setErr('node-pty unavailable')
+          return
         }
+
+        created = true
+        term.onData((d: string) => window.electron.pty.write(ptyId, d))
+        term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+          window.electron.pty.resize(ptyId, cols, rows)
+        })
 
         term.focus()
+        if (mounted.current) setReady(true)
 
-        // Debounced resize
-        let resizeTimer: ReturnType<typeof setTimeout>
-        const ro = new ResizeObserver(() => {
-          clearTimeout(resizeTimer)
-          resizeTimer = setTimeout(() => fit.fit(), 50)
+        // Resize observer
+        let timer: any
+        ro = new ResizeObserver(() => {
+          clearTimeout(timer)
+          timer = setTimeout(() => {
+            if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+              try { fit.fit() } catch {}
+            }
+          }, 60)
         })
-        ro.observe(container)
+        ro.observe(el)
 
-        sessions.set(sessionKey, { term, fit, wrapper, ro })
-      } catch (err: any) {
-        if (!cancelled) setError(err.message)
+      } catch (e: any) {
+        if (mounted.current) setErr(e.message)
       }
-    })()
+    }
+
+    init()
 
     return () => {
-      cancelled = true
-      const session = sessions.get(sessionKey)
-      if (session) {
-        if (session.wrapper.parentNode === container) {
-          container.removeChild(session.wrapper)
-        }
-        pendingKills.set(sessionKey, setTimeout(() => {
-          pendingKills.delete(sessionKey)
-          killSession(sessionKey)
-        }, 2000))
+      ro?.disconnect()
+      if (created) {
+        window.electron.pty.removeListeners(ptyId)
+        window.electron.pty.kill(ptyId)
       }
+      term?.dispose()
+      xtermRef.current = null
+      fitRef.current = null
     }
-  }, [sessionKey])
+  }, [ptyId])
 
-  // cd to new workspace when project changes
-  const prevWorkspace = useRef(workspacePath)
-  useEffect(() => {
-    if (!workspacePath || workspacePath === prevWorkspace.current) {
-      prevWorkspace.current = workspacePath
-      return
-    }
-    prevWorkspace.current = workspacePath
-    const session = sessions.get(sessionKey)
-    if (session) {
-      const escaped = workspacePath.replace(/'/g, "'\\''")
-      window.electron.pty.write(sessionKey, `cd '${escaped}'\n`)
-    }
-  }, [workspacePath, sessionKey])
-
-  // Sync settings to live terminal
-  const termFontSize = useSettings(s => s.terminalFontSize)
-  const termFontFamily = useSettings(s => s.terminalFontFamily)
-  const termLineHeight = useSettings(s => s.terminalLineHeight)
-  const termCursorBlink = useSettings(s => s.terminalCursorBlink)
-  const termCursorStyle = useSettings(s => s.terminalCursorStyle)
+  // Sync settings
+  const fontSize = useSettings(s => s.terminalFontSize)
+  const fontFamily = useSettings(s => s.terminalFontFamily)
+  const lineHeight = useSettings(s => s.terminalLineHeight)
+  const cursorBlink = useSettings(s => s.terminalCursorBlink)
+  const cursorStyle = useSettings(s => s.terminalCursorStyle)
 
   useEffect(() => {
-    const session = sessions.get(sessionKey)
-    if (!session) return
-    const { term, fit } = session
-    term.options.fontSize = termFontSize
-    term.options.fontFamily = termFontFamily
-    term.options.lineHeight = termLineHeight
-    term.options.cursorBlink = termCursorBlink
-    term.options.cursorStyle = termCursorStyle
-    fit.fit()
-  }, [sessionKey, termFontSize, termFontFamily, termLineHeight, termCursorBlink, termCursorStyle])
+    const t = xtermRef.current
+    const f = fitRef.current
+    if (!t || !f) return
+    t.options.fontSize = fontSize
+    t.options.fontFamily = fontFamily
+    t.options.lineHeight = lineHeight
+    t.options.cursorBlink = cursorBlink
+    t.options.cursorStyle = cursorStyle
+    try { f.fit() } catch {}
+  }, [fontSize, fontFamily, lineHeight, cursorBlink, cursorStyle])
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
-      {error && <div style={{ padding: 10, color: 'var(--red)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>error: {error}</div>}
-      <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', padding: '8px 0 8px 12px' }} />
+    <div
+      onClick={() => xtermRef.current?.focus()}
+      style={{
+        width: '100%', height: '100%',
+        background: 'var(--bg-surface)',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {err && (
+        <div style={{ padding: 12, color: 'var(--red)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+          {err}
+        </div>
+      )}
+      <div
+        ref={termRef}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          padding: '8px 0 0 12px',
+        }}
+      />
     </div>
   )
 }
