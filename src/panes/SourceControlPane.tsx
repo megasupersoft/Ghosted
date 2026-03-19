@@ -298,12 +298,16 @@ export default function SourceControlPane() {
 
 
   const handleCommit = async () => {
-    if (!workspacePath || !commitMsg.trim()) return
-    // Always stage all — matches VS Code behavior, avoids stale state issues
+    if (!workspacePath || totalChanges === 0) return
+    let msg = commitMsg.trim()
+    if (!msg) {
+      msg = await generateCommitMsg()
+      if (!msg) return
+    }
     await window.electron.git.stageAll(workspacePath)
-    const result = await window.electron.git.commit(workspacePath, commitMsg.trim())
+    const result = await window.electron.git.commit(workspacePath, msg)
     if (result.ok) {
-      useStore.getState().addStatus('info', `Committed: ${commitMsg.trim()}`)
+      useStore.getState().addStatus('info', `Committed: ${msg}`)
       setCommitMsg('')
     } else {
       useStore.getState().addStatus('error', `Commit failed: ${result.error ?? 'unknown error'}`)
@@ -359,8 +363,8 @@ export default function SourceControlPane() {
     refresh()
   }
 
-  const generateCommitMsg = async () => {
-    if (!workspacePath || generating) return
+  const generateCommitMsg = async (): Promise<string> => {
+    if (!workspacePath || generating) return ''
     setGenerating(true)
     try {
       const { diff, untracked: untrackedFiles } = await window.electron.git.diffSummary(workspacePath)
@@ -375,7 +379,7 @@ export default function SourceControlPane() {
 
       // Determine the type of change
       const allFiles = [...changedFiles.map(f => f.name), ...newFiles]
-      if (allFiles.length === 0) { setGenerating(false); return }
+      if (allFiles.length === 0) { setGenerating(false); return '' }
 
       // Detect common patterns
       const totalAdded = changedFiles.reduce((s, f) => s + f.added, 0)
@@ -415,8 +419,11 @@ export default function SourceControlPane() {
 
       const msg = scope ? `${type}(${scope}): ${summary}` : `${type}: ${summary}`
       setCommitMsg(msg)
+      setGenerating(false)
+      return msg
     } catch {}
     setGenerating(false)
+    return ''
   }
 
   if (!workspacePath) {
@@ -473,7 +480,7 @@ export default function SourceControlPane() {
           </button>
           <button
             onClick={handleCommit}
-            disabled={!commitMsg.trim() || totalChanges === 0}
+            disabled={totalChanges === 0}
             title="Commit all changes"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
