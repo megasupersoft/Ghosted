@@ -53,33 +53,33 @@ export function registerGhostTheme(monaco: any) {
       { token: 'function', foreground: '67e8f9' },
     ],
     colors: {
-      'editor.background': '#0e0e16',
-      'editor.foreground': '#e2e2f0',
-      'editor.lineHighlightBackground': '#14141f',
-      'editor.selectionBackground': '#1e1e35',
-      'editorCursor.foreground': '#8b7cf8',
-      'editorLineNumber.foreground': '#2a2a45',
-      'editorLineNumber.activeForeground': '#7878a0',
-      'editorIndentGuide.background1': '#1e1e2e',
-      'editorIndentGuide.activeBackground1': '#28283c',
-      'scrollbarSlider.background': '#1e1e2e80',
-      'scrollbarSlider.hoverBackground': '#28283c',
+      'editor.background': '#252532',
+      'editor.foreground': '#f0f0f5',
+      'editor.lineHighlightBackground': '#2e2e3c',
+      'editor.selectionBackground': '#40405a',
+      'editorCursor.foreground': '#b0a8f0',
+      'editorLineNumber.foreground': '#555568',
+      'editorLineNumber.activeForeground': '#ababc0',
+      'editorIndentGuide.background1': '#353550',
+      'editorIndentGuide.activeBackground1': '#484858',
+      'scrollbarSlider.background': '#48485880',
+      'scrollbarSlider.hoverBackground': '#555568',
     }
   })
 }
 
-function Tab({ file, active }: { file: { path: string; name: string; isDirty: boolean }; active: boolean }) {
+function Tab({ file, active, leafId }: { file: { path: string; name: string; isDirty: boolean }; active: boolean; leafId?: string }) {
   const { setActiveFile, closeFile } = useStore()
   return (
     <div
-      onClick={() => setActiveFile(file.path)}
+      onClick={() => setActiveFile(file.path, leafId)}
       className={`editor-tab ${active ? 'editor-tab-active' : ''}`}
     >
       <TabFileIcon name={file.name} />
       {file.isDirty && <span className="editor-tab-dirty" />}
       <span className="editor-tab-label">{file.name}</span>
       <button
-        onClick={e => { e.stopPropagation(); closeFile(file.path) }}
+        onClick={e => { e.stopPropagation(); closeFile(file.path, leafId) }}
         className="editor-tab-close"
       >
         <X size={12} />
@@ -117,10 +117,10 @@ function VideoViewer({ file }: { file: OpenFile }) {
   )
 }
 
-export default function EditorPane({ leafId }: { leafId?: string }) {
-  const { openFiles, activeFilePath, updateFileContent, markFileDirty, newUntitledFile } = useStore()
+export default function EditorPane({ leafId, filePath }: { leafId?: string; filePath?: string }) {
+  const { openFiles, updateFileContent, markFileDirty } = useStore()
   const settings = useSettings()
-  const activeFile = openFiles.find(f => f.path === activeFilePath)
+  const activeFile = filePath ? openFiles.find(f => f.path === filePath) : null
 
   const handleSave = async () => {
     if (!activeFile) return
@@ -134,56 +134,47 @@ export default function EditorPane({ leafId }: { leafId?: string }) {
     return () => window.removeEventListener('keydown', h)
   }, [activeFile])
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div className="editor-tab-bar">
-        {openFiles.map(f => <Tab key={f.path} file={f} active={f.path === activeFilePath} />)}
-        <button onClick={newUntitledFile} className="editor-tab-new" title="New tab">
-          <Plus size={14} />
-        </button>
+  if (!activeFile) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-ghost)', gap: 24, background: 'var(--bg-surface)', height: '100%' }}>
+        <Ghost size={180} color="var(--bg-base)" />
+        <span style={{ fontSize: 24, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--bg-base)' }}>open a file to begin haunting</span>
       </div>
-      {activeFile ? (
-        activeFile.fileType === 'image' ? (
-          <ImageViewer file={activeFile} />
-        ) : activeFile.fileType === 'video' ? (
-          <VideoViewer file={activeFile} />
-        ) : (
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>summoning editor...</div>}>
-              <MonacoEditor
-                key={activeFile.path}
-                height="100%"
-                language={getLang(activeFile.name)}
-                value={activeFile.content}
-                theme="ghost"
-                beforeMount={registerGhostTheme}
-                onChange={v => { if (!activeFilePath || v === undefined) return; updateFileContent(activeFilePath, v); markFileDirty(activeFilePath, true) }}
-                options={{
-                  fontSize: settings.editorFontSize,
-                  fontFamily: settings.editorFontFamily,
-                  fontLigatures: settings.editorLigatures,
-                  tabSize: settings.editorTabSize,
-                  minimap: { enabled: settings.editorMinimap },
-                  scrollBeyondLastLine: false,
-                  lineNumbers: settings.editorLineNumbers,
-                  renderLineHighlight: 'gutter',
-                  bracketPairColorization: { enabled: settings.editorBracketColors },
-                  padding: { top: 10 },
-                  smoothScrolling: settings.editorSmoothScrolling,
-                  cursorBlinking: 'smooth',
-                  cursorSmoothCaretAnimation: settings.editorSmoothCaret ? 'on' : 'off',
-                  wordWrap: settings.editorWordWrap,
-                }}
-              />
-            </React.Suspense>
-          </div>
-        )
-      ) : (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-ghost)', gap: 10 }}>
-          <Ghost size={36} color="var(--accent)" style={{ opacity: 0.15 }} />
-          <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>open a file to begin haunting</span>
-        </div>
-      )}
+    )
+  }
+
+  if (activeFile.fileType === 'image') return <ImageViewer file={activeFile} />
+  if (activeFile.fileType === 'video') return <VideoViewer file={activeFile} />
+
+  return (
+    <div style={{ flex: 1, overflow: 'hidden', height: '100%' }}>
+      <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>summoning editor...</div>}>
+        <MonacoEditor
+          key={activeFile.path}
+          height="100%"
+          language={getLang(activeFile.name)}
+          value={activeFile.content}
+          theme="ghost"
+          beforeMount={registerGhostTheme}
+          onChange={v => { if (!filePath || v === undefined) return; updateFileContent(filePath, v); markFileDirty(filePath, true) }}
+          options={{
+            fontSize: settings.editorFontSize,
+            fontFamily: settings.editorFontFamily,
+            fontLigatures: settings.editorLigatures,
+            tabSize: settings.editorTabSize,
+            minimap: { enabled: settings.editorMinimap },
+            scrollBeyondLastLine: false,
+            lineNumbers: settings.editorLineNumbers,
+            renderLineHighlight: 'gutter',
+            bracketPairColorization: { enabled: settings.editorBracketColors },
+            padding: { top: 10 },
+            smoothScrolling: settings.editorSmoothScrolling,
+            cursorBlinking: 'smooth',
+            cursorSmoothCaretAnimation: settings.editorSmoothCaret ? 'on' : 'off',
+            wordWrap: settings.editorWordWrap,
+          }}
+        />
+      </React.Suspense>
     </div>
   )
 }

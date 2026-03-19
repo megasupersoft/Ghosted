@@ -1141,10 +1141,10 @@ function CanvasInner({ filePath }: { filePath?: string }) {
           nodesDraggable
           multiSelectionKeyCode="Shift"
           deleteKeyCode={null}
-          style={{ background: '#0e0e16' }}
+          style={{ background: '#252532' }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#1a1a2e" variant={BackgroundVariant.Dots} gap={24} size={1} />
+          <Background color="#353550" variant={BackgroundVariant.Dots} gap={24} size={1} />
         </ReactFlow>
 
         {/* Cut line overlay */}

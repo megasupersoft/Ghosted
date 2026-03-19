@@ -1,19 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/store'
-import { LeafNode, PaneId, DropZone, countLeaves } from '@/store/layout'
+import { LeafNode, PaneId, DropZone, TabEntry, countLeaves, findFirstLeafByPane, getActiveTab } from '@/store/layout'
 import {
   Code, Terminal, Share2, Workflow, Kanban,
-  PanelRight, PanelBottom, X, ChevronDown,
+  PanelRight, PanelBottom, X, Plus, Pin,
 } from 'lucide-react'
 
-const ICON_SIZE = 14
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']
+const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']
+
+const TAB_ICON_SIZE = 16
 
 const PANE_ICONS: Record<PaneId, React.ReactNode> = {
-  editor:   <Code size={ICON_SIZE} />,
-  terminal: <Terminal size={ICON_SIZE} />,
-  graph:    <Share2 size={ICON_SIZE} />,
-  canvas:   <Workflow size={ICON_SIZE} />,
-  kanban:   <Kanban size={ICON_SIZE} />,
+  editor:   <Code size={TAB_ICON_SIZE} />,
+  terminal: <Terminal size={TAB_ICON_SIZE} />,
+  graph:    <Share2 size={TAB_ICON_SIZE} />,
+  canvas:   <Workflow size={TAB_ICON_SIZE} />,
+  kanban:   <Kanban size={TAB_ICON_SIZE} />,
 }
 
 const PANE_LABELS: Record<PaneId, string> = {
@@ -75,30 +78,49 @@ function getOverlayStyle(zone: DropZone): React.CSSProperties {
 
 // --- Sub-components ---
 
-function PaneContent({ paneType, leafId }: { paneType: PaneId; leafId: string }) {
-  const canvasFilePath = useStore(s => {
-    if (paneType !== 'canvas') return undefined
-    // Find the most recently opened .canvas file
-    const canvasFiles = s.openFiles.filter(f => f.fileType === 'canvas')
-    return canvasFiles.length > 0 ? canvasFiles[canvasFiles.length - 1].path : undefined
-  })
-
+function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: string; filePath?: string }) {
   return (
     <React.Suspense fallback={
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
         loading...
       </div>
     }>
-      {paneType === 'editor' && <EditorPane leafId={leafId} />}
-      {paneType === 'terminal' && <TerminalPane leafId={leafId} />}
-      {paneType === 'graph' && <GraphPane leafId={leafId} />}
-      {paneType === 'canvas' && <CanvasPane leafId={leafId} filePath={canvasFilePath} />}
-      {paneType === 'kanban' && <KanbanPane leafId={leafId} />}
+      {paneType === 'editor' && <EditorPane leafId={tabId} filePath={filePath} />}
+      {paneType === 'terminal' && <TerminalPane leafId={tabId} />}
+      {paneType === 'graph' && <GraphPane leafId={tabId} />}
+      {paneType === 'canvas' && <CanvasPane leafId={tabId} filePath={filePath} />}
+      {paneType === 'kanban' && <KanbanPane leafId={tabId} />}
     </React.Suspense>
   )
 }
 
-function PaneDropdown({ current, onChange }: { current: PaneId; onChange: (p: PaneId) => void }) {
+// --- Tab icon by file extension (reuses same logic as FileTree) ---
+function TabIcon({ tab }: { tab: TabEntry }) {
+  if (!tab.filePath) return <>{PANE_ICONS[tab.paneType]}</>
+  const ext = (tab.label ?? '').split('.').pop()?.toLowerCase() ?? ''
+  // Simplified icon mapping for tabs
+  const size = TAB_ICON_SIZE
+  const s = { flexShrink: 0 } as const
+  switch (ext) {
+    case 'ts': case 'tsx': return <Code size={size} color="var(--accent)" style={s} />
+    case 'js': case 'jsx': case 'mjs': case 'cjs': return <Code size={size} color="var(--amber)" style={s} />
+    case 'json': case 'jsonc': return <Code size={size} color="var(--amber)" style={s} />
+    case 'css': case 'scss': return <Code size={size} color="var(--sky)" style={s} />
+    case 'html': return <Code size={size} color="var(--orange)" style={s} />
+    case 'md': case 'mdx': return <Code size={size} color="var(--sky)" style={s} />
+    case 'py': return <Code size={size} color="var(--teal)" style={s} />
+    case 'rs': return <Code size={size} color="var(--orange)" style={s} />
+    case 'go': return <Code size={size} color="var(--cyan)" style={s} />
+    case 'yaml': case 'yml': return <Code size={size} color="var(--rose)" style={s} />
+    case 'canvas': return <Workflow size={size} color="var(--accent)" style={s} />
+    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': case 'webp': return <Code size={size} color="var(--purple)" style={s} />
+    default: return <Code size={size} color="var(--text-secondary)" style={s} />
+  }
+}
+
+// --- Add pane dropdown ---
+
+function AddPaneDropdown({ onAdd }: { onAdd: (p: PaneId) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -113,21 +135,16 @@ function PaneDropdown({ current, onChange }: { current: PaneId; onChange: (p: Pa
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="leaf-pane-selector"
-      >
-        {PANE_ICONS[current]}
-        {PANE_LABELS[current]}
-        <ChevronDown size={10} style={{ opacity: 0.5 }} />
+      <button onClick={() => setOpen(o => !o)} className="leaf-tab-btn" title="Add tab">
+        <Plus size={16} />
       </button>
       {open && (
         <div className="leaf-pane-dropdown">
           {ALL_PANES.map(p => (
             <button
               key={p}
-              onClick={() => { onChange(p); setOpen(false) }}
-              className={`leaf-pane-dropdown-item ${p === current ? 'active' : ''}`}
+              onClick={() => { onAdd(p); setOpen(false) }}
+              className="leaf-pane-dropdown-item"
             >
               {PANE_ICONS[p]}
               {PANE_LABELS[p]}
@@ -143,22 +160,27 @@ function PaneDropdown({ current, onChange }: { current: PaneId; onChange: (p: Pa
 
 export default function LeafView({ leaf }: { leaf: LeafNode }) {
   const {
-    focusedLeafId, setFocusedLeaf, splitLeaf, closeLeaf, changeLeafPane,
-    layout, draggingLeafId, setDraggingLeaf, moveLeaf,
+    focusedLeafId, setFocusedLeaf, splitLeaf, closeLeaf, addTab, closeTab, setActiveTab, reorderTab,
+    layout, draggingLeafId, setDraggingLeaf, moveLeaf, moveTab, togglePin,
   } = useStore()
   const isFocused = focusedLeafId === leaf.id
   const leafCount = countLeaves(layout)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dropZone, setDropZone] = useState<DropZone | null>(null)
   const dragEnterCount = useRef(0)
+  const activeTab = getActiveTab(leaf)
+  const tabBarRef = useRef<HTMLDivElement>(null)
+  const [tabInsertIdx, setTabInsertIdx] = useState<number | null>(null)
+  const [tabInsertX, setTabInsertX] = useState<number>(0)
 
-  // --- Drag source (tab bar) ---
-  const handleDragStart = useCallback((e: React.DragEvent) => {
+  // --- Drag source (individual tab) ---
+  const handleTabDragStart = useCallback((e: React.DragEvent, tab: TabEntry) => {
     setDraggingLeaf(leaf.id)
     e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('application/ghosted-tab', JSON.stringify({ leafId: leaf.id, tabId: tab.id }))
     e.dataTransfer.setData('text/plain', leaf.id)
     const ghost = document.createElement('div')
-    ghost.textContent = PANE_LABELS[leaf.paneType]
+    ghost.textContent = PANE_LABELS[tab.paneType]
     ghost.style.cssText = `
       position: fixed; top: -100px;
       padding: 4px 12px; border-radius: 6px;
@@ -169,7 +191,7 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
     document.body.appendChild(ghost)
     e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2)
     requestAnimationFrame(() => document.body.removeChild(ghost))
-  }, [leaf.id, leaf.paneType, setDraggingLeaf])
+  }, [leaf.id, setDraggingLeaf])
 
   const handleDragEnd = useCallback(() => {
     setDraggingLeaf(null)
@@ -178,14 +200,28 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
   }, [setDraggingLeaf])
 
   // --- Drop target (entire leaf) ---
+  const isFileDrag = useCallback((e: React.DragEvent) => {
+    return (!draggingLeafId && e.dataTransfer.types.includes('Files')) ||
+      e.dataTransfer.types.includes('application/ghosted-file')
+  }, [draggingLeafId])
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (!draggingLeafId || draggingLeafId === leaf.id) return
+    if (isFileDrag(e)) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      setDropZone(getDropZone(e, rect))
+      return
+    }
+    if (!draggingLeafId) return
+    if (draggingLeafId === leaf.id && !e.dataTransfer.types.includes('application/ghosted-tab')) return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     setDropZone(getDropZone(e, rect))
-  }, [draggingLeafId, leaf.id])
+  }, [draggingLeafId, leaf.id, isFileDrag])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -200,18 +236,97 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
     }
   }, [])
 
+  const openDroppedFile = useCallback(async (filePath: string, zone: DropZone | null) => {
+    const store = useStore.getState()
+    const { openFile, setFocusedLeaf: focus, changeLeafPane: changePane, splitLeaf: split } = store
+    const name = filePath.split('/').pop() ?? filePath
+    const ext = name.split('.').pop()?.toLowerCase() ?? ''
+
+    const paneType: PaneId = ext === 'canvas' ? 'canvas' : 'editor'
+
+    let content = ''
+    let fileType: 'text' | 'image' | 'video' | 'canvas' = 'text'
+    if (ext === 'canvas') {
+      content = await window.electron.fs.readfile(filePath).catch(() => '{}')
+      fileType = 'canvas'
+    } else if (IMAGE_EXTS.includes(ext)) {
+      fileType = 'image'
+    } else if (VIDEO_EXTS.includes(ext)) {
+      fileType = 'video'
+    } else {
+      content = await window.electron.fs.readfile(filePath)
+    }
+
+    openFile(filePath, name, content, fileType)
+
+    if (zone && zone !== 'center') {
+      const direction: 'horizontal' | 'vertical' =
+        (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical'
+      split(leaf.id, direction)
+      const { focusedLeafId: newLeafId } = useStore.getState()
+      changePane(newLeafId, paneType)
+      focus(newLeafId)
+    } else {
+      const activePaneType = activeTab.paneType
+      if (activePaneType !== paneType) changePane(leaf.id, paneType)
+      focus(leaf.id)
+    }
+  }, [leaf.id, activeTab.paneType])
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     dragEnterCount.current = 0
+
+    // File drop from explorer panel
+    const ghostedData = e.dataTransfer.getData('application/ghosted-file')
+    if (ghostedData) {
+      const currentZone = dropZone
+      setDropZone(null)
+      try {
+        const { path } = JSON.parse(ghostedData)
+        if (path) openDroppedFile(path, currentZone)
+      } catch {}
+      return
+    }
+
+    // Native file drop from OS
+    if (e.dataTransfer.files.length > 0 && !draggingLeafId) {
+      const currentZone = dropZone
+      setDropZone(null)
+      const files = Array.from(e.dataTransfer.files)
+      for (let i = 0; i < files.length; i++) {
+        const filePath = (files[i] as any).path as string | undefined
+        if (filePath) openDroppedFile(filePath, i === 0 ? currentZone : null)
+      }
+      return
+    }
+
+    // Tab drop (same or different leaf)
+    const tabData = e.dataTransfer.getData('application/ghosted-tab')
+    if (tabData && dropZone) {
+      setDropZone(null)
+      try {
+        const { leafId: srcLeafId, tabId } = JSON.parse(tabData)
+        if (srcLeafId === leaf.id && dropZone !== 'center' && leaf.tabs.length > 1) {
+          // Same leaf, edge drop: split this tab out into a new panel
+          moveTab(srcLeafId, tabId, leaf.id, dropZone)
+        } else if (srcLeafId !== leaf.id) {
+          moveTab(srcLeafId, tabId, leaf.id, dropZone)
+        }
+      } catch {}
+      return
+    }
+
+    // Leaf drop (whole leaf drag — fallback)
     if (!draggingLeafId || draggingLeafId === leaf.id || !dropZone) {
       setDropZone(null)
       return
     }
     moveLeaf(draggingLeafId, leaf.id, dropZone)
     setDropZone(null)
-  }, [draggingLeafId, leaf.id, dropZone, moveLeaf])
+  }, [draggingLeafId, leaf.id, dropZone, moveLeaf, moveTab, openDroppedFile])
 
-  const isDragTarget = draggingLeafId != null && draggingLeafId !== leaf.id
+  const isDragTarget = (draggingLeafId != null && draggingLeafId !== leaf.id)
   const isDragSource = draggingLeafId === leaf.id
 
   return (
@@ -226,39 +341,119 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
       style={{
         height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         position: 'relative',
-        opacity: isDragSource ? 0.4 : 1,
-        transition: 'opacity 150ms',
+        ...(isDragSource ? { opacity: 0.4 } : {}),
       }}
     >
-      {/* Tab bar — drag handle */}
+      {/* Tab bar */}
       <div
         className="leaf-tab-bar"
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        ref={tabBarRef}
+        onDragEnd={() => { handleDragEnd(); setTabInsertIdx(null) }}
+        onDragOver={e => {
+          if (!e.dataTransfer.types.includes('application/ghosted-tab')) return
+          e.preventDefault()
+          e.stopPropagation()
+          e.dataTransfer.dropEffect = 'move'
+          // Calculate insertion index from cursor X vs tab midpoints
+          const bar = tabBarRef.current
+          if (!bar) return
+          const tabEls = bar.querySelectorAll<HTMLElement>('.leaf-pane-tab')
+          let insertIdx = leaf.tabs.length
+          let insertX = 0
+          for (let i = 0; i < tabEls.length; i++) {
+            const rect = tabEls[i].getBoundingClientRect()
+            const mid = rect.left + rect.width / 2
+            if (e.clientX < mid) {
+              insertIdx = i
+              insertX = rect.left - bar.getBoundingClientRect().left
+              break
+            }
+            insertX = rect.right - bar.getBoundingClientRect().left
+          }
+          setTabInsertIdx(insertIdx)
+          setTabInsertX(insertX)
+        }}
+        onDragLeave={e => {
+          // Only clear if leaving the tab bar entirely
+          if (!tabBarRef.current?.contains(e.relatedTarget as Node)) {
+            setTabInsertIdx(null)
+          }
+        }}
+        onDrop={e => {
+          const data = e.dataTransfer.getData('application/ghosted-tab')
+          if (!data) return
+          e.preventDefault()
+          e.stopPropagation()
+          const idx = tabInsertIdx ?? leaf.tabs.length
+          setTabInsertIdx(null)
+          try {
+            const { leafId: srcLeafId, tabId } = JSON.parse(data)
+            if (srcLeafId === leaf.id) {
+              reorderTab(leaf.id, tabId, idx)
+            } else {
+              moveTab(srcLeafId, tabId, leaf.id, 'center')
+              // After move, reorder to the insertion position
+              setTimeout(() => reorderTab(leaf.id, tabId, idx), 0)
+            }
+          } catch {}
+        }}
       >
-        <PaneDropdown current={leaf.paneType} onChange={p => changeLeafPane(leaf.id, p)} />
+        {/* Pane tabs */}
+        {leaf.tabs.map(tab => (
+          <div
+            key={tab.id}
+            className={`leaf-pane-tab ${tab.id === activeTab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(leaf.id, tab.id)}
+            draggable
+            onDragStart={e => handleTabDragStart(e, tab)}
+          >
+            <TabIcon tab={tab} />
+            <span>{tab.label ?? PANE_LABELS[tab.paneType]}</span>
+            <button
+              className={`leaf-pane-tab-pin ${tab.pinned ? 'pinned' : ''}`}
+              onClick={e => { e.stopPropagation(); togglePin(tab.id) }}
+              title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
+            >
+              <Pin size={14} />
+            </button>
+            <button
+              className="leaf-pane-tab-close"
+              onClick={e => { e.stopPropagation(); closeTab(leaf.id, tab.id) }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+        {/* Tab insert indicator */}
+        {tabInsertIdx !== null && (
+          <div className="tab-insert-indicator" style={{ left: tabInsertX }} />
+        )}
+        <AddPaneDropdown onAdd={p => addTab(leaf.id, p)} />
         <span style={{ flex: 1 }} />
         <button onClick={() => splitLeaf(leaf.id, 'horizontal')} title="Split right" className="leaf-tab-btn">
-          <PanelRight size={13} />
+          <PanelRight size={16} />
         </button>
         <button onClick={() => splitLeaf(leaf.id, 'vertical')} title="Split down" className="leaf-tab-btn">
-          <PanelBottom size={13} />
+          <PanelBottom size={16} />
         </button>
-        {leafCount > 1 && (
-          <button onClick={() => closeLeaf(leaf.id)} title="Close pane" className="leaf-tab-btn">
-            <X size={13} />
-          </button>
-        )}
       </div>
 
-      {/* Pane content */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <PaneContent paneType={leaf.paneType} leafId={leaf.id} />
-      </div>
+      {/* Pane content — render all tabs, show only active (preserves state) */}
+      {leaf.tabs.map(tab => (
+        <div
+          key={tab.id}
+          style={{
+            flex: 1, overflow: 'hidden',
+            display: tab.id === activeTab.id ? 'flex' : 'none',
+            flexDirection: 'column',
+          }}
+        >
+          <PaneContent paneType={tab.paneType} tabId={tab.id} filePath={tab.filePath} />
+        </div>
+      ))}
 
       {/* Drop zone overlay */}
-      {isDragTarget && dropZone && (
+      {(isDragTarget || dropZone) && dropZone && (
         <div className="drop-zone-overlay" style={getOverlayStyle(dropZone)} />
       )}
     </div>
