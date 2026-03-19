@@ -419,6 +419,32 @@ input:focus, textarea:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.filetree-header-btn {
+  transition: color 0.1s, background 0.1s;
+}
+.filetree-header-btn:hover {
+  color: var(--text-secondary) !important;
+  background: var(--bg-hover);
+}
+
+/* ===== File tree context menu ===== */
+.filetree-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 13px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: background 0.08s, color 0.08s;
+}
+.filetree-ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 
 /* ===== Source control panel ===== */
 .scm-panel {

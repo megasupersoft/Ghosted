@@ -157,6 +157,21 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     }
   }, [sessionKey])
 
+  // cd to new workspace when project changes
+  const prevWorkspace = useRef(workspacePath)
+  useEffect(() => {
+    if (!workspacePath || workspacePath === prevWorkspace.current) {
+      prevWorkspace.current = workspacePath
+      return
+    }
+    prevWorkspace.current = workspacePath
+    const session = sessions.get(sessionKey)
+    if (session) {
+      const escaped = workspacePath.replace(/'/g, "'\\''")
+      window.electron.pty.write(sessionKey, `cd '${escaped}'\n`)
+    }
+  }, [workspacePath, sessionKey])
+
   // Sync settings to live terminal
   const termFontSize = useSettings(s => s.terminalFontSize)
   const termFontFamily = useSettings(s => s.terminalFontFamily)

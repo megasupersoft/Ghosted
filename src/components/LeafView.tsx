@@ -76,6 +76,13 @@ function getOverlayStyle(zone: DropZone): React.CSSProperties {
 // --- Sub-components ---
 
 function PaneContent({ paneType, leafId }: { paneType: PaneId; leafId: string }) {
+  const canvasFilePath = useStore(s => {
+    if (paneType !== 'canvas') return undefined
+    // Find the most recently opened .canvas file
+    const canvasFiles = s.openFiles.filter(f => f.fileType === 'canvas')
+    return canvasFiles.length > 0 ? canvasFiles[canvasFiles.length - 1].path : undefined
+  })
+
   return (
     <React.Suspense fallback={
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
@@ -85,7 +92,7 @@ function PaneContent({ paneType, leafId }: { paneType: PaneId; leafId: string })
       {paneType === 'editor' && <EditorPane leafId={leafId} />}
       {paneType === 'terminal' && <TerminalPane leafId={leafId} />}
       {paneType === 'graph' && <GraphPane leafId={leafId} />}
-      {paneType === 'canvas' && <CanvasPane leafId={leafId} />}
+      {paneType === 'canvas' && <CanvasPane leafId={leafId} filePath={canvasFilePath} />}
       {paneType === 'kanban' && <KanbanPane leafId={leafId} />}
     </React.Suspense>
   )

@@ -55,6 +55,16 @@ declare global {
         readfile: (path: string) => Promise<string>
         writefile: (path: string, content: string) => Promise<boolean>
         homedir: () => Promise<string>
+        mkdir: (path: string) => Promise<boolean>
+        newfile: (path: string, content?: string) => Promise<boolean>
+        rename: (oldPath: string, newPath: string) => Promise<boolean>
+        delete: (path: string) => Promise<boolean>
+        exists: (path: string) => Promise<boolean>
+        stat: (path: string) => Promise<{ isDirectory: boolean; isFile: boolean; size: number; mtime: number } | null>
+        watch: (path: string) => Promise<boolean>
+        unwatch: (path: string) => Promise<boolean>
+        onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => void
+        offChanged: () => void
       }
       pty: {
         create: (id: string, cwd: string, cols?: number, rows?: number) => Promise<boolean>
@@ -67,6 +77,7 @@ declare global {
       }
       shell: {
         openExternal: (url: string) => Promise<void>
+        showItemInFolder: (fullPath: string) => Promise<void>
       }
       dialog: {
         openFolder: () => Promise<string | null>
