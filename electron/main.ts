@@ -11,6 +11,37 @@ const VITE_DEV_SERVER = 'http://localhost:5173'
 // Set the app name so macOS menu bar and dock say "Ghosted" instead of "Electron"
 app.setName('Ghosted')
 
+// ── Window state persistence ─────────────────────────────────────────────────
+const STATE_FILE = path.join(app.getPath('userData'), 'window-state.json')
+
+interface WindowState {
+  x?: number; y?: number
+  width: number; height: number
+  isMaximized?: boolean
+}
+
+function loadWindowState(): WindowState {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'))
+    }
+  } catch {}
+  return { width: 1440, height: 900 }
+}
+
+function saveWindowState(win: BrowserWindow) {
+  let state: WindowState
+  if (!win.isMaximized()) {
+    const bounds = win.getBounds()
+    state = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, isMaximized: false }
+  } else {
+    // Keep previous non-maximized size so restore works
+    const prev = loadWindowState()
+    state = { width: prev.width, height: prev.height, x: prev.x, y: prev.y, isMaximized: true }
+  }
+  try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)) } catch {}
+}
+
 function getAppIcon(): Electron.NativeImage | undefined {
   // Try PNG first, then SVG
   const candidates = isDev
@@ -26,16 +57,18 @@ function getAppIcon(): Electron.NativeImage | undefined {
 
 function createWindow() {
   const icon = getAppIcon()
+  const saved = loadWindowState()
 
   const win = new BrowserWindow({
     title: 'Ghosted',
     icon,
-    width: 1440,
-    height: 900,
+    width: saved.width,
+    height: saved.height,
+    ...(saved.x !== undefined && saved.y !== undefined ? { x: saved.x, y: saved.y } : {}),
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#09090e',
-    titleBarStyle: 'hiddenInset',
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -43,16 +76,39 @@ function createWindow() {
     },
   })
 
+  if (saved.isMaximized) win.maximize()
+
+  // Save window state on move/resize/maximize/close
+  let saveTimer: ReturnType<typeof setTimeout>
+  const debouncedSave = () => {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => saveWindowState(win), 300)
+  }
+  win.on('resize', debouncedSave)
+  win.on('move', debouncedSave)
+  win.on('maximize', debouncedSave)
+  win.on('unmaximize', debouncedSave)
+  win.on('close', () => saveWindowState(win))
+
   // Override macOS dock icon
   if (process.platform === 'darwin' && icon && app.dock) {
     app.dock.setIcon(icon)
   }
 
+  const loadBuilt = () => win.loadFile(path.join(__dirname, '../dist/index.html'))
+
   if (isDev) {
-    win.loadURL(VITE_DEV_SERVER)
-    win.webContents.openDevTools()
+    // Check if Vite dev server is running before trying to connect
+    import('http').then(http => {
+      const req = http.get(VITE_DEV_SERVER, () => {
+        req.destroy()
+        win.loadURL(VITE_DEV_SERVER)
+      })
+      req.on('error', () => loadBuilt())
+      req.setTimeout(1000, () => { req.destroy(); loadBuilt() })
+    })
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'))
+    loadBuilt()
   }
 }
 
@@ -71,7 +127,60 @@ ipcMain.handle('fs:writefile', async (_e, filePath: string, content: string) => 
   return true
 })
 ipcMain.handle('fs:homedir', () => os.homedir())
+ipcMain.handle('fs:mkdir', async (_e, dirPath: string) => {
+  fs.mkdirSync(dirPath, { recursive: true })
+  return true
+})
+ipcMain.handle('fs:newfile', async (_e, filePath: string, content?: string) => {
+  fs.writeFileSync(filePath, content ?? '', 'utf-8')
+  return true
+})
+ipcMain.handle('fs:rename', async (_e, oldPath: string, newPath: string) => {
+  fs.renameSync(oldPath, newPath)
+  return true
+})
+ipcMain.handle('fs:delete', async (_e, targetPath: string) => {
+  const stat = fs.statSync(targetPath)
+  if (stat.isDirectory()) {
+    fs.rmSync(targetPath, { recursive: true, force: true })
+  } else {
+    fs.unlinkSync(targetPath)
+  }
+  return true
+})
+ipcMain.handle('fs:exists', async (_e, targetPath: string) => fs.existsSync(targetPath))
+ipcMain.handle('fs:stat', async (_e, targetPath: string) => {
+  try {
+    const stat = fs.statSync(targetPath)
+    return { isDirectory: stat.isDirectory(), isFile: stat.isFile(), size: stat.size, mtime: stat.mtimeMs }
+  } catch { return null }
+})
+
+// ── File watcher IPC ──
+const watchers = new Map<string, fs.FSWatcher>()
+
+ipcMain.handle('fs:watch', async (_e, dirPath: string) => {
+  if (watchers.has(dirPath)) return true
+  try {
+    const watcher = fs.watch(dirPath, { recursive: true }, (eventType, filename) => {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      if (win && filename) {
+        win.webContents.send('fs:changed', { dir: dirPath, eventType, filename })
+      }
+    })
+    watchers.set(dirPath, watcher)
+    return true
+  } catch { return false }
+})
+
+ipcMain.handle('fs:unwatch', async (_e, dirPath: string) => {
+  const w = watchers.get(dirPath)
+  if (w) { w.close(); watchers.delete(dirPath) }
+  return true
+})
+
 ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
+ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) => shell.showItemInFolder(fullPath))
 ipcMain.handle('dialog:openFolder', async () => {
   const win = BrowserWindow.getFocusedWindow()
   if (!win) return null

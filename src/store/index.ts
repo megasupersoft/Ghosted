@@ -28,7 +28,7 @@ function saveLayout(layout: LayoutNode, nextNodeId: number) {
   localStorage.setItem('ghosted:layout', JSON.stringify({ layout, nextNodeId }))
 }
 
-export type FileType = 'text' | 'image' | 'video'
+export type FileType = 'text' | 'image' | 'video' | 'canvas'
 
 export interface OpenFile {
   path: string; name: string; content: string; isDirty: boolean; fileType: FileType

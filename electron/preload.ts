@@ -6,6 +6,19 @@ contextBridge.exposeInMainWorld('electron', {
     readfile: (p: string) => ipcRenderer.invoke('fs:readfile', p),
     writefile: (p: string, c: string) => ipcRenderer.invoke('fs:writefile', p, c),
     homedir: () => ipcRenderer.invoke('fs:homedir'),
+    mkdir: (p: string) => ipcRenderer.invoke('fs:mkdir', p),
+    newfile: (p: string, c?: string) => ipcRenderer.invoke('fs:newfile', p, c),
+    rename: (oldPath: string, newPath: string) => ipcRenderer.invoke('fs:rename', oldPath, newPath),
+    delete: (p: string) => ipcRenderer.invoke('fs:delete', p),
+    exists: (p: string) => ipcRenderer.invoke('fs:exists', p),
+    stat: (p: string) => ipcRenderer.invoke('fs:stat', p),
+    watch: (p: string) => ipcRenderer.invoke('fs:watch', p),
+    unwatch: (p: string) => ipcRenderer.invoke('fs:unwatch', p),
+    onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => {
+      ipcRenderer.removeAllListeners('fs:changed')
+      ipcRenderer.on('fs:changed', (_e, event) => cb(event))
+    },
+    offChanged: () => ipcRenderer.removeAllListeners('fs:changed'),
   },
   pty: {
     create: (id: string, cwd: string, cols?: number, rows?: number) => ipcRenderer.invoke('pty:create', id, cwd, cols, rows),
@@ -29,6 +42,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+    showItemInFolder: (fullPath: string) => ipcRenderer.invoke('shell:showItemInFolder', fullPath),
   },
   dialog: {
     openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
