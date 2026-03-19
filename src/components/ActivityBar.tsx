@@ -24,7 +24,7 @@ export default function ActivityBar() {
             onClick={() => toggleSidebar(item.id)}
             title={item.label}
           >
-            <item.icon size={20} />
+            <item.icon size={24} />
           </button>
         ))}
       </div>
@@ -36,7 +36,7 @@ export default function ActivityBar() {
             onClick={() => toggleSidebar(item.id)}
             title={item.label}
           >
-            <item.icon size={20} />
+            <item.icon size={24} />
           </button>
         ))}
       </div>

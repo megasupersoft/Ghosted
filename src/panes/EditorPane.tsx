@@ -1,10 +1,7 @@
 import React, { useEffect } from 'react'
 import { useStore, OpenFile } from '@/store'
 import { useSettings } from '@/store/settings'
-import {
-  FileCode, FileText, Braces, Hash, Globe,
-  Settings, File, X, Plus, Ghost, Image, Film,
-} from 'lucide-react'
+import { Ghost } from 'lucide-react'
 
 const MonacoEditor = React.lazy(() => import('@monaco-editor/react'))
 
@@ -19,38 +16,33 @@ function getLang(filename: string) {
   return map[ext] ?? 'plaintext'
 }
 
-function TabFileIcon({ name }: { name: string }) {
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  const sz = 12
-  switch (ext) {
-    case 'ts': case 'tsx': return <FileCode size={sz} color="var(--accent)" />
-    case 'js': case 'jsx': return <FileCode size={sz} color="var(--amber)" />
-    case 'py':              return <FileCode size={sz} color="var(--green)" />
-    case 'rs':              return <FileCode size={sz} color="var(--red)" />
-    case 'go':              return <FileCode size={sz} color="var(--cyan)" />
-    case 'md': case 'txt':  return <FileText size={sz} color="var(--text-secondary)" />
-    case 'json':            return <Braces size={sz} color="var(--amber)" />
-    case 'css': case 'scss': return <Hash size={sz} color="var(--purple)" />
-    case 'html':            return <Globe size={sz} color="var(--red)" />
-    case 'yaml': case 'yml': case 'toml': return <Settings size={sz} color="var(--text-muted)" />
-    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': case 'webp': case 'ico': case 'bmp': case 'avif':
-      return <Image size={sz} color="var(--purple)" />
-    case 'mp4': case 'webm': case 'mov': case 'avi': case 'mkv': case 'ogg':
-      return <Film size={sz} color="var(--cyan)" />
-    default:                return <File size={sz} color="var(--text-muted)" />
-  }
-}
-
 export function registerGhostTheme(monaco: any) {
   monaco.editor.defineTheme('ghost', {
     base: 'vs-dark', inherit: true,
     rules: [
-      { token: 'comment',  foreground: '2a2a55', fontStyle: 'italic' },
-      { token: 'keyword',  foreground: '8b7cf8' },
-      { token: 'string',   foreground: '4ade80' },
-      { token: 'number',   foreground: 'fbbf24' },
-      { token: 'type',     foreground: 'c084fc' },
-      { token: 'function', foreground: '67e8f9' },
+      { token: 'comment',  foreground: '7e7e95', fontStyle: 'italic' },
+      { token: 'keyword',  foreground: 'b0a8f0' },
+      { token: 'keyword.control', foreground: 'b0a8f0' },
+      { token: 'string',   foreground: '86efac' },
+      { token: 'string.escape', foreground: '4ade80' },
+      { token: 'number',   foreground: 'fcd34d' },
+      { token: 'type',     foreground: 'd8b4fe' },
+      { token: 'type.identifier', foreground: 'd8b4fe' },
+      { token: 'function', foreground: 'a5f3fc' },
+      { token: 'function.declaration', foreground: '7dd3fc' },
+      { token: 'variable', foreground: 'f0f0f5' },
+      { token: 'variable.predefined', foreground: 'ababc0' },
+      { token: 'identifier', foreground: 'f0f0f5' },
+      { token: 'delimiter', foreground: 'ababc0' },
+      { token: 'delimiter.bracket', foreground: 'ababc0' },
+      { token: 'operator', foreground: 'c8c2f5' },
+      { token: 'tag', foreground: 'fb923c' },
+      { token: 'attribute.name', foreground: 'b0a8f0' },
+      { token: 'attribute.value', foreground: '86efac' },
+      { token: 'regexp', foreground: 'fda4af' },
+      { token: 'constant', foreground: 'fcd34d' },
+      { token: 'annotation', foreground: 'fda4af' },
+      { token: 'metatag', foreground: '7e7e95' },
     ],
     colors: {
       'editor.background': '#252532',
@@ -66,26 +58,6 @@ export function registerGhostTheme(monaco: any) {
       'scrollbarSlider.hoverBackground': '#555568',
     }
   })
-}
-
-function Tab({ file, active, leafId }: { file: { path: string; name: string; isDirty: boolean }; active: boolean; leafId?: string }) {
-  const { setActiveFile, closeFile } = useStore()
-  return (
-    <div
-      onClick={() => setActiveFile(file.path, leafId)}
-      className={`editor-tab ${active ? 'editor-tab-active' : ''}`}
-    >
-      <TabFileIcon name={file.name} />
-      {file.isDirty && <span className="editor-tab-dirty" />}
-      <span className="editor-tab-label">{file.name}</span>
-      <button
-        onClick={e => { e.stopPropagation(); closeFile(file.path, leafId) }}
-        className="editor-tab-close"
-      >
-        <X size={12} />
-      </button>
-    </div>
-  )
 }
 
 function localFileUrl(filePath: string): string {

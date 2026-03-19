@@ -479,7 +479,7 @@ function FileRow({
                     {active && (
                       <span style={{
                         position: 'absolute', left: guideX(i), top: 0, bottom: terminatesHere ? '50%' : 0, width: 2,
-                        background: 'var(--accent)', opacity: isSelected ? 0.15 : 0.2,
+                        background: 'var(--accent)', opacity: 0.2,
                         pointerEvents: 'none',
                       }} />
                     )}
@@ -491,7 +491,7 @@ function FileRow({
                 <>
                   <span style={{
                     position: 'absolute', left: guideX(depth - 1), top: 0, bottom: '50%', width: 2,
-                    background: 'var(--accent)', opacity: 0.15, pointerEvents: 'none',
+                    background: 'var(--accent)', opacity: 0.2, pointerEvents: 'none',
                   }} />
                   {/* Horizontal connector to the selected item */}
                   <span style={{
@@ -500,7 +500,7 @@ function FileRow({
                     top: '50%',
                     width: 10,
                     height: 2,
-                    background: 'var(--accent)', opacity: 0.15, pointerEvents: 'none',
+                    background: 'var(--accent)', opacity: 0.2, pointerEvents: 'none',
                   }} />
                 </>
               )}
@@ -526,14 +526,14 @@ function FileRow({
                 : <ChevronRight size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
               }
               {open
-                ? <FolderOpen size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
+                ? <FolderOpen size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
                 : <Folder size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
               }
             </>
           ) : (
             <FileIcon name={node.name} />
           )}
-          <span className="filetree-name" style={{ color: node.isDirectory ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+          <span className="filetree-name" style={{ color: node.isDirectory ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
             {node.name}
           </span>
         </span>
@@ -590,7 +590,7 @@ function FileRow({
 // ─── Main FileTree ────────────────────────────────────────────────────────────
 
 export default function FileTree() {
-  const { workspacePath, setWorkspacePath, openFile, setFocusedLeaf, changeLeafPane, focusedLeafId } = useStore()
+  const { workspacePath, setWorkspacePath, openFile, setFocusedLeaf, focusedLeafId } = useStore()
   const showHidden = useSettings(s => s.showHiddenFiles)
   const [roots, setRoots] = useState<FileNode[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)

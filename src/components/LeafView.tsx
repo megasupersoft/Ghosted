@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/store'
-import { LeafNode, PaneId, DropZone, TabEntry, countLeaves, findFirstLeafByPane, getActiveTab } from '@/store/layout'
+import { LeafNode, PaneId, DropZone, TabEntry, countLeaves, getActiveTab } from '@/store/layout'
 import {
   Code, Terminal, Share2, Workflow, Kanban,
   PanelRight, PanelBottom, X, Plus, Pin,
@@ -136,7 +136,7 @@ function AddPaneDropdown({ onAdd }: { onAdd: (p: PaneId) => void }) {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => setOpen(o => !o)} className="leaf-tab-btn" title="Add tab">
-        <Plus size={16} />
+        <Plus size={20} />
       </button>
       {open && (
         <div className="leaf-pane-dropdown">
@@ -237,12 +237,8 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
   }, [])
 
   const openDroppedFile = useCallback(async (filePath: string, zone: DropZone | null) => {
-    const store = useStore.getState()
-    const { openFile, setFocusedLeaf: focus, changeLeafPane: changePane, splitLeaf: split } = store
     const name = filePath.split('/').pop() ?? filePath
     const ext = name.split('.').pop()?.toLowerCase() ?? ''
-
-    const paneType: PaneId = ext === 'canvas' ? 'canvas' : 'editor'
 
     let content = ''
     let fileType: 'text' | 'image' | 'video' | 'canvas' = 'text'
@@ -257,21 +253,19 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
       content = await window.electron.fs.readfile(filePath)
     }
 
-    openFile(filePath, name, content, fileType)
-
     if (zone && zone !== 'center') {
-      const direction: 'horizontal' | 'vertical' =
-        (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical'
-      split(leaf.id, direction)
+      // Edge drop: split first, then open file in the new leaf
+      const { splitLeaf: split, setFocusedLeaf: focus } = useStore.getState()
+      split(leaf.id, zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical')
       const { focusedLeafId: newLeafId } = useStore.getState()
-      changePane(newLeafId, paneType)
       focus(newLeafId)
+      // Now open file — it will target the newly focused leaf
+      useStore.getState().openFile(filePath, name, content, fileType)
     } else {
-      const activePaneType = activeTab.paneType
-      if (activePaneType !== paneType) changePane(leaf.id, paneType)
-      focus(leaf.id)
+      // Center drop: open in current leaf
+      useStore.getState().openFile(filePath, name, content, fileType)
     }
-  }, [leaf.id, activeTab.paneType])
+  }, [leaf.id])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -414,13 +408,13 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
               onClick={e => { e.stopPropagation(); togglePin(tab.id) }}
               title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
             >
-              <Pin size={14} />
+              <Pin size={16} />
             </button>
             <button
               className="leaf-pane-tab-close"
               onClick={e => { e.stopPropagation(); closeTab(leaf.id, tab.id) }}
             >
-              <X size={14} />
+              <X size={18} />
             </button>
           </div>
         ))}
@@ -428,6 +422,7 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
         {tabInsertIdx !== null && (
           <div className="tab-insert-indicator" style={{ left: tabInsertX }} />
         )}
+        <div style={{ width: 8 }} />
         <AddPaneDropdown onAdd={p => addTab(leaf.id, p)} />
         <span style={{ flex: 1 }} />
         <button onClick={() => splitLeaf(leaf.id, 'horizontal')} title="Split right" className="leaf-tab-btn">
