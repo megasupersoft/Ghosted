@@ -94,12 +94,17 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         window.electron.pty.onData(ptyId, (d: string) => term.write(d))
         window.electron.pty.onExit(ptyId, () => term.write('\r\n\x1b[90m[exited]\x1b[0m\r\n'))
 
-        const ok = await window.electron.pty.create(ptyId, cwd, cols, rows)
+        // Retry PTY creation up to 3 times (handles race conditions on reload)
+        let ok = false
+        for (let attempt = 0; attempt < 3 && !ok && !disposed; attempt++) {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 500))
+          ok = await window.electron.pty.create(ptyId, cwd, cols, rows)
+        }
 
         if (disposed) { term.dispose(); return }
         if (!ok) {
-          if (mounted.current) setErr('node-pty unavailable — check console')
-          term.write('\x1b[31m[node-pty unavailable]\x1b[0m\r\n')
+          if (mounted.current) setErr('node-pty unavailable')
+          term.write('\x1b[31m[node-pty unavailable — restart app]\x1b[0m\r\n')
           return
         }
 

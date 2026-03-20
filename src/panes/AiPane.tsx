@@ -15,18 +15,15 @@ export default function AiPane({ leafId }: { leafId?: string }) {
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
   const sessionRef = useRef<any>(null)
   const abortRef = useRef(false)
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages, streamText])
 
-  // Initialize pi session
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -63,7 +60,7 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               })
               break
             case 'tool_execution_start':
-              setStreamText(prev => prev + `\n\`⚡ ${event.toolName}\`\n`)
+              setStreamText(prev => prev + `\n⚡ ${event.toolName}\n`)
               break
           }
         })
@@ -71,10 +68,9 @@ export default function AiPane({ leafId }: { leafId?: string }) {
         sessionRef.current = session
       } catch (err: any) {
         console.error('Pi SDK init failed:', err)
-        // Fallback message
         setMessages([{
           role: 'assistant',
-          content: 'Pi SDK not available. Set up API keys with `pi auth` in your terminal.',
+          content: 'Pi SDK not available. Run `pi auth` in a terminal to set up API keys.',
           timestamp: Date.now(),
         }])
       }
@@ -111,23 +107,11 @@ export default function AiPane({ leafId }: { leafId?: string }) {
       try { sessionRef.current.abort() } catch {}
       setStreaming(false)
       if (streamText) {
-        setMessages(prev => [...prev, { role: 'assistant', content: streamText + '\n\n*[aborted]*', timestamp: Date.now() }])
+        setMessages(prev => [...prev, { role: 'assistant', content: streamText + '\n\n*[stopped]*', timestamp: Date.now() }])
         setStreamText('')
       }
     }
   }, [streamText])
-
-  const handleClear = useCallback(() => {
-    setMessages([])
-    setStreamText('')
-  }, [])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }, [handleSend])
 
   return (
     <div style={{
@@ -135,14 +119,13 @@ export default function AiPane({ leafId }: { leafId?: string }) {
       display: 'flex', flexDirection: 'column',
       background: 'var(--bg-surface)',
     }}>
-      {/* Messages */}
       <div
         ref={scrollRef}
         style={{
           flex: 1, minHeight: 0,
           overflowY: 'auto',
           padding: '16px 20px',
-          display: 'flex', flexDirection: 'column', gap: 16,
+          display: 'flex', flexDirection: 'column', gap: 12,
         }}
       >
         {messages.length === 0 && !streaming && (
@@ -159,8 +142,9 @@ export default function AiPane({ leafId }: { leafId?: string }) {
 
         {messages.map((msg, i) => (
           <div key={i} style={{
-            display: 'flex', flexDirection: 'column', gap: 4,
+            display: 'flex',
             alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            flexDirection: 'column',
           }}>
             <div style={{
               maxWidth: '85%',
@@ -177,12 +161,8 @@ export default function AiPane({ leafId }: { leafId?: string }) {
           </div>
         ))}
 
-        {/* Streaming indicator */}
         {streaming && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 4,
-            alignItems: 'flex-start',
-          }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
             <div style={{
               maxWidth: '85%',
               padding: '10px 14px',
@@ -193,40 +173,32 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               fontFamily: 'var(--font-ui)',
               whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
-              {streamText || (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  <span className="ghost-pulse">thinking...</span>
-                </span>
-              )}
+              {streamText || <span style={{ color: 'var(--text-muted)' }} className="ghost-pulse">thinking...</span>}
             </div>
           </div>
         )}
       </div>
 
-      {/* Input area */}
       <div style={{
         padding: '12px 16px',
         borderTop: '1px solid var(--border)',
         display: 'flex', gap: 8, alignItems: 'flex-end',
       }}>
         <button
-          onClick={handleClear}
-          title="Clear chat"
+          onClick={() => { setMessages([]); setStreamText('') }}
+          title="Clear"
           style={{
             width: 32, height: 32,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-muted)',
-            flexShrink: 0,
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', flexShrink: 0,
           }}
         >
           <RotateCcw size={14} />
         </button>
         <textarea
-          ref={inputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
           placeholder="Ask pi..."
           rows={1}
           style={{
@@ -237,8 +209,7 @@ export default function AiPane({ leafId }: { leafId?: string }) {
             border: '1px solid var(--border)',
             color: 'var(--text-primary)',
             fontSize: 14, fontFamily: 'var(--font-ui)',
-            lineHeight: 1.5,
-            maxHeight: 120, overflowY: 'auto',
+            lineHeight: 1.5, maxHeight: 120, overflowY: 'auto',
           }}
         />
         {streaming ? (
@@ -249,8 +220,7 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               width: 32, height: 32,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               borderRadius: 'var(--radius-sm)',
-              background: 'var(--red)', color: '#fff',
-              flexShrink: 0,
+              background: 'var(--red)', color: '#fff', flexShrink: 0,
             }}
           >
             <Square size={12} />
@@ -266,8 +236,7 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               borderRadius: 'var(--radius-sm)',
               background: input.trim() ? 'var(--accent)' : 'var(--bg-elevated)',
               color: input.trim() ? '#fff' : 'var(--text-muted)',
-              flexShrink: 0,
-              transition: 'all 0.15s',
+              flexShrink: 0, transition: 'all 0.15s',
             }}
           >
             <Send size={14} />

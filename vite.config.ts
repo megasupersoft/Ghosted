@@ -37,7 +37,10 @@ export default defineConfig({
   base: './',
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      external: ['@mariozechner/pi-coding-agent'],
+    },
   },
   server: {
     port: 5173,

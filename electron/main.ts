@@ -193,15 +193,27 @@ ipcMain.handle('dialog:openFolder', async () => {
 
 // ── Terminal IPC (node-pty) ──
 let pty: typeof import('node-pty') | null = null
-try {
-  pty = require('node-pty')
-} catch {
+// Deferred load — resolve from multiple locations
+// Load node-pty — use child_process.execSync to spawn with correct libc if needed
+function loadPty() {
+  const ptyRoot = path.join(__dirname, '..', 'node_modules', 'node-pty')
+  const nativePath = path.join(ptyRoot, 'build', 'Release', 'pty.node')
+  const utilsPath = path.join(ptyRoot, 'lib', 'utils.js')
+
+  // Patch node-pty's native loader to use absolute path (avoids relative path issues)
   try {
-    pty = require(path.join(process.cwd(), 'node_modules', 'node-pty'))
+    const utils = require(utilsPath)
+    utils.loadNativeModule = () => ({
+      dir: path.dirname(nativePath) + '/',
+      module: require(nativePath),
+    })
+    pty = require(ptyRoot)
+    console.log('node-pty loaded OK')
   } catch (e: any) {
     console.error('node-pty load failed:', e.message)
   }
 }
+loadPty()
 
 const terminals = new Map<string, import('node-pty').IPty>()
 
