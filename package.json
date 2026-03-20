@@ -4,7 +4,7 @@
   "description": "Ghosted — the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
-    "postinstall": "bash scripts/setup-mac.sh",
+    "postinstall": "bash scripts/setup-mac.sh && node scripts/rebuild-pty.js",
     "dev": "vite",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "preview": "electron .",
@@ -47,7 +47,7 @@
     "force-graph": "^1.51.2",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.577.0",
-    "node-pty": "^1.0.0",
+    "node-pty": "^1.1.0",
     "react": "^18.0.0",
     "react-arborist": "^3.4.0",
     "react-dom": "^18.0.0",
