@@ -1,0 +1,149 @@
+{
+  "seedVersion": 3,
+  "generatedAt": "2026-03-20T05:43:25.524Z",
+  "sourceCommit": "2bba90d32e01cfa3944be308794567fb6855552a",
+  "generatorVersion": "2026-03-11.2",
+  "seederPromptVersion": "2026-03-11.2",
+  "suggestionPromptVersion": "2026-03-11.1",
+  "configFingerprint": "sha256:1c8240f0803f32e5bd8896c2fabd508516dbefbc88d624d285ba5069a7cccf1a",
+  "projectIntentSummary": "Ghosted is an agent-native, dark, opinionated developer workspace built as an Electron desktop application by Megasupersoft Ltd. Taglined 'The dev workspace that never sleeps' and 'Your codebase, haunted,' it serves as the default workspace for BruceOS. Ghosted combines six always-mounted panes — Editor (Monaco), Terminal (xterm.js + node-pty), Knowledge Graph (reagraph WebGL), Agent Canvas (@xyflow/react v12), Kanban (dnd-kit + GitHub Projects v2 GraphQL), and File Tree (Electron IPC + fs) — into a single integrated development environment. The project aims to be a comprehensive, AI-aware workspace where developers can edit code, run terminals, visualize knowledge graphs from [[wikilinks]] in markdown files, design agent workflows on a canvas, manage project tasks via GitHub Projects integration, and browse the filesystem — all within a cohesive, always-dark UI with a spectral violet accent (#8b7cf8). The tech stack is Electron 29, Vite 5, React 18, TypeScript, Zustand for state management, and various specialized libraries for each pane. A key architectural innovation is GhostedDB, an in-memory markdown index using chokidar file watching and gray-matter frontmatter parsing with [[wikilink]] extraction, which powers the knowledge graph and canvas context nodes.",
+  "objectivesSummary": "Core objectives include: (1) Provide a unified six-pane developer workspace with editor, terminal, knowledge graph, agent canvas, kanban, and file tree. (2) Maintain always-mounted pane pattern (CSS show/hide, never unmount) to preserve terminal state and graph positions. (3) All filesystem and PTY operations through IPC — renderer never touches Node APIs directly. (4) GhostedDB in-memory markdown indexing with live updates for knowledge graph and canvas context. (5) GitHub Projects v2 integration for kanban project management. (6) Agent canvas with workflow runner that pipes through topologically-sorted nodes. Future objectives on the roadmap: Canvas JSON export/import, graph search with depth control, pi.dev RPC integration in terminal, CLI launcher ('ghosted .'), BruceOS AppImage packaging, and Supermemory integration for persistent workspace context.",
+  "constraintsSummary": "Key constraints: (1) BruceOS target — all build decisions must keep AppImage packaging in mind. (2) IPC-only architecture — renderer process must never directly access Node.js APIs; all fs and PTY operations go through defined IPC channels. (3) Panes must never be unmounted — use CSS display:none/visibility:hidden pattern to preserve state. (4) node-pty is a native module requiring npm rebuild after install; PTY cleanup in useEffect return is mandatory to prevent leaks. (5) Monaco loads async and must be wrapped in Suspense. (6) reagraph (WebGL) needs container dimensions set before mount. (7) @xyflow/react v12 requires ReactFlowProvider at root with node/edge state managed outside ReactFlow. (8) When touching IPC, three files must be updated together: electron/main.ts, electron/preload.ts, and src/types/electron.d.ts. (9) New panes require /arch first to define IPC contract, store slice, and mount/unmount lifecycle. (10) reagraph and xyflow APIs change constantly — always fetch docs before modifying.",
+  "principlesGuidelinesSummary": "The project follows a strict mandatory workflow defined in CLAUDE.md: (1) Session start: read PROGRESS.md, check GitHub Projects, confirm work scope. (2) Before coding against external APIs: search docs via chub, fetch if found, use Context7 MCP as fallback, annotate gotchas. (3) Before new features: /brief to clarify what and why, /arch to lock pane architecture/IPC contract/state shape, then code. (4) Before PR/release: /review for bugs, node-pty leaks, IPC safety, React cleanup — fix all CRITICAL and HIGH. (5) To ship: /ship for version bump, build, tag, push, update GitHub Projects. Automatic checks enforce: new pane → /arch first; IPC changes → update all three files together; new terminal → must have useEffect cleanup; new native dep → npm rebuild + update BUILDING.md; reagraph/xyflow changes → fetch docs first. Design: dark theme only, accent color #8b7cf8 (cold spectral violet), color palette in src/styles/global.css. PROGRESS.md must be updated at end of every session.",
+  "implementationStatusSummary": "v0.1.0 — All six core panes are scaffolded and rendering. Core IPC for filesystem and PTY is working. Completed: Electron+Vite+React+TS scaffold, six-pane layout, Monaco editor with ghost theme and multi-tab, xterm.js+node-pty terminal, reagraph knowledge graph with wikilink scanning, @xyflow/react agent canvas, dnd-kit kanban with GitHub Projects v2 GraphQL, react-arborist file tree, Zustand store, titlebar with pane switcher, always-mounted pane pattern, folder picker IPC, PTY with resize, GhostedDB in-memory markdown index, useGhostDB hook, canvas context nodes + workflow runner, TypeScript 5.9.3 fix. Additional panes beyond original six exist: AiPane, SettingsPane, SourceControlPane. In flight: Canvas JSON export/import, graph search+depth control, pi.dev RPC, CLI launcher, BruceOS AppImage packaging. No current blockers.",
+  "topObjectives": [
+    "Provide a unified six-pane developer workspace (editor, terminal, graph, canvas, kanban, filetree) in a single Electron application",
+    "Maintain always-mounted pane architecture to preserve terminal state and graph positions across pane switches",
+    "Enforce strict IPC-only boundary between renderer and main process for all filesystem and PTY operations",
+    "Power knowledge graph and canvas context via GhostedDB in-memory markdown indexing with [[wikilink]] extraction",
+    "Ship as default workspace for BruceOS with AppImage packaging",
+    "Implement canvas JSON export/import and graph search with depth control",
+    "Integrate pi.dev RPC in terminal pane and add CLI launcher (ghosted .)"
+  ],
+  "constraints": [
+    "Renderer must never access Node.js APIs directly — all operations through IPC channels",
+    "Panes must never be unmounted — CSS show/hide only to preserve state",
+    "node-pty is native module: npm rebuild required after install, useEffect cleanup mandatory to prevent leaks",
+    "IPC changes must update electron/main.ts, electron/preload.ts, and src/types/electron.d.ts together",
+    "BruceOS AppImage packaging must be considered in all build decisions",
+    "Monaco must be wrapped in Suspense due to async loading",
+    "reagraph needs container dimensions before mount; xyflow requires ReactFlowProvider at root",
+    "Always fetch docs before modifying reagraph or xyflow code — APIs change constantly",
+    "New panes require /arch first to define IPC contract, store slice, lifecycle",
+    "PROGRESS.md must be updated at end of every session"
+  ],
+  "keyFiles": [
+    {
+      "path": "CLAUDE.md",
+      "hash": "sha256:6c258b13887319d097d187a3c73dd6b99cc7c851da38d7f4dcad6baa3491b0e8",
+      "whyImportant": "Primary project configuration: architecture, IPC contracts, state shape, mandatory workflow, commands, roadmap, library gotchas",
+      "category": "architecture"
+    },
+    {
+      "path": "README.md",
+      "hash": "sha256:1ff6c2f68b1382f3d9b720db063b70b08f3037c160463289e689c69bc16ba7b9",
+      "whyImportant": "Project vision, tagline, pane overview, design palette, BruceOS relationship",
+      "category": "vision"
+    },
+    {
+      "path": "PROGRESS.md",
+      "hash": "sha256:2eea073cf344a38432bc7764048876775a94680b9670a6161c53e6f62105d0f0",
+      "whyImportant": "Living implementation status: done items, in-flight work, blockers, session continuity",
+      "category": "other"
+    },
+    {
+      "path": "src/store/index.ts",
+      "hash": "sha256:207638e72a2b2f7366b8b9d664b13f42f1a575d8e3bd697d4b45d99b2a54797f",
+      "whyImportant": "Zustand state store — workspace, open files, active pane, pane order, GitHub token",
+      "category": "architecture"
+    },
+    {
+      "path": "electron/main.ts",
+      "hash": "sha256:4b6d67cbac4e70d694d0b0e771ef42f7ab798c1f67199ae8235cfa7648080822",
+      "whyImportant": "Electron main process: IPC handlers for fs, PTY, dialog, shell operations",
+      "category": "code_entrypoint"
+    },
+    {
+      "path": "electron/preload.ts",
+      "hash": "sha256:40245cdb744502b672a5e0cbe3e784e2999bc7bf9e435839a816632a2e19d120",
+      "whyImportant": "Electron preload script: IPC bridge between main and renderer",
+      "category": "architecture"
+    },
+    {
+      "path": "electron/ghostdb.ts",
+      "hash": "sha256:0903c852efa43c45b03ffbafea648929bbd9e877d1d5849409996494c3b7297a",
+      "whyImportant": "GhostedDB: in-memory markdown index with chokidar, gray-matter, wikilink extraction",
+      "category": "architecture"
+    },
+    {
+      "path": "src/App.tsx",
+      "hash": "sha256:933de504558b87e99dba1e95ceb662c09c3bfa305da8b872db4023151c853ff8",
+      "whyImportant": "Root React component: pane mounting, layout, routing",
+      "category": "code_entrypoint"
+    },
+    {
+      "path": "src/main.tsx",
+      "hash": "sha256:23610b403f2c768d2e376e0a3d46bfcbf87fe868dc4727258ef4e82d3739189c",
+      "whyImportant": "React entry point",
+      "category": "code_entrypoint"
+    },
+    {
+      "path": "src/styles/global.css",
+      "hash": "sha256:49772103972a3ad1be286716c7678c0ad06d54d223727886db447fd6c65cf48a",
+      "whyImportant": "Design system: color palette, ghost theme, accent #8b7cf8",
+      "category": "principles_guidelines"
+    },
+    {
+      "path": "vite.config.ts",
+      "hash": "sha256:da7b2db6c898b9923bdb7f4704e15ca9de014a994ff1f80e7aec745425766925",
+      "whyImportant": "Build configuration: Vite + Electron externalization of native modules",
+      "category": "other"
+    },
+    {
+      "path": "package.json",
+      "hash": "sha256:0a19b9c9f529068671cf85e8a3e5946043b75a5df41fcb0f9c463bcf3b3e776f",
+      "whyImportant": "Dependencies, scripts, project metadata",
+      "category": "other"
+    }
+  ],
+  "categoryFindings": {
+    "vision": {
+      "found": true,
+      "rationale": "README.md provides the project tagline, vision ('agent-native, dark, opinionated dev workspace'), BruceOS relationship, and pane overview. CLAUDE.md provides roadmap items and the broader ecosystem context (BruceOS, Megasupersoft Ltd).",
+      "files": [
+        "README.md",
+        "CLAUDE.md"
+      ]
+    },
+    "architecture": {
+      "found": true,
+      "rationale": "CLAUDE.md contains comprehensive architecture documentation: six-pane model with always-mounted pattern, complete IPC channel table, Zustand state shape, library gotchas, and the GhostedDB system. The source structure (src/panes/, electron/, src/store/) directly reflects this documented architecture.",
+      "files": [
+        "CLAUDE.md",
+        "electron/main.ts",
+        "electron/preload.ts",
+        "electron/ghostdb.ts",
+        "src/store/index.ts"
+      ]
+    },
+    "principles_guidelines": {
+      "found": true,
+      "rationale": "CLAUDE.md contains a detailed 'MANDATORY WORKFLOW — DO NOT SKIP' section with explicit principles: session start protocol, doc-first coding, /brief → /arch → code flow, review requirements, automatic checks for panes/IPC/terminals/native deps. Design principles (dark theme, accent color) are in README.md and src/styles/global.css.",
+      "files": [
+        "CLAUDE.md",
+        "README.md",
+        "src/styles/global.css"
+      ]
+    }
+  },
+  "openQuestions": [
+    "AiPane, SettingsPane, and SourceControlPane exist in src/panes/ but aren't mentioned in CLAUDE.md's six-pane model — are these new additions or experimental?",
+    "What is the current state of the pi.dev RPC integration plan?",
+    "Is there a BUILDING.md file referenced in CLAUDE.md's automatic checks? It wasn't found in the repo root.",
+    "What is the Supermemory integration plan for persistent workspace context?",
+    "How will the 'ghosted .' CLI launcher be implemented — as a separate binary or npm global?"
+  ],
+  "reseedNotes": "This is a well-documented project with CLAUDE.md serving as the single source of truth for architecture, workflow, and conventions. PROGRESS.md tracks session-to-session status. Reseed if: new panes are added beyond the original six, IPC channels are significantly expanded, GhostedDB architecture changes, or BruceOS packaging constraints introduce new build requirements. The docs/research/ directory contains research notes (e.g., obsidian-pane-drag-drop.md) that may grow over time.",
+  "lastReseedReason": "initial_missing",
+  "lastChangedFiles": []
+}

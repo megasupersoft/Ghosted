@@ -149,6 +149,15 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     }
   }, [ptyId])
 
+  // Re-focus terminal when pane becomes visible
+  const focusedLeafId = useStore(s => s.focusedLeafId)
+  useEffect(() => {
+    if (focusedLeafId === leafId && xtermRef.current) {
+      // Small delay to ensure the pane is visible (display:none → flex)
+      requestAnimationFrame(() => xtermRef.current?.focus())
+    }
+  }, [focusedLeafId, leafId])
+
   // Sync settings
   const fontSize = useSettings(s => s.terminalFontSize)
   const fontFamily = useSettings(s => s.terminalFontFamily)
@@ -170,7 +179,7 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
 
   return (
     <div
-      onClick={() => xtermRef.current?.focus()}
+      onMouseDown={() => requestAnimationFrame(() => xtermRef.current?.focus())}
       style={{
         width: '100%', height: '100%',
         background: 'var(--bg-surface)',

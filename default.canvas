@@ -4,8 +4,8 @@
       "id": "ctx",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 0
+        "x": -75.85435168738897,
+        "y": 19.52397868561279
       },
       "data": {
         "label": "Workspace Context",
@@ -26,14 +26,16 @@
       "measured": {
         "width": 151,
         "height": 63
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "brief",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 140
+        "x": 26.64653641207815,
+        "y": 149.76198934280643
       },
       "data": {
         "label": "Brief",
@@ -43,14 +45,16 @@
       "measured": {
         "width": 150,
         "height": 64
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "arch",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 280
+        "x": 1.4280639431616464,
+        "y": 285.69449378330376
       },
       "data": {
         "label": "Arch",
@@ -60,7 +64,9 @@
       "measured": {
         "width": 150,
         "height": 64
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "impl",
@@ -83,8 +89,8 @@
       "id": "rev",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 560
+        "x": 148.67140319715804,
+        "y": 567.3214920071048
       },
       "data": {
         "label": "Review",
@@ -94,14 +100,16 @@
       "measured": {
         "width": 150,
         "height": 64
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "ship",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 700
+        "x": 180.39786856127887,
+        "y": 699.1865008880994
       },
       "data": {
         "label": "Ship",
@@ -111,14 +119,16 @@
       "measured": {
         "width": 150,
         "height": 64
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "run1",
       "type": "run",
       "position": {
-        "x": 60,
-        "y": 840
+        "x": 219.4458259325044,
+        "y": 813.1545293072824
       },
       "data": {
         "label": "Run Workflow",
@@ -127,7 +137,9 @@
       "measured": {
         "width": 150,
         "height": 76
-      }
+      },
+      "selected": false,
+      "dragging": false
     }
   ],
   "edges": [

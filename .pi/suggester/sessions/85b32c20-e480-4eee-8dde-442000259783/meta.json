@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "85b32c20-e480-4eee-8dde-442000259783",
+  "sessionFile": "/home/danger/.pi/agent/sessions/--home-danger-Documents-GitHub-Ghosted--/2026-03-20T05-42-02-150Z_85b32c20-e480-4eee-8dde-442000259783.jsonl",
+  "cwd": "/home/danger/Documents/GitHub/Ghosted",
+  "ignoreLegacyPiSessionEntries": true,
+  "legacyMigration": {
+    "performedAt": "2026-03-20T05:42:02.229Z",
+    "importedLegacyEntries": false,
+    "legacyStateEntryCount": 0,
+    "legacyUsageEntryCount": 0,
+    "note": "Legacy suggester-state/suggester-usage pi session entries were imported once into extension-owned storage and are ignored afterwards."
+  }
+}

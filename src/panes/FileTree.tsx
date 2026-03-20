@@ -776,23 +776,23 @@ export default function FileTree() {
               <button
                 onClick={() => { setCreatingIn(workspacePath); setCreatingType('file') }}
                 title="New File"
-                style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
+                style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
                 className="filetree-header-btn"
               >
-                <FilePlus size={14} />
+                <FilePlus size={18} />
               </button>
               <button
                 onClick={() => { setCreatingIn(workspacePath); setCreatingType('folder') }}
                 title="New Folder"
-                style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
+                style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
                 className="filetree-header-btn"
               >
-                <FolderPlus size={14} />
+                <FolderPlus size={18} />
               </button>
             </>
           )}
-          <button onClick={openWorkspace} title="Open folder" style={{ color: 'var(--accent)', padding: '3px', borderRadius: 3, border: '1px solid var(--accent-dim)', boxShadow: '0 0 6px var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <FolderOpen size={14} />
+          <button onClick={openWorkspace} title="Open folder" style={{ color: 'var(--accent)', width: 30, height: 30, borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-dim)', boxShadow: '0 0 6px var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FolderOpen size={18} />
           </button>
         </div>
       </div>
