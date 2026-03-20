@@ -58,6 +58,25 @@ contextBridge.exposeInMainWorld('electron', {
     },
     offChange: () => ipcRenderer.removeAllListeners('db:changed'),
   },
+  pi: {
+    create: (sessionId: string, cwd?: string) => ipcRenderer.invoke('pi:create', sessionId, cwd),
+    prompt: (sessionId: string, message: string) => ipcRenderer.invoke('pi:prompt', sessionId, message),
+    abort: (sessionId: string) => ipcRenderer.invoke('pi:abort', sessionId),
+    dispose: (sessionId: string) => ipcRenderer.invoke('pi:dispose', sessionId),
+    onEvent: (sessionId: string, cb: (event: any) => void) => {
+      const channel = `pi:event:${sessionId}`
+      ipcRenderer.removeAllListeners(channel)
+      ipcRenderer.on(channel, (_e, event) => cb(event))
+    },
+    removeListeners: (sessionId: string) => {
+      ipcRenderer.removeAllListeners(`pi:event:${sessionId}`)
+    },
+    onAction: (cb: (action: any) => void) => {
+      ipcRenderer.removeAllListeners('pi:action')
+      ipcRenderer.on('pi:action', (_e, action) => cb(action))
+    },
+    offAction: () => ipcRenderer.removeAllListeners('pi:action'),
+  },
   git: {
     log: (cwd: string, count?: number) => ipcRenderer.invoke('git:log', cwd, count),
     diffSummary: (cwd: string) => ipcRenderer.invoke('git:diffSummary', cwd),

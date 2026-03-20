@@ -8,6 +8,11 @@ import fs from 'fs'
 const isDev = !app.isPackaged
 const VITE_DEV_SERVER = 'http://localhost:5173'
 
+// Suppress noisy GTK CSS parser warnings (GTK4 theme properties parsed by GTK3)
+if (process.platform === 'linux') {
+  process.env.G_ENABLE_DIAGNOSTIC = '0'
+}
+
 // Set the app name so macOS menu bar and dock say "Ghosted" instead of "Electron"
 app.setName('Ghosted')
 
@@ -222,17 +227,22 @@ ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?:
   // Kill existing if any (handles hot reloads)
   if (terminals.has(id)) { terminals.get(id)?.kill(); terminals.delete(id) }
   const sh = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash')
-  const t = pty.spawn(sh, [], {
-    name: 'xterm-256color', cols: cols || 80, rows: rows || 24,
-    cwd: cwd || os.homedir(),
-    env: process.env as Record<string, string>,
-  })
-  terminals.set(id, t)
-  const win = BrowserWindow.getAllWindows()[0]
-  if (!win) return false
-  t.onData(data => { if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data) })
-  t.onExit(() => { if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`) })
-  return true
+  try {
+    const t = pty.spawn(sh, [], {
+      name: 'xterm-256color', cols: cols || 80, rows: rows || 24,
+      cwd: cwd || os.homedir(),
+      env: process.env as Record<string, string>,
+    })
+    terminals.set(id, t)
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return false
+    t.onData(data => { if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data) })
+    t.onExit(() => { if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`) })
+    return true
+  } catch (e: any) {
+    console.error(`pty:create spawn failed (shell=${sh}, cwd=${cwd}):`, e.message || e)
+    return false
+  }
 })
 ipcMain.handle('pty:write', (_e, id: string, data: string) => terminals.get(id)?.write(data))
 ipcMain.handle('pty:resize', (_e, id: string, cols: number, rows: number) => terminals.get(id)?.resize(cols, rows))
@@ -364,6 +374,142 @@ ipcMain.handle('git:pull', async (_e, cwd: string) => {
 
 ipcMain.handle('git:discard', async (_e, cwd: string, filePath: string) => {
   try { git(cwd, ['checkout', '--', filePath]); return true } catch { return false }
+})
+
+// ── Pi SDK IPC ──
+// Sessions live in main process (needs Node.js APIs for AuthStorage, filesystem, etc.)
+const piSessions = new Map<string, any>()
+
+// Build Ghosted-specific tools so Pi can interact with the editor UI
+function buildGhostedTools() {
+  const { Type } = require('@sinclair/typebox')
+
+  return [
+    {
+      name: 'ghosted_open_file',
+      label: 'Open File in Editor',
+      description: 'Open a file in the Ghosted editor pane. Use this when the user asks to open, show, or view a file.',
+      promptSnippet: 'ghosted_open_file: Open a file in the Ghosted editor UI',
+      parameters: Type.Object({
+        path: Type.String({ description: 'Absolute path to the file to open' }),
+      }),
+      async execute(toolCallId: string, params: { path: string }) {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (!win || win.isDestroyed()) {
+          return { content: [{ type: 'text', text: 'No Ghosted window available' }], details: {} }
+        }
+        const filePath = params.path
+        const name = filePath.split('/').pop() ?? filePath
+        let content = ''
+        try { content = fs.readFileSync(filePath, 'utf-8') } catch {}
+        win.webContents.send('pi:action', { type: 'openFile', filePath, name, content })
+        return { content: [{ type: 'text', text: `Opened ${name} in the editor.` }], details: {} }
+      },
+    },
+    {
+      name: 'ghosted_open_terminal',
+      label: 'Open Terminal',
+      description: 'Open or focus the terminal pane in Ghosted.',
+      promptSnippet: 'ghosted_open_terminal: Switch to terminal pane in Ghosted',
+      parameters: Type.Object({}),
+      async execute() {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (!win || win.isDestroyed()) {
+          return { content: [{ type: 'text', text: 'No Ghosted window available' }], details: {} }
+        }
+        win.webContents.send('pi:action', { type: 'switchPane', pane: 'terminal' })
+        return { content: [{ type: 'text', text: 'Switched to terminal pane.' }], details: {} }
+      },
+    },
+    {
+      name: 'ghosted_switch_pane',
+      label: 'Switch Pane',
+      description: 'Switch to a specific pane in Ghosted: editor, terminal, graph, canvas, kanban, or ai.',
+      promptSnippet: 'ghosted_switch_pane: Switch to a named pane in Ghosted',
+      parameters: Type.Object({
+        pane: Type.Union([
+          Type.Literal('editor'), Type.Literal('terminal'), Type.Literal('graph'),
+          Type.Literal('canvas'), Type.Literal('kanban'), Type.Literal('ai'),
+        ], { description: 'Pane to switch to' }),
+      }),
+      async execute(toolCallId: string, params: { pane: string }) {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (!win || win.isDestroyed()) {
+          return { content: [{ type: 'text', text: 'No Ghosted window available' }], details: {} }
+        }
+        win.webContents.send('pi:action', { type: 'switchPane', pane: params.pane })
+        return { content: [{ type: 'text', text: `Switched to ${params.pane} pane.` }], details: {} }
+      },
+    },
+  ]
+}
+
+ipcMain.handle('pi:create', async (_e, sessionId: string, cwd?: string) => {
+  try {
+    // Kill existing session if any
+    const existing = piSessions.get(sessionId)
+    if (existing) {
+      try { existing.dispose() } catch {}
+      piSessions.delete(sessionId)
+    }
+
+    const { createAgentSession, AuthStorage, ModelRegistry, SessionManager } =
+      await import('@mariozechner/pi-coding-agent')
+
+    const authStorage = AuthStorage.create()
+    const modelRegistry = new ModelRegistry(authStorage)
+
+    let customTools: any[] = []
+    try { customTools = buildGhostedTools() } catch (e: any) {
+      console.warn('Failed to build Ghosted tools:', e.message)
+    }
+
+    const { session } = await createAgentSession({
+      sessionManager: SessionManager.inMemory(),
+      authStorage,
+      modelRegistry,
+      cwd: cwd || process.cwd(),
+      customTools,
+    })
+
+    const win = BrowserWindow.getAllWindows()[0]
+
+    session.subscribe((event: any) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(`pi:event:${sessionId}`, event)
+      }
+    })
+
+    piSessions.set(sessionId, session)
+    return { ok: true }
+  } catch (err: any) {
+    console.error('pi:create failed:', err)
+    return { ok: false, error: err.message }
+  }
+})
+
+ipcMain.handle('pi:prompt', async (_e, sessionId: string, message: string) => {
+  const session = piSessions.get(sessionId)
+  if (!session) return { ok: false, error: 'No active Pi session' }
+  try {
+    await session.prompt(message)
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err.message }
+  }
+})
+
+ipcMain.handle('pi:abort', async (_e, sessionId: string) => {
+  const session = piSessions.get(sessionId)
+  if (!session) return
+  try { await session.abort() } catch {}
+})
+
+ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
+  const session = piSessions.get(sessionId)
+  if (!session) return
+  try { session.dispose() } catch {}
+  piSessions.delete(sessionId)
 })
 
 // Register protocol to serve local files (images, videos) to the renderer

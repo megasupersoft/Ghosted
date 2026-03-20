@@ -66,7 +66,6 @@ function getOverlayStyle(zone: DropZone): React.CSSProperties {
   const base: React.CSSProperties = {
     position: 'absolute',
     borderRadius: 'var(--radius-sm)',
-    transition: 'all 100ms ease-in-out',
     pointerEvents: 'none',
     zIndex: 50,
   }
@@ -200,6 +199,7 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
   const handleDragEnd = useCallback(() => {
     setDraggingLeaf(null)
     setDropZone(null)
+    dropZoneRef.current = null
     dragEnterCount.current = 0
   }, [setDraggingLeaf])
 
@@ -209,13 +209,15 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
       e.dataTransfer.types.includes('application/ghosted-file')
   }, [draggingLeafId])
 
+  const dropZoneRef = useRef<DropZone | null>(null)
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (isFileDrag(e)) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
-      setDropZone(getDropZone(e, rect))
+      const zone = getDropZone(e, rect)
+      if (zone !== dropZoneRef.current) { dropZoneRef.current = zone; setDropZone(zone) }
       return
     }
     if (!draggingLeafId) return
@@ -224,7 +226,8 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
     e.dataTransfer.dropEffect = 'move'
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    setDropZone(getDropZone(e, rect))
+    const zone = getDropZone(e, rect)
+    if (zone !== dropZoneRef.current) { dropZoneRef.current = zone; setDropZone(zone) }
   }, [draggingLeafId, leaf.id, isFileDrag])
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -236,6 +239,7 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
     dragEnterCount.current--
     if (dragEnterCount.current <= 0) {
       setDropZone(null)
+      dropZoneRef.current = null
       dragEnterCount.current = 0
     }
   }, [])

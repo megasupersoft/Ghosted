@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useStore } from '@/store'
 import { Ghost, Send, Square, RotateCcw } from 'lucide-react'
 
@@ -14,9 +15,12 @@ export default function AiPane({ leafId }: { leafId?: string }) {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [streamText, setStreamText] = useState('')
+  const [ready, setReady] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const sessionRef = useRef<any>(null)
+  const sessionId = useRef(`pi-${leafId ?? 'default'}`)
   const abortRef = useRef(false)
+  const historyIdx = useRef(-1)
+  const draftRef = useRef('')
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -24,92 +28,89 @@ export default function AiPane({ leafId }: { leafId?: string }) {
     }
   }, [messages, streamText])
 
+  // Create Pi session via IPC (runs in main process)
   useEffect(() => {
     let cancelled = false
+    const id = sessionId.current
+
     ;(async () => {
-      try {
-        const { createAgentSession, AuthStorage, ModelRegistry, SessionManager } =
-          await import('@mariozechner/pi-coding-agent')
-        if (cancelled) return
+      const result = await window.electron.pi.create(id, workspacePath ?? undefined)
+      if (cancelled) return
 
-        const authStorage = AuthStorage.create()
-        const modelRegistry = new ModelRegistry(authStorage)
-
-        const { session } = await createAgentSession({
-          sessionManager: SessionManager.inMemory(),
-          authStorage,
-          modelRegistry,
-          cwd: workspacePath ?? undefined,
-        })
-
-        session.subscribe((event: any) => {
-          if (abortRef.current) return
-          switch (event.type) {
-            case 'message_update':
-              if (event.assistantMessageEvent?.type === 'text_delta') {
-                setStreamText(prev => prev + event.assistantMessageEvent.delta)
-              }
-              break
-            case 'agent_end':
-              setStreaming(false)
-              setStreamText(prev => {
-                if (prev) {
-                  setMessages(msgs => [...msgs, { role: 'assistant', content: prev, timestamp: Date.now() }])
-                }
-                return ''
-              })
-              break
-            case 'tool_execution_start':
-              setStreamText(prev => prev + `\n⚡ ${event.toolName}\n`)
-              break
-          }
-        })
-
-        sessionRef.current = session
-      } catch (err: any) {
-        console.error('Pi SDK init failed:', err)
+      if (!result.ok) {
         setMessages([{
           role: 'assistant',
-          content: 'Pi SDK not available. Run `pi auth` in a terminal to set up API keys.',
+          content: `Pi SDK error: ${result.error}`,
           timestamp: Date.now(),
         }])
+        return
       }
+
+      // Listen for events from main process
+      window.electron.pi.onEvent(id, (event: any) => {
+        if (abortRef.current) return
+        switch (event.type) {
+          case 'message_update':
+            if (event.assistantMessageEvent?.type === 'text_delta') {
+              setStreamText(prev => prev + event.assistantMessageEvent.delta)
+            }
+            break
+          case 'agent_end':
+            setStreaming(false)
+            setStreamText(prev => {
+              if (prev) {
+                setMessages(msgs => [...msgs, { role: 'assistant', content: prev, timestamp: Date.now() }])
+              }
+              return ''
+            })
+            break
+          case 'tool_execution_start':
+            setStreamText(prev => prev + `\n⚡ ${event.toolName}\n`)
+            break
+        }
+      })
+
+      setReady(true)
     })()
-    return () => { cancelled = true }
+
+    return () => {
+      cancelled = true
+      window.electron.pi.removeListeners(id)
+      window.electron.pi.dispose(id)
+    }
   }, [workspacePath])
 
   const handleSend = useCallback(async () => {
     const msg = input.trim()
-    if (!msg || streaming || !sessionRef.current) return
+    if (!msg || streaming || !ready) return
 
+    historyIdx.current = -1
+    draftRef.current = ''
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: msg, timestamp: Date.now() }])
     setStreaming(true)
     setStreamText('')
     abortRef.current = false
 
-    try {
-      await sessionRef.current.prompt(msg)
-    } catch (err: any) {
+    const result = await window.electron.pi.prompt(sessionId.current, msg)
+    if (!result.ok) {
       setStreaming(false)
       setStreamText('')
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Error: ${err.message}`,
+        content: `Error: ${result.error}`,
         timestamp: Date.now(),
       }])
     }
-  }, [input, streaming])
+  }, [input, streaming, ready])
 
   const handleAbort = useCallback(() => {
-    if (sessionRef.current) {
-      abortRef.current = true
-      try { sessionRef.current.abort() } catch {}
-      setStreaming(false)
-      if (streamText) {
-        setMessages(prev => [...prev, { role: 'assistant', content: streamText + '\n\n*[stopped]*', timestamp: Date.now() }])
-        setStreamText('')
-      }
+    abortRef.current = true
+    window.electron.pi.abort(sessionId.current)
+    setStreaming(false)
+    if (streamText) {
+      setMessages(prev => [...prev, { role: 'assistant', content: streamText + '\n\n*[stopped]*', timestamp: Date.now() }])
+      setStreamText('')
     }
   }, [streamText])
 
@@ -146,7 +147,7 @@ export default function AiPane({ leafId }: { leafId?: string }) {
             alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
             flexDirection: 'column',
           }}>
-            <div style={{
+            <div className="pi-msg-bubble" style={{
               maxWidth: '85%',
               padding: '10px 14px',
               borderRadius: msg.role === 'user' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
@@ -154,16 +155,19 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
               fontSize: 14, lineHeight: 1.6,
               fontFamily: 'var(--font-ui)',
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              wordBreak: 'break-word',
             }}>
-              {msg.content}
+              {msg.role === 'user'
+                ? msg.content
+                : <ReactMarkdown>{msg.content}</ReactMarkdown>
+              }
             </div>
           </div>
         ))}
 
         {streaming && (
           <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <div style={{
+            <div className="pi-msg-bubble" style={{
               maxWidth: '85%',
               padding: '10px 14px',
               borderRadius: '12px 12px 12px 4px',
@@ -171,9 +175,12 @@ export default function AiPane({ leafId }: { leafId?: string }) {
               color: 'var(--text-primary)',
               fontSize: 14, lineHeight: 1.6,
               fontFamily: 'var(--font-ui)',
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              wordBreak: 'break-word',
             }}>
-              {streamText || <span style={{ color: 'var(--text-muted)' }} className="ghost-pulse">thinking...</span>}
+              {streamText
+                ? <ReactMarkdown>{streamText}</ReactMarkdown>
+                : <span style={{ color: 'var(--text-muted)' }} className="ghost-pulse">thinking...</span>
+              }
             </div>
           </div>
         )}
@@ -198,7 +205,24 @@ export default function AiPane({ leafId }: { leafId?: string }) {
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); return }
+            const userMsgs = messages.filter(m => m.role === 'user')
+            if (e.key === 'ArrowUp' && !e.shiftKey && (input === '' || historyIdx.current >= 0)) {
+              e.preventDefault()
+              if (historyIdx.current < 0) draftRef.current = input
+              const next = Math.min(historyIdx.current + 1, userMsgs.length - 1)
+              if (next === historyIdx.current) return
+              historyIdx.current = next
+              setInput(userMsgs[userMsgs.length - 1 - next].content)
+            } else if (e.key === 'ArrowDown' && !e.shiftKey && historyIdx.current >= 0) {
+              e.preventDefault()
+              const next = historyIdx.current - 1
+              if (next < 0) { historyIdx.current = -1; setInput(draftRef.current); return }
+              historyIdx.current = next
+              setInput(userMsgs[userMsgs.length - 1 - next].content)
+            }
+          }}
           placeholder="Ask pi..."
           rows={1}
           style={{

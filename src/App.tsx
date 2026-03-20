@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels'
 import Titlebar from '@/components/Titlebar'
 import ActivityBar from '@/components/ActivityBar'
@@ -20,6 +20,22 @@ function SidebarContent({ id }: { id: string }) {
 
 export default function App() {
   const { layout, activeSidebar } = useStore()
+
+  // Listen for Pi agent actions (open file, switch pane, etc.)
+  useEffect(() => {
+    window.electron.pi.onAction((action: any) => {
+      const store = useStore.getState()
+      switch (action.type) {
+        case 'openFile':
+          store.openFile(action.filePath, action.name, action.content, 'text')
+          break
+        case 'switchPane':
+          store.addTab(store.focusedLeafId, action.pane)
+          break
+      }
+    })
+    return () => window.electron.pi.offAction()
+  }, [])
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

@@ -90,6 +90,16 @@ declare global {
         onChange:  (cb: (stats: DBStats) => void) => void
         offChange: ()                       => void
       }
+      pi: {
+        create: (sessionId: string, cwd?: string) => Promise<{ ok: boolean; error?: string }>
+        prompt: (sessionId: string, message: string) => Promise<{ ok: boolean; error?: string }>
+        abort: (sessionId: string) => Promise<void>
+        dispose: (sessionId: string) => Promise<void>
+        onEvent: (sessionId: string, cb: (event: any) => void) => void
+        removeListeners: (sessionId: string) => void
+        onAction: (cb: (action: any) => void) => void
+        offAction: () => void
+      }
       git: {
         log: (cwd: string, count?: number) => Promise<{ hash: string; shortHash: string; author: string; email: string; date: string; subject: string; refs: string; parents: string[] }[]>
         diffSummary: (cwd: string) => Promise<{ diff: string; untracked: string }>

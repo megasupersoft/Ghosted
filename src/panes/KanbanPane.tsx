@@ -20,7 +20,7 @@ function Card({ item, isDragging }: { item: KanbanItem; isDragging?: boolean }) 
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isSorting ? 0.4 : 1 }} {...attributes} {...listeners}>
       <div style={{
         background: isDragging ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-        border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+        borderRadius: 'var(--radius-md)',
         padding: '8px 10px', cursor: 'grab', marginBottom: 6, userSelect: 'none',
         boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.5)' : undefined,
       }}>
@@ -49,8 +49,8 @@ function Column({ col, onAdd }: { col: KanbanColumn; onAdd: (id: string, title: 
   const submit = () => { if (draft.trim()) { onAdd(col.id, draft.trim()); setDraft('') } setAdding(false) }
 
   return (
-    <div style={{ width: 258, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+    <div style={{ width: 258, flexShrink: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-base)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+      <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 500 }}>{col.name}</span>
         <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 10, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>{col.items.length}</span>
       </div>
@@ -65,17 +65,17 @@ function Column({ col, onAdd }: { col: KanbanColumn; onAdd: (id: string, title: 
             <textarea autoFocus value={draft} onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } if (e.key === 'Escape') setAdding(false) }}
               placeholder="Card title..."
-              style={{ width: '100%', resize: 'none', height: 60, fontSize: 13, padding: 8, borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--accent)', color: 'var(--text-primary)', outline: 'none', marginBottom: 4 }}
+              style={{ width: '100%', resize: 'none', height: 60, fontSize: 13, padding: 8, borderRadius: 6, background: 'var(--bg-elevated)', border: 'none', color: 'var(--text-primary)', outline: 'none', marginBottom: 4 }}
             />
             <div style={{ display: 'flex', gap: 4 }}>
               <button onClick={submit} style={{ flex: 1, padding: '4px 0', borderRadius: 4, background: 'var(--accent)', color: '#fff', fontSize: 13 }}>Add</button>
-              <button onClick={() => setAdding(false)} style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)' }}>x</button>
+              <button onClick={() => setAdding(false)} style={{ padding: '4px 10px', borderRadius: 4, fontSize: 13, color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}>x</button>
             </div>
           </>
         ) : (
-          <button onClick={() => setAdding(true)} style={{ width: '100%', padding: '5px 0', borderRadius: 4, fontSize: 13, color: 'var(--text-muted)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent-dim)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+          <button onClick={() => setAdding(true)} style={{ width: '100%', padding: '5px 0', borderRadius: 4, fontSize: 13, color: 'var(--text-muted)', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
           >+ Add card</button>
         )}
       </div>
@@ -175,7 +175,11 @@ export default function KanbanPane({ leafId }: { leafId?: string }) {
         projects = d.data?.organization?.projectsV2?.nodes ?? []
       } catch {}
     } else {
-      // Check if error message contains rate limit info
+      if (orgResult.error?.includes('read:project') || orgResult.error?.includes('required scopes')) {
+        setStatus('error')
+        setErrorMsg('scope:project')
+        return
+      }
       if (orgResult.error?.includes('rate limit')) apiError = 'GitHub API rate limit exceeded. Try again later.'
     }
     if (projects.length === 0 && !apiError) {
@@ -445,14 +449,38 @@ export default function KanbanPane({ leafId }: { leafId?: string }) {
   }
 
   if (status === 'error') {
+    const isScopeError = errorMsg === 'scope:project'
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-surface)' }}>
-        <div style={{ textAlign: 'center', maxWidth: 300 }}>
-          <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>Failed to sync</div>
-          <div style={{ color: 'var(--text-ghost)', fontSize: 12 }}>{errorMsg}</div>
-          <button onClick={fetchProject} style={{ marginTop: 12, padding: '4px 12px', borderRadius: 4, background: 'var(--accent)', color: '#fff', fontSize: 13 }}>
-            Retry
-          </button>
+        <div style={{ textAlign: 'center', maxWidth: 340 }}>
+          {isScopeError ? (
+            <>
+              <div style={{ color: 'var(--amber)', fontSize: 13, marginBottom: 8 }}>Missing GitHub Project scope</div>
+              <div style={{ color: 'var(--text-ghost)', fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
+                Your token needs the <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>read:project</code> scope to access GitHub Projects.
+              </div>
+              <button
+                onClick={() => window.electron.shell.openExternal('https://github.com/settings/tokens')}
+                style={{ padding: '6px 16px', borderRadius: 6, background: 'var(--accent)', color: '#fff', fontSize: 13, cursor: 'pointer' }}
+              >
+                Open Token Settings
+              </button>
+              <div style={{ color: 'var(--text-ghost)', fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                Add <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>read:project</code> and <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>project</code> scopes to your token
+              </div>
+              <button onClick={fetchProject} style={{ marginTop: 10, padding: '4px 12px', borderRadius: 4, background: 'var(--bg-elevated)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>
+                Retry
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>Failed to sync</div>
+              <div style={{ color: 'var(--text-ghost)', fontSize: 12 }}>{errorMsg}</div>
+              <button onClick={fetchProject} style={{ marginTop: 12, padding: '4px 12px', borderRadius: 4, background: 'var(--accent)', color: '#fff', fontSize: 13 }}>
+                Retry
+              </button>
+            </>
+          )}
         </div>
       </div>
     )
