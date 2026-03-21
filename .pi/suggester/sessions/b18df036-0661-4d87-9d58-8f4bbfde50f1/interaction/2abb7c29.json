@@ -1,0 +1,14 @@
+{
+  "stateVersion": 8,
+  "steeringHistory": [
+    {
+      "turnId": "2abb7c29",
+      "suggestedPrompt": "continue",
+      "actualUserPrompt": "yo",
+      "classification": "changed_course",
+      "similarity": 0.1,
+      "timestamp": "2026-03-20T13:59:43.181Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 1
+}

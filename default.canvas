@@ -4,8 +4,8 @@
       "id": "ctx",
       "type": "ghosted",
       "position": {
-        "x": -75.85435168738897,
-        "y": 19.52397868561279
+        "x": -397.16687008017504,
+        "y": -27.54889583945107
       },
       "data": {
         "label": "Workspace Context",
@@ -34,8 +34,8 @@
       "id": "brief",
       "type": "ghosted",
       "position": {
-        "x": 26.64653641207815,
-        "y": 149.76198934280643
+        "x": -271.6704519165112,
+        "y": 172.54464586313702
       },
       "data": {
         "label": "Brief",
@@ -53,8 +53,8 @@
       "id": "arch",
       "type": "ghosted",
       "position": {
-        "x": 1.4280639431616464,
-        "y": 285.69449378330376
+        "x": -174.0450520230666,
+        "y": 283.6351331235948
       },
       "data": {
         "label": "Arch",
@@ -72,8 +72,8 @@
       "id": "impl",
       "type": "ghosted",
       "position": {
-        "x": 60,
-        "y": 420
+        "x": -95.92313554226436,
+        "y": 425.40490830999823
       },
       "data": {
         "label": "Implement",
@@ -83,14 +83,16 @@
       "measured": {
         "width": 260,
         "height": 76
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "rev",
       "type": "ghosted",
       "position": {
-        "x": 148.67140319715804,
-        "y": 567.3214920071048
+        "x": -118.02861637887806,
+        "y": 571.125941867094
       },
       "data": {
         "label": "Review",
@@ -108,8 +110,8 @@
       "id": "ship",
       "type": "ghosted",
       "position": {
-        "x": 180.39786856127887,
-        "y": 699.1865008880994
+        "x": 46.75455760611976,
+        "y": 698.4100079842863
       },
       "data": {
         "label": "Ship",
@@ -140,37 +142,28 @@
       },
       "selected": false,
       "dragging": false
+    },
+    {
+      "id": "21",
+      "type": "note",
+      "position": {
+        "x": -29.637439403482354,
+        "y": 42.903919110486825
+      },
+      "data": {
+        "label": "Note",
+        "nodeType": "note",
+        "noteText": "Double-click to edit"
+      },
+      "measured": {
+        "width": 140,
+        "height": 57
+      },
+      "selected": false,
+      "dragging": false
     }
   ],
   "edges": [
-    {
-      "id": "e-ctx-brief",
-      "source": "ctx",
-      "target": "brief",
-      "animated": true,
-      "style": {
-        "stroke": "#8b7cf8",
-        "strokeWidth": 1.5
-      },
-      "markerEnd": {
-        "type": "arrowclosed",
-        "color": "#8b7cf8"
-      }
-    },
-    {
-      "id": "e-brief-arch",
-      "source": "brief",
-      "target": "arch",
-      "animated": true,
-      "style": {
-        "stroke": "#8b7cf8",
-        "strokeWidth": 1.5
-      },
-      "markerEnd": {
-        "type": "arrowclosed",
-        "color": "#8b7cf8"
-      }
-    },
     {
       "id": "e-arch-impl",
       "source": "arch",
@@ -183,7 +176,8 @@
       "markerEnd": {
         "type": "arrowclosed",
         "color": "#8b7cf8"
-      }
+      },
+      "selected": false
     },
     {
       "id": "e-impl-rev",
@@ -197,7 +191,8 @@
       "markerEnd": {
         "type": "arrowclosed",
         "color": "#8b7cf8"
-      }
+      },
+      "selected": false
     },
     {
       "id": "e-rev-ship",
@@ -211,7 +206,8 @@
       "markerEnd": {
         "type": "arrowclosed",
         "color": "#8b7cf8"
-      }
+      },
+      "selected": false
     },
     {
       "id": "e-ship-run1",
@@ -225,8 +221,39 @@
       "markerEnd": {
         "type": "arrowclosed",
         "color": "#8b7cf8"
-      }
+      },
+      "selected": false
+    },
+    {
+      "source": "ctx",
+      "target": "brief",
+      "animated": true,
+      "style": {
+        "stroke": "#8b7cf8",
+        "strokeWidth": 1.5
+      },
+      "markerEnd": {
+        "type": "arrowclosed",
+        "color": "#8b7cf8"
+      },
+      "id": "xy-edge__ctx-brief",
+      "selected": false
+    },
+    {
+      "source": "brief",
+      "target": "arch",
+      "animated": true,
+      "style": {
+        "stroke": "#8b7cf8",
+        "strokeWidth": 1.5
+      },
+      "markerEnd": {
+        "type": "arrowclosed",
+        "color": "#8b7cf8"
+      },
+      "id": "xy-edge__brief-arch",
+      "selected": false
     }
   ],
-  "idCounter": 20
+  "idCounter": 21
 }
