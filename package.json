@@ -78,7 +78,7 @@
     ],
     "linux": {
       "target": "AppImage",
-      "icon": "build/icon.png",
+      "icon": "build/icons",
       "category": "Development",
       "desktop": {
         "Name": "Ghosted",
