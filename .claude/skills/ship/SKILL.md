@@ -68,3 +68,10 @@ gh project item-create 5 --owner megasupersoft --title "v<VERSION> shipped" --bo
 
 - Update version and date at top
 - Move shipped items from "In Flight" to "Done"
+
+## IMPORTANT
+
+- NEVER add Co-Authored-By or any AI attribution to commits. Users won't use software that looks AI-generated.
+- Version comes from `package.json` — single source of truth
+- Always build before tagging — never tag a broken build
+- electron-builder must run on the target platform (can't build AppImage on macOS)
