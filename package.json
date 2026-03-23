@@ -1,6 +1,6 @@
 {
   "name": "ghosted",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Ghosted — the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
