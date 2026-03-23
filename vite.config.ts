@@ -13,7 +13,7 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['node-pty', 'chokidar', 'gray-matter', 'fsevents'],
+              external: ['node-pty', 'chokidar', 'gray-matter', 'fsevents', '@mariozechner/pi-coding-agent', '@sinclair/typebox'],
             },
           },
         },

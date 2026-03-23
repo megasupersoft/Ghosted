@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.electron.json && vite build",
     "preview": "electron .",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "dist": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder --linux --mac --win"
   },
   "keywords": [
     "ghosted",
@@ -64,17 +66,35 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "node_modules/node-pty/**/*",
+      "!node_modules/node-pty/build/Release/.deps",
+      "!node_modules/node-pty/src/**",
+      "!node_modules/node-pty/deps/**"
     ],
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png",
+      "category": "Development",
+      "desktop": {
+        "Name": "Ghosted",
+        "Comment": "The dev workspace that never sleeps",
+        "Terminal": "false",
+        "Type": "Application",
+        "Categories": "Development;IDE;TextEditor;"
+      }
+    },
     "mac": {
       "target": "dmg",
       "icon": "build/icon.svg"
     },
-    "linux": {
-      "target": "AppImage"
-    },
     "win": {
       "target": "nsis"
-    }
+    },
+    "npmRebuild": true,
+    "nodeGypRebuild": false
   }
 }

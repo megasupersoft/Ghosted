@@ -201,7 +201,12 @@ let pty: typeof import('node-pty') | null = null
 // Deferred load — resolve from multiple locations
 // Load node-pty — use child_process.execSync to spawn with correct libc if needed
 function loadPty() {
-  const ptyRoot = path.join(__dirname, '..', 'node_modules', 'node-pty')
+  // In packaged builds, asarUnpack puts node-pty at app.asar.unpacked/node_modules/node-pty
+  const appRoot = path.join(__dirname, '..')
+  const unpackedRoot = app.isPackaged
+    ? appRoot.replace('app.asar', 'app.asar.unpacked')
+    : appRoot
+  const ptyRoot = path.join(unpackedRoot, 'node_modules', 'node-pty')
   const nativePath = path.join(ptyRoot, 'build', 'Release', 'pty.node')
   const utilsPath = path.join(ptyRoot, 'lib', 'utils.js')
 
@@ -454,6 +459,7 @@ ipcMain.handle('pi:create', async (_e, sessionId: string, cwd?: string) => {
     }
 
     const { createAgentSession, AuthStorage, ModelRegistry, SessionManager } =
+      // @ts-ignore — optional dependency, may not be installed
       await import('@mariozechner/pi-coding-agent')
 
     const authStorage = AuthStorage.create()
