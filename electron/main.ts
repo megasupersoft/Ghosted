@@ -48,13 +48,15 @@ function saveWindowState(win: BrowserWindow) {
 }
 
 function getAppIcon(): Electron.NativeImage | undefined {
-  // Try PNG first, then SVG
   const candidates = isDev
-    ? [path.join(__dirname, '../build/icon.png'), path.join(__dirname, '../build/icon.svg'), path.join(__dirname, '../public/ghost.svg')]
-    : [path.join(__dirname, '../dist/icon.png'), path.join(__dirname, '../dist/ghost.svg')]
+    ? [path.join(__dirname, '../build/icon-1024.png'), path.join(__dirname, '../build/icon.png')]
+    : [path.join(__dirname, '../build/icon-1024.png'), path.join(__dirname, '../dist/icon-1024.png')]
   for (const p of candidates) {
     try {
-      if (fs.existsSync(p)) return nativeImage.createFromPath(p)
+      if (fs.existsSync(p)) {
+        const img = nativeImage.createFromPath(p)
+        if (!img.isEmpty()) return img
+      }
     } catch {}
   }
   return undefined
@@ -94,11 +96,6 @@ function createWindow() {
   win.on('maximize', debouncedSave)
   win.on('unmaximize', debouncedSave)
   win.on('close', () => saveWindowState(win))
-
-  // Override macOS dock icon
-  if (process.platform === 'darwin' && icon && app.dock) {
-    app.dock.setIcon(icon)
-  }
 
   const loadBuilt = () => win.loadFile(path.join(__dirname, '../dist/index.html'))
 

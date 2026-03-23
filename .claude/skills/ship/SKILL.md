@@ -1,53 +1,77 @@
 ---
 name: ship
-description: Release pipeline for Ghosted. Version bump, build, tag, push, update GitHub Projects.
+description: Tag, push, and upload built artifacts from release/ to GitHub Releases.
 ---
 
-# /ship — Ghosted Release
+# /ship — Ghosted Ship
 
-Only run after `/review` passes with no CRITICAL or HIGH issues.
+Takes whatever's already built in `release/` and ships it to GitHub Releases. Run `/build` first.
 
-## Step 1 — Confirm
+## Step 1 — Preflight
+
 ```bash
 git status
-git diff --stat main
-npm run build
+gh auth status
+node -p "require('./package.json').version"
 ```
-If build fails — stop.
 
-## Step 2 — Version bump
-Edit `package.json` version manually (no standard-version set up yet):
-- Bug fix: patch (0.1.0 → 0.1.1)
-- New feature: minor (0.1.0 → 0.2.0)
-- Breaking change: major (0.1.0 → 1.0.0)
+- Read version from `package.json` → `VERSION`
+- If working tree is dirty → ask user: commit first or abort?
+- If `gh` not authenticated → stop
+- Find artifacts in `release/` matching the version (DMG, AppImage, exe)
+- If no artifacts found → tell user to run `/build` first and stop
 
-Then commit:
+## Step 2 — Decide version
+
+Check if `v<VERSION>` tag already exists:
+
+```bash
+git rev-parse v<VERSION> 2>/dev/null
+```
+
+- If tag exists → ask user: bump patch and re-tag, or upload to existing release?
+- If tag doesn't exist → proceed
+
+If bumping, edit `package.json` version, commit:
+
 ```bash
 git add package.json
-git commit -m "chore(release): <version>"
+git commit -m "chore(release): v<new_version>"
 ```
 
-## Step 3 — Tag and push
+## Step 3 — Push, tag, release
+
 ```bash
-git tag v<version>
-git push origin main --follow-tags
+git push origin main
+git tag v<VERSION>
+git push origin v<VERSION>
 ```
+
+Create GitHub release and attach ALL artifacts found in `release/`:
+
+```bash
+gh release create v<VERSION> release/Ghosted-<version>*.dmg release/Ghosted-<version>*.AppImage release/Ghosted*.exe \
+  --title "Ghosted v<VERSION>" \
+  --generate-notes \
+  --latest
+```
+
+Only include artifact globs that actually match files. Print the release URL.
 
 ## Step 4 — Update GitHub Projects
+
 ```bash
-gh project item-list 5 --owner megasupersoft --format json
-# Mark completed items done, create item for what shipped
-gh project item-create 5 --owner megasupersoft --title "v<version> shipped" --body "<summary>"
+gh project item-create 5 --owner megasupersoft --title "v<VERSION> shipped" --body "<summary>"
 ```
 
 ## Step 5 — Update PROGRESS.md
-- Move completed items from "In Flight" to "Done"
-- Update version and date at top
-- Note what's next
 
-## BruceOS AppImage (when ready)
-```bash
-npm run build
-npx electron-builder --linux AppImage
-# Output: release/Ghosted-<version>.AppImage
-```
+- Update version and date at top
+- Move shipped items from "In Flight" to "Done"
+
+## IMPORTANT
+
+- NEVER add Co-Authored-By or any AI attribution to commits. Users won't use software that looks AI-generated.
+- Version comes from `package.json` — single source of truth
+- Always build before tagging — never tag a broken build
+- electron-builder must run on the target platform (can't build AppImage on macOS)

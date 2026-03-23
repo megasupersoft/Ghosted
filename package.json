@@ -1,6 +1,6 @@
 {
   "name": "ghosted",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Ghosted — the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -70,7 +70,8 @@
       "node_modules/node-pty/**/*",
       "!node_modules/node-pty/build/Release/.deps",
       "!node_modules/node-pty/src/**",
-      "!node_modules/node-pty/deps/**"
+      "!node_modules/node-pty/deps/**",
+      "build/icon-1024.png"
     ],
     "asarUnpack": [
       "node_modules/node-pty/**"
@@ -89,7 +90,7 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/icon.svg"
+      "icon": "build/icon-1024.png"
     },
     "win": {
       "target": "nsis"
