@@ -24,8 +24,8 @@
         }
       },
       "measured": {
-        "width": 151,
-        "height": 63
+        "width": 155,
+        "height": 65
       },
       "selected": false,
       "dragging": false
@@ -44,7 +44,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -63,7 +63,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -82,7 +82,7 @@
       },
       "measured": {
         "width": 260,
-        "height": 76
+        "height": 80
       },
       "selected": false,
       "dragging": false
@@ -101,7 +101,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -120,7 +120,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -138,7 +138,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 76
+        "height": 79
       },
       "selected": false,
       "dragging": false
@@ -156,8 +156,8 @@
         "noteText": "Double-click to edit"
       },
       "measured": {
-        "width": 140,
-        "height": 57
+        "width": 142,
+        "height": 59
       },
       "selected": false,
       "dragging": false

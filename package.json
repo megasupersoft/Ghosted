@@ -64,11 +64,12 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "build/icon-1024.png"
     ],
     "mac": {
       "target": "dmg",
-      "icon": "build/icon.svg"
+      "icon": "build/icon-1024.png"
     },
     "linux": {
       "target": "AppImage"
