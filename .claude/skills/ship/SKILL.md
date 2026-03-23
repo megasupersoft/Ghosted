@@ -1,92 +1,70 @@
 ---
 name: ship
-description: Release pipeline for Ghosted. Version bump, build, package, tag, push, GitHub release with artifact, update Projects.
+description: Tag, push, and upload built artifacts from release/ to GitHub Releases.
 ---
 
-# /ship — Ghosted Release
+# /ship — Ghosted Ship
 
-One-button release. Builds, packages, tags, pushes, uploads to GitHub Releases.
-
-Only run after `/review` passes with no CRITICAL or HIGH issues.
+Takes whatever's already built in `release/` and ships it to GitHub Releases. Run `/build` first.
 
 ## Step 1 — Preflight
 
-Run all of these and STOP if anything fails:
-
 ```bash
 git status
+gh auth status
+node -p "require('./package.json').version"
 ```
 
-- If working tree is dirty, ask user: commit first or abort?
-- Check `gh auth status` — must be authenticated
+- Read version from `package.json` → `VERSION`
+- If working tree is dirty → ask user: commit first or abort?
+- If `gh` not authenticated → stop
+- Find artifacts in `release/` matching the version (DMG, AppImage, exe)
+- If no artifacts found → tell user to run `/build` first and stop
 
-Read version from `package.json` → `VERSION`. Determine bump type:
-- Ask user: **patch** (0.1.0 → 0.1.1), **minor** (0.1.0 → 0.2.0), or **major** (0.1.0 → 1.0.0)?
-- If tag `v<new_version>` already exists → abort
+## Step 2 — Decide version
 
-## Step 2 — Version bump
+Check if `v<VERSION>` tag already exists:
 
-Edit `package.json` version to the new version. Commit:
+```bash
+git rev-parse v<VERSION> 2>/dev/null
+```
+
+- If tag exists → ask user: bump patch and re-tag, or upload to existing release?
+- If tag doesn't exist → proceed
+
+If bumping, edit `package.json` version, commit:
 
 ```bash
 git add package.json
 git commit -m "chore(release): v<new_version>"
 ```
 
-## Step 3 — Build and package
-
-```bash
-npm run build
-```
-
-If build fails → stop, do not tag.
-
-Then package for the current platform:
-- macOS: `npx electron-builder --mac`
-- Linux: `npx electron-builder --linux`
-
-Expected artifacts:
-- macOS arm64: `release/Ghosted-<version>-arm64.dmg`
-- macOS x64: `release/Ghosted-<version>.dmg`
-- Linux x64: `release/Ghosted-<version>.AppImage`
-- Linux arm64: `release/Ghosted-<version>-arm64.AppImage`
-
-Verify the artifact exists and print its size. If missing → stop.
-
-## Step 4 — Tag, push, release
+## Step 3 — Push, tag, release
 
 ```bash
 git push origin main
-git tag v<new_version>
-git push origin v<new_version>
+git tag v<VERSION>
+git push origin v<VERSION>
 ```
 
-Create GitHub release with the artifact attached:
+Create GitHub release and attach ALL artifacts found in `release/`:
 
 ```bash
-gh release create v<new_version> <artifact_path> \
-  --title "Ghosted v<new_version>" \
+gh release create v<VERSION> release/Ghosted-<version>*.dmg release/Ghosted-<version>*.AppImage release/Ghosted*.exe \
+  --title "Ghosted v<VERSION>" \
   --generate-notes \
   --latest
 ```
 
-Print the release URL.
+Only include artifact globs that actually match files. Print the release URL.
 
-## Step 5 — Update GitHub Projects
+## Step 4 — Update GitHub Projects
 
 ```bash
-gh project item-create 5 --owner megasupersoft --title "v<new_version> shipped" --body "<summary of what changed>"
+gh project item-create 5 --owner megasupersoft --title "v<VERSION> shipped" --body "<summary>"
 ```
 
-## Step 6 — Update PROGRESS.md
+## Step 5 — Update PROGRESS.md
 
-- Update version at top (e.g., `v0.2.0`)
-- Update date to today
+- Update version and date at top
 - Move shipped items from "In Flight" to "Done"
-
-## Important
-
-- Version comes from `package.json` — single source of truth
-- The `npm run release` script in `scripts/release.sh` does the same thing non-interactively for CI use
-- Always build before tagging — never tag a broken build
-- electron-builder must run on the target platform (can't build AppImage on macOS)
