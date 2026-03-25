@@ -14,13 +14,12 @@ export default function Titlebar() {
       WebkitAppRegion: 'drag' as any,
       userSelect: 'none', flexShrink: 0,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16 }}>
-        {projectName && (
-          <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 500 }}>
-            /{projectName}
-          </span>
-        )}
-      </div>
+      <div style={{ flex: 1 }} />
+      {projectName && (
+        <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 500 }}>
+          /{projectName}
+        </span>
+      )}
       <div style={{ flex: 1 }} />
     </div>
   )

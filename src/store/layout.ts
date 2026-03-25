@@ -292,3 +292,47 @@ function getFirstLeafId(tree: LayoutNode): string {
   if (tree.type === 'leaf') return tree.id
   return getFirstLeafId(tree.children[0])
 }
+
+/** Collect every TabEntry from every leaf in the tree. */
+export function getAllTabs(tree: LayoutNode): TabEntry[] {
+  if (tree.type === 'leaf') return tree.tabs
+  return [...getAllTabs(tree.children[0]), ...getAllTabs(tree.children[1])]
+}
+
+/**
+ * Like splitLeafAtPosition, but places an existing TabEntry (preserving its ID)
+ * into the new leaf instead of generating a fresh tab via mkLeaf.
+ */
+export function splitLeafWithTab(
+  tree: LayoutNode,
+  targetLeafId: string,
+  direction: 'horizontal' | 'vertical',
+  newLeafId: string,
+  newSplitId: string,
+  tab: TabEntry,
+  insertBefore: boolean,
+): LayoutNode {
+  if (tree.type === 'leaf') {
+    if (tree.id !== targetLeafId) return tree
+    const newLeaf: LeafNode = {
+      type: 'leaf',
+      id: newLeafId,
+      tabs: [tab],
+      activeTabId: tab.id,
+    }
+    return {
+      type: 'split',
+      id: newSplitId,
+      direction,
+      children: insertBefore ? [newLeaf, { ...tree }] : [{ ...tree }, newLeaf],
+      sizes: [50, 50],
+    }
+  }
+  return {
+    ...tree,
+    children: [
+      splitLeafWithTab(tree.children[0], targetLeafId, direction, newLeafId, newSplitId, tab, insertBefore),
+      splitLeafWithTab(tree.children[1], targetLeafId, direction, newLeafId, newSplitId, tab, insertBefore),
+    ],
+  }
+}

@@ -31,6 +31,14 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     const init = async () => {
       if (disposed) return
       try {
+        // Wait until the container has real dimensions (handles portal offscreen phase)
+        let waitAttempts = 0
+        while (el.offsetWidth < 50 || el.offsetHeight < 50) {
+          if (disposed || !mounted.current || waitAttempts > 50) return
+          await new Promise(r => requestAnimationFrame(r))
+          waitAttempts++
+        }
+
         const { Terminal } = await import('xterm')
         const { FitAddon } = await import('@xterm/addon-fit')
         const { WebLinksAddon } = await import('@xterm/addon-web-links')
@@ -98,7 +106,8 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         let ok = false
         for (let attempt = 0; attempt < 3 && !ok && !disposed; attempt++) {
           if (attempt > 0) await new Promise(r => setTimeout(r, 500))
-          ok = await window.electron.pty.create(ptyId, cwd, cols, rows)
+          const result = await window.electron.pty.create(ptyId, cwd, cols, rows)
+          ok = typeof result === 'object' ? result?.ok : !!result
         }
 
         if (disposed) { term.dispose(); return }
@@ -122,7 +131,7 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         ro = new ResizeObserver(() => {
           clearTimeout(timer)
           timer = setTimeout(() => {
-            if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+            if (el.offsetWidth > 50 && el.offsetHeight > 50) {
               try { fit.fit() } catch {}
             }
           }, 60)

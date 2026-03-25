@@ -7,6 +7,7 @@ import FileTree from '@/panes/FileTree'
 import SourceControlPane from '@/panes/SourceControlPane'
 import SettingsPane from '@/panes/SettingsPane'
 import LayoutRenderer from '@/components/LayoutRenderer'
+import PanePool from '@/components/PanePool'
 import { useStore } from '@/store'
 
 function SidebarContent({ id }: { id: string }) {
@@ -59,6 +60,7 @@ export default function App() {
         )}
       </div>
       <StatusBar />
+      <PanePool />
     </div>
   )
 }

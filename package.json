@@ -95,7 +95,9 @@
     "win": {
       "target": "nsis"
     },
-    "npmRebuild": true,
+    "afterPack": "./scripts/afterPack.js",
+    "afterSign": "./scripts/afterSign.js",
+    "npmRebuild": false,
     "nodeGypRebuild": false
   }
 }

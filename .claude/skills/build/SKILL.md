@@ -35,7 +35,17 @@ Run electron-builder for the detected platform:
 - Linux: `npx electron-builder --linux`
 - Windows: `npx electron-builder --win`
 
-## Step 4 — Verify
+## Step 4 — Rebuild node-pty for dev
+
+**CRITICAL: electron-builder recompiles node-pty for packaging, which BREAKS the dev environment.** Always rebuild after packaging:
+
+```bash
+node scripts/rebuild-pty.js
+```
+
+If you skip this, the terminal pane will show `[node-pty unavailable]` next time you run dev.
+
+## Step 5 — Verify
 
 Check that the expected artifact exists:
 - macOS arm64: `release/Ghosted-<version>-arm64.dmg`

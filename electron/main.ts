@@ -195,27 +195,86 @@ ipcMain.handle('dialog:openFolder', async () => {
 
 // ── Terminal IPC (node-pty) ──
 let pty: typeof import('node-pty') | null = null
-// Deferred load — resolve from multiple locations
-// Load node-pty — use child_process.execSync to spawn with correct libc if needed
+// Load node-pty with correct paths for both dev and packaged builds.
+// Key insight: node-pty needs TWO binaries:
+//   1. pty.node — native addon loaded via require() / dlopen
+//   2. spawn-helper — standalone executable called via posix_spawn on macOS/Linux
+// The spawn-helper MUST have execute permission (chmod 755) and MUST be outside
+// the asar archive. See: https://github.com/microsoft/node-pty/issues/789
+//                         https://github.com/microsoft/node-pty/issues/850
 function loadPty() {
-  // In packaged builds, asarUnpack puts node-pty at app.asar.unpacked/node_modules/node-pty
   const appRoot = path.join(__dirname, '..')
   const unpackedRoot = app.isPackaged
-    ? appRoot.replace('app.asar', 'app.asar.unpacked')
+    ? appRoot.replace(/app\.asar(?!\.unpacked)/, 'app.asar.unpacked')
     : appRoot
   const ptyRoot = path.join(unpackedRoot, 'node_modules', 'node-pty')
-  const nativePath = path.join(ptyRoot, 'build', 'Release', 'pty.node')
+
+  // Try multiple native binary locations
+  const candidates = [
+    path.join(ptyRoot, 'build', 'Release', 'pty.node'),
+    path.join(ptyRoot, 'prebuilds', `${process.platform}-${process.arch}`, 'pty.node'),
+  ]
+
+  const nativePath = candidates.find(p => fs.existsSync(p))
   const utilsPath = path.join(ptyRoot, 'lib', 'utils.js')
 
-  // Patch node-pty's native loader to use absolute path (avoids relative path issues)
+  if (nativePath && fs.existsSync(utilsPath)) {
+    const nativeDir = path.dirname(nativePath)
+
+    // Verify spawn-helper exists and is executable (macOS / Linux only)
+    if (process.platform !== 'win32') {
+      const spawnHelper = path.join(nativeDir, 'spawn-helper')
+      if (!fs.existsSync(spawnHelper)) {
+        console.error('node-pty FATAL: spawn-helper not found at', spawnHelper)
+        console.error('pty.spawn() WILL fail with "posix_spawnp failed"')
+      } else {
+        // Fix missing execute bit (node-pty#850: npm tarball ships 644)
+        try {
+          fs.chmodSync(spawnHelper, 0o755)
+        } catch {}
+      }
+    }
+
+    // Patch unixTerminal.js source to hardcode the spawn-helper path.
+    // Electron's asar module corrupts path.resolve on app.asar.unpacked paths,
+    // doubling .unpacked suffix. We fix this by rewriting the JS before require.
+    try {
+      const utils = require(utilsPath)
+      utils.loadNativeModule = () => ({
+        dir: nativeDir + '/',
+        module: require(nativePath),
+      })
+
+      // Patch unixTerminal.js to fix the helperPath.
+      // node-pty has buggy .replace('app.asar', 'app.asar.unpacked') that corrupts
+      // paths already containing app.asar.unpacked → app.asar.unpacked.unpacked
+      const utPath = path.join(ptyRoot, 'lib', 'unixTerminal.js')
+      const utSrc = fs.readFileSync(utPath, 'utf8')
+      const correctHelperPath = path.join(nativeDir, 'spawn-helper')
+      // Replace the entire helperPath computation block with a hardcoded path
+      let patched = utSrc
+      // Remove the original helperPath assignment and all .replace() fixups
+      patched = patched.replace(
+        /var helperPath = .*?;\s*(?:helperPath = .*?;\s*)*/,
+        `var helperPath = ${JSON.stringify(correctHelperPath)};\n`
+      )
+      if (patched !== utSrc) {
+        fs.writeFileSync(utPath, patched, 'utf8')
+        console.log('Patched unixTerminal.js helperPath →', correctHelperPath)
+      }
+
+      pty = require(ptyRoot)
+      console.log('node-pty loaded OK from', nativeDir)
+      return
+    } catch (e: any) {
+      console.error('node-pty patched load failed:', e.message)
+    }
+  }
+
+  // Fallback: plain require (works when binary is in standard location)
   try {
-    const utils = require(utilsPath)
-    utils.loadNativeModule = () => ({
-      dir: path.dirname(nativePath) + '/',
-      module: require(nativePath),
-    })
-    pty = require(ptyRoot)
-    console.log('node-pty loaded OK')
+    pty = require('node-pty')
+    console.log('node-pty loaded OK (fallback)')
   } catch (e: any) {
     console.error('node-pty load failed:', e.message)
   }
@@ -225,7 +284,7 @@ loadPty()
 const terminals = new Map<string, import('node-pty').IPty>()
 
 ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?: number) => {
-  if (!pty) { console.error('pty:create failed — node-pty not loaded'); return false }
+  if (!pty) return { ok: false, error: 'node-pty not loaded' }
   // Kill existing if any (handles hot reloads)
   if (terminals.has(id)) { terminals.get(id)?.kill(); terminals.delete(id) }
   const sh = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash')
@@ -237,13 +296,13 @@ ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?:
     })
     terminals.set(id, t)
     const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return false
+    if (!win) return { ok: false, error: 'no BrowserWindow' }
     t.onData(data => { if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data) })
     t.onExit(() => { if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`) })
-    return true
+    return { ok: true }
   } catch (e: any) {
-    console.error(`pty:create spawn failed (shell=${sh}, cwd=${cwd}):`, e.message || e)
-    return false
+    console.error('pty:create FAILED:', e.message, e.stack)
+    return { ok: false, error: `spawn failed: ${e.message}` }
   }
 })
 ipcMain.handle('pty:write', (_e, id: string, data: string) => terminals.get(id)?.write(data))

@@ -6,6 +6,8 @@ import {
   PanelRight, PanelBottom, X, Plus, Pin,
 } from 'lucide-react'
 
+import { registerPortalTarget } from './PanePool'
+
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']
 const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']
 
@@ -30,14 +32,6 @@ const PANE_LABELS: Record<PaneId, string> = {
 }
 
 const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban', 'ai']
-
-// Lazy-load pane components
-const EditorPane = React.lazy(() => import('@/panes/EditorPane'))
-const TerminalPane = React.lazy(() => import('@/panes/TerminalPane'))
-const GraphPane = React.lazy(() => import('@/panes/GraphPane'))
-const CanvasPane = React.lazy(() => import('@/panes/CanvasPane'))
-const KanbanPane = React.lazy(() => import('@/panes/KanbanPane'))
-const AiPane = React.lazy(() => import('@/panes/AiPane'))
 
 // --- Drop zone detection (Obsidian's 33% threshold algorithm) ---
 
@@ -76,25 +70,6 @@ function getOverlayStyle(zone: DropZone): React.CSSProperties {
     case 'bottom': return { ...base, top: '50%', bottom: 3, left: 3, right: 3 }
     case 'center': return { ...base, top: 3, bottom: 3, left: 3, right: 3 }
   }
-}
-
-// --- Sub-components ---
-
-function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: string; filePath?: string }) {
-  return (
-    <React.Suspense fallback={
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
-        loading...
-      </div>
-    }>
-      {paneType === 'editor' && <EditorPane leafId={tabId} filePath={filePath} />}
-      {paneType === 'terminal' && <TerminalPane leafId={tabId} />}
-      {paneType === 'graph' && <GraphPane leafId={tabId} />}
-      {paneType === 'canvas' && <CanvasPane leafId={tabId} filePath={filePath} />}
-      {paneType === 'kanban' && <KanbanPane leafId={tabId} />}
-      {paneType === 'ai' && <AiPane leafId={tabId} />}
-    </React.Suspense>
-  )
 }
 
 // --- Tab icon by file extension (reuses same logic as FileTree) ---
@@ -441,18 +416,17 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
         </button>
       </div>
 
-      {/* Pane content — render all tabs, show only active (preserves state) */}
+      {/* Portal targets — PanePool renders actual content into these via createPortal */}
       {leaf.tabs.map(tab => (
         <div
           key={tab.id}
+          ref={el => registerPortalTarget(tab.id, el)}
           style={{
             flex: 1, overflow: 'hidden',
             display: tab.id === activeTab.id ? 'flex' : 'none',
             flexDirection: 'column',
           }}
-        >
-          <PaneContent paneType={tab.paneType} tabId={tab.id} filePath={tab.filePath} />
-        </div>
+        />
       ))}
 
       {/* Drop zone overlay */}

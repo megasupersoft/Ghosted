@@ -37,6 +37,24 @@ try {
     console.log(`Copied pty.node to ${destDir}`)
   }
 
+  // Also copy spawn-helper to prebuilds AND fix its execute permission.
+  // The npm tarball ships prebuilds/darwin-*/spawn-helper with 644 (no +x),
+  // which causes "posix_spawnp failed" at runtime. See microsoft/node-pty#850.
+  const helperSrc = path.join(ptyDir, 'build', 'Release', 'spawn-helper')
+  const helperDest = path.join(destDir, 'spawn-helper')
+
+  if (fs.existsSync(helperSrc)) {
+    if (fs.existsSync(helperDest)) fs.unlinkSync(helperDest)
+    fs.copyFileSync(helperSrc, helperDest)
+    fs.chmodSync(helperDest, 0o755)
+    console.log(`Copied spawn-helper to ${destDir} (chmod 755)`)
+  }
+
+  // Also ensure build/Release/spawn-helper has +x (it should from node-gyp, but be safe)
+  if (fs.existsSync(helperSrc)) {
+    fs.chmodSync(helperSrc, 0o755)
+  }
+
   console.log('node-pty rebuild complete')
 } catch (e) {
   console.error('node-pty rebuild failed:', e.message)
