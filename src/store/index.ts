@@ -5,6 +5,7 @@ import {
   splitLeaf as splitLeafFn,
   closeLeaf as closeLeafFn,
   splitLeafAtPosition as splitLeafAtPositionFn,
+  splitLeafWithTab as splitLeafWithTabFn,
   addTabToLeaf as addTabFn,
   removeTabFromLeaf as removeTabFn,
   setActiveTabInLeaf as setActiveTabFn,
@@ -308,14 +309,11 @@ export const useStore = create<GhostedState>((set, get) => ({
       const insertBefore = zone === 'left' || zone === 'top'
       const newSplitId = `split-${newNextId}`
       newNextId++
-      newLayout = splitLeafAtPositionFn(
-        newLayout, targetLeafId, direction, sourceLeafId, newSplitId, activeSourceTab.paneType, insertBefore
+      // Use splitLeafWithTab to preserve the active tab's original ID
+      newLayout = splitLeafWithTabFn(
+        newLayout, targetLeafId, direction, sourceLeafId, newSplitId, activeSourceTab, insertBefore
       )
-      // Restore the active tab's full data
-      newLayout = updateTab(newLayout, sourceLeafId, {
-        label: activeSourceTab.label, filePath: activeSourceTab.filePath, pinned: activeSourceTab.pinned,
-      })
-      // Re-add any additional tabs from the source leaf
+      // Re-add remaining tabs (their IDs are already preserved)
       for (const t of allSourceTabs) {
         if (t.id === activeSourceTab.id) continue
         newLayout = addTabFn(newLayout, sourceLeafId, t)
@@ -359,13 +357,10 @@ export const useStore = create<GhostedState>((set, get) => ({
       } else {
         newLayout = removeTabFn(layout, sourceLeafId, tabId)
       }
-      newLayout = splitLeafAtPositionFn(
-        newLayout, targetLeafId, direction, newLeafId, newSplitId, tab.paneType, insertBefore
+      // Use splitLeafWithTab to preserve the original tab (and its ID)
+      newLayout = splitLeafWithTabFn(
+        newLayout, targetLeafId, direction, newLeafId, newSplitId, tab, insertBefore
       )
-      // Restore the full tab data (splitLeafAtPosition only sets paneType)
-      newLayout = updateTab(newLayout, newLeafId, {
-        label: tab.label, filePath: tab.filePath, pinned: tab.pinned,
-      })
       newFocusId = newLeafId
     }
 
