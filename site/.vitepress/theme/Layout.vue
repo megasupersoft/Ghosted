@@ -21,7 +21,8 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
           </div>
           <div class="download-btn__text">
             <span class="download-btn__label">macOS</span>
-            <span class="download-btn__meta">v{{ version }} · Apple Silicon · DMG</span>
+            <span class="download-btn__meta">Apple Silicon · DMG</span>
+            <span class="download-btn__meta">v{{ version }}</span>
           </div>
         </a>
         <a :href="linuxUrl" class="download-btn download-btn--primary">
@@ -33,7 +34,8 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
           </div>
           <div class="download-btn__text">
             <span class="download-btn__label">Linux</span>
-            <span class="download-btn__meta">v{{ version }} · x86_64 · AppImage</span>
+            <span class="download-btn__meta">x86_64 · AppImage</span>
+            <span class="download-btn__meta">v{{ version }}</span>
           </div>
         </a>
         <a :href="winUrl" class="download-btn download-btn--secondary">
@@ -45,7 +47,8 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
           </div>
           <div class="download-btn__text">
             <span class="download-btn__label">Windows</span>
-            <span class="download-btn__meta">v{{ version }} · Coming soon</span>
+            <span class="download-btn__meta">Coming soon</span>
+            <span class="download-btn__meta">v{{ version }}</span>
           </div>
         </a>
       </div>
