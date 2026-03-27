@@ -6,3 +6,6 @@ release/
 .DS_Store
 .env
 .env.local
+site/node_modules/
+site/.vitepress/dist/
+site/.vitepress/cache/

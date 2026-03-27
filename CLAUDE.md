@@ -102,6 +102,13 @@ npm run build        # Full build (tsc + vite)
 npm run lint         # ESLint
 ```
 
+## Site (docs + landing page)
+- Lives in `site/` — VitePress, fully isolated from Electron build
+- `cd site && npm install && npm run docs:dev` — local preview
+- Auto-deploys to Cloudflare Pages on push to main
+- `/publish` — manual deploy via wrangler
+- Cloudflare Pages config: root `site`, build `npm run docs:build`, output `.vitepress/dist`
+
 ## Roadmap
 - [ ] `ghosted .` CLI launcher
 - [ ] Canvas JSON export/import
