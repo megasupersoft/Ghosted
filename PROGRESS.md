@@ -1,12 +1,12 @@
 ---
 project: Ghosted
-updated: 2026-03-19
+updated: 2026-03-27
 ---
 
 # Ghosted Progress
 
 ## Current status
-v0.1.0 — All six panes scaffolded and rendering. Core IPC (fs + PTY) working.
+v0.1.2 — Portal pane pool, live file updates, markdown/JSON preview, canvas undo, explorer drag-drop, file persistence.
 
 ## Done
 - [x] Electron + Vite + React 18 + TypeScript scaffold
@@ -26,20 +26,17 @@ v0.1.0 — All six panes scaffolded and rendering. Core IPC (fs + PTY) working.
 - [x] useGhostDB hook — auto-indexes workspace, live updates via db:changed
 - [x] Canvas pane — context nodes query GhostedDB, workflow runner pipes through topo-sorted nodes
 - [x] TypeScript 5.9.3 devDependency fixed, native modules externalized in Vite electron build
+- [x] Portal pane pool — panels survive splits/moves/rearrangements without losing state
+- [x] Live file updates — open tabs auto-reload when files change on disk
+- [x] Markdown preview toggle for .md/.mdx files
+- [x] JSON tree viewer matching explorer style
+- [x] Canvas undo/redo (Cmd+Z/Shift+Z), dirty indicator, Cmd+S save
+- [x] Explorer: context menu rename/delete, keyboard delete, drag-drop, copy/paste, undo
+- [x] Open files persisted across app restarts
+- [x] Dirty dot indicator on tabs with unsaved changes
+- [x] node-pty spawn-helper asar path fix for packaged builds
 
 ## In Flight
-### Live file updates + markdown preview + dirty indicator
-- **Job**: Open tabs auto-update when files change on disk; markdown preview toggle; unsaved changes dot
-- **Panes**: Editor
-- **IPC**: None new — uses existing fs:watch/fs:changed
-- **Done when**: (1) external edit updates open tab in <1s (2) .md toggle renders markdown (3) dirty dot on unsaved tabs
-
-### Canvas undo stack + dirty indicator
-- **Job**: Undo/redo for canvas node/edge operations; dirty dot on tab; Cmd+S save
-- **Panes**: Canvas
-- **IPC**: None new
-- **Done when**: (1) Cmd+Z undoes node/edge changes (2) Cmd+Shift+Z redoes (3) dirty dot on unsaved canvas (4) Cmd+S saves to .canvas file
-
 - [ ] Canvas JSON export/import
 - [ ] Graph search + depth control
 - [ ] pi.dev RPC integration in terminal pane
