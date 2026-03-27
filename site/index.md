@@ -10,9 +10,6 @@ hero:
     dark: /ghosted-icon-dark.svg
     alt: Ghosted
   actions:
-    - theme: brand
-      text: Download Latest
-      link: https://github.com/megasupersoft/Ghosted/releases/latest
     - theme: alt
       text: How It Works
       link: /guide/getting-started
