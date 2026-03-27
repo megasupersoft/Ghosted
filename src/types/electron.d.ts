@@ -59,12 +59,13 @@ declare global {
         newfile: (path: string, content?: string) => Promise<boolean>
         rename: (oldPath: string, newPath: string) => Promise<boolean>
         delete: (path: string) => Promise<boolean>
+        copy: (src: string, dest: string) => Promise<boolean>
         exists: (path: string) => Promise<boolean>
         stat: (path: string) => Promise<{ isDirectory: boolean; isFile: boolean; size: number; mtime: number } | null>
         watch: (path: string) => Promise<boolean>
         unwatch: (path: string) => Promise<boolean>
-        onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => void
-        offChanged: () => void
+        onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => any
+        offChanged: (handler?: any) => void
       }
       pty: {
         create: (id: string, cwd: string, cols?: number, rows?: number) => Promise<boolean>

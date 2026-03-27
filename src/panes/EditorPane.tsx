@@ -1,7 +1,11 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useStore, OpenFile } from '@/store'
 import { useSettings } from '@/store/settings'
-import { Ghost } from 'lucide-react'
+import {
+  Ghost, Eye, Code, ChevronRight, ChevronDown,
+  Braces, Hash, FileText, ToggleLeft, List,
+} from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 
 const MonacoEditor = React.lazy(() => import('@monaco-editor/react'))
 
@@ -63,6 +67,115 @@ export function registerGhostTheme(monaco: any) {
   })
 }
 
+function getPreviewType(filename: string): 'markdown' | 'json' | null {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+  if (ext === 'md' || ext === 'mdx') return 'markdown'
+  if (ext === 'json' || ext === 'jsonc' || ext === 'json5') return 'json'
+  return null
+}
+
+function MarkdownPreview({ content }: { content: string }) {
+  return (
+    <div className="md-preview" style={{
+      height: '100%', overflow: 'auto', padding: '24px 32px',
+      background: 'var(--bg-surface)', color: 'var(--text-primary)',
+      fontFamily: 'var(--font-ui)', fontSize: 15, lineHeight: 1.7,
+    }}>
+      <ReactMarkdown>{content}</ReactMarkdown>
+    </div>
+  )
+}
+
+function jsonIcon(value: any): React.ReactNode {
+  const s = { flexShrink: 0 } as const
+  if (value === null) return <Hash size={16} color="var(--text-muted)" style={s} />
+  if (typeof value === 'string') return <FileText size={16} color="var(--green)" style={s} />
+  if (typeof value === 'number') return <Hash size={16} color="var(--amber)" style={s} />
+  if (typeof value === 'boolean') return <ToggleLeft size={16} color="var(--amber)" style={s} />
+  if (Array.isArray(value)) return <List size={16} color="var(--cyan)" style={s} />
+  return <Braces size={16} color="var(--accent)" style={s} />
+}
+
+function jsonValueText(value: any): React.ReactNode {
+  if (value === null) return <span style={{ color: 'var(--text-muted)' }}>null</span>
+  if (typeof value === 'boolean') return <span style={{ color: 'var(--amber)' }}>{String(value)}</span>
+  if (typeof value === 'number') return <span style={{ color: 'var(--amber)' }}>{value}</span>
+  if (typeof value === 'string') {
+    const display = value.length > 80 ? value.slice(0, 80) + '...' : value
+    return <span style={{ color: 'var(--green)' }}>{display}</span>
+  }
+  return null
+}
+
+function JsonNode({ label, value, depth, defaultOpen }: {
+  label: string; value: any; depth: number; defaultOpen?: boolean
+}) {
+  const isExpandable = value !== null && typeof value === 'object'
+  const [open, setOpen] = useState(defaultOpen ?? depth < 2)
+
+  const isArray = Array.isArray(value)
+  const entries: [string, any][] = isExpandable
+    ? (isArray ? value.map((v: any, i: number) => [String(i), v]) : Object.entries(value))
+    : []
+  const count = entries.length
+
+  return (
+    <>
+      <div
+        className="filetree-row"
+        onClick={() => isExpandable && setOpen(o => !o)}
+        style={{ paddingLeft: 6 + depth * 20, cursor: isExpandable ? 'pointer' : 'default' }}
+      >
+        <span className="filetree-content">
+          {isExpandable ? (
+            open
+              ? <ChevronDown size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+              : <ChevronRight size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+          ) : (
+            <span style={{ width: 16, flexShrink: 0 }} />
+          )}
+          {jsonIcon(value)}
+          <span className="filetree-name" style={{ color: 'var(--text-primary)' }}>{label}</span>
+          {!isExpandable && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, marginLeft: 4 }}>
+              {jsonValueText(value)}
+            </span>
+          )}
+          {isExpandable && (
+            <span style={{ color: 'var(--text-ghost)', fontSize: 11, marginLeft: 4 }}>
+              {isArray ? `[${count}]` : `{${count}}`}
+            </span>
+          )}
+        </span>
+      </div>
+      {open && entries.map(([key, val]) => (
+        <JsonNode key={key} label={key} value={val} depth={depth + 1} />
+      ))}
+    </>
+  )
+}
+
+function JsonPreview({ content }: { content: string }) {
+  let parsed: any
+  let error = ''
+  try { parsed = JSON.parse(content) } catch (e: any) { error = e.message }
+
+  return (
+    <div style={{
+      height: '100%', overflow: 'auto', padding: '4px 0',
+      background: 'var(--bg-surface)',
+    }}>
+      {error ? (
+        <div style={{ padding: 16, color: 'var(--red)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+          Invalid JSON: {error}
+        </div>
+      ) : (
+        <JsonNode label="root" value={parsed} depth={0} defaultOpen />
+      )}
+    </div>
+  )
+}
+
 function localFileUrl(filePath: string): string {
   return `ghosted-file://${encodeURIComponent(filePath)}`
 }
@@ -96,6 +209,9 @@ export default function EditorPane({ leafId, filePath }: { leafId?: string; file
   const { openFiles, updateFileContent, markFileDirty } = useStore()
   const settings = useSettings()
   const activeFile = filePath ? openFiles.find(f => f.path === filePath) : null
+  const [showPreview, setShowPreview] = useState(false)
+
+  const previewType = activeFile ? getPreviewType(activeFile.name) : null
 
   const handleSave = async () => {
     if (!activeFile) return
@@ -122,44 +238,72 @@ export default function EditorPane({ leafId, filePath }: { leafId?: string; file
   if (activeFile.fileType === 'video') return <VideoViewer file={activeFile} />
 
   return (
-    <div style={{ flex: 1, overflow: 'hidden', height: '100%' }}>
-      <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>summoning editor...</div>}>
-        <MonacoEditor
-          key={activeFile.path}
-          height="100%"
-          language={getLang(activeFile.name)}
-          value={activeFile.content}
-          theme="ghost"
-          beforeMount={registerGhostTheme}
-          onChange={v => { if (!filePath || v === undefined) return; updateFileContent(filePath, v); markFileDirty(filePath, true) }}
-          options={{
-            fontSize: settings.editorFontSize,
-            fontFamily: settings.editorFontFamily,
-            fontLigatures: settings.editorLigatures,
-            tabSize: settings.editorTabSize,
-            minimap: { enabled: settings.editorMinimap },
-            scrollbar: {
-              verticalScrollbarSize: 6,
-              horizontalScrollbarSize: 6,
-              verticalSliderSize: 6,
-              horizontalSliderSize: 6,
-              useShadows: false,
-            },
-            overviewRulerLanes: 0,
-            hideCursorInOverviewRuler: true,
-            overviewRulerBorder: false,
-            scrollBeyondLastLine: false,
-            lineNumbers: settings.editorLineNumbers,
-            renderLineHighlight: 'gutter',
-            bracketPairColorization: { enabled: settings.editorBracketColors },
-            padding: { top: 10 },
-            smoothScrolling: settings.editorSmoothScrolling,
-            cursorBlinking: 'smooth',
-            cursorSmoothCaretAnimation: settings.editorSmoothCaret ? 'on' : 'off',
-            wordWrap: settings.editorWordWrap,
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+      {/* Preview toggle button */}
+      {previewType && (
+        <button
+          onClick={() => setShowPreview(p => !p)}
+          title={showPreview ? 'Show source' : 'Show preview'}
+          style={{
+            position: 'absolute', top: 8, right: 16, zIndex: 10,
+            width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)', color: 'var(--text-secondary)',
+            cursor: 'pointer', transition: 'color 0.15s, background 0.15s, border-color 0.15s',
           }}
-        />
-      </React.Suspense>
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent-bright)'; e.currentTarget.style.borderColor = 'var(--accent)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >
+          {showPreview ? <Code size={16} /> : <Eye size={16} />}
+        </button>
+      )}
+
+      {/* Preview or editor */}
+      {showPreview && previewType === 'markdown' ? (
+        <MarkdownPreview content={activeFile.content} />
+      ) : showPreview && previewType === 'json' ? (
+        <JsonPreview content={activeFile.content} />
+      ) : (
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <React.Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>summoning editor...</div>}>
+            <MonacoEditor
+              key={activeFile.path}
+              height="100%"
+              language={getLang(activeFile.name)}
+              value={activeFile.content}
+              theme="ghost"
+              beforeMount={registerGhostTheme}
+              onChange={v => { if (!filePath || v === undefined) return; updateFileContent(filePath, v); markFileDirty(filePath, true) }}
+              options={{
+                fontSize: settings.editorFontSize,
+                fontFamily: settings.editorFontFamily,
+                fontLigatures: settings.editorLigatures,
+                tabSize: settings.editorTabSize,
+                minimap: { enabled: settings.editorMinimap },
+                scrollbar: {
+                  verticalScrollbarSize: 6,
+                  horizontalScrollbarSize: 6,
+                  verticalSliderSize: 6,
+                  horizontalSliderSize: 6,
+                  useShadows: false,
+                },
+                overviewRulerLanes: 0,
+                hideCursorInOverviewRuler: true,
+                overviewRulerBorder: false,
+                scrollBeyondLastLine: false,
+                lineNumbers: settings.editorLineNumbers,
+                renderLineHighlight: 'gutter',
+                bracketPairColorization: { enabled: settings.editorBracketColors },
+                padding: { top: 10 },
+                smoothScrolling: settings.editorSmoothScrolling,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: settings.editorSmoothCaret ? 'on' : 'off',
+                wordWrap: settings.editorWordWrap,
+              }}
+            />
+          </React.Suspense>
+        </div>
+      )}
     </div>
   )
 }

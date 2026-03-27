@@ -50,7 +50,7 @@ export default function ActivityBar() {
               height: 16,
               borderRadius: 8,
               background: 'var(--accent)',
-              color: '#fff',
+              color: '#09090e',
               fontSize: 10,
               fontWeight: 700,
               fontFamily: 'var(--font-ui)',

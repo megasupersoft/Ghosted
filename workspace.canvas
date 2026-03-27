@@ -24,8 +24,8 @@
         }
       },
       "measured": {
-        "width": 151,
-        "height": 63
+        "width": 155,
+        "height": 65
       }
     },
     {
@@ -42,7 +42,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       }
     },
     {
@@ -59,7 +59,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       }
     },
     {
@@ -76,7 +76,7 @@
       },
       "measured": {
         "width": 260,
-        "height": 76
+        "height": 80
       }
     },
     {
@@ -93,7 +93,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       }
     },
     {
@@ -110,7 +110,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       }
     },
     {
@@ -126,7 +126,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 76
+        "height": 79
       }
     }
   ],
@@ -216,5 +216,5 @@
       }
     }
   ],
-  "idCounter": 20
+  "idCounter": 21
 }

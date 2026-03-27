@@ -20,7 +20,7 @@ function SidebarContent({ id }: { id: string }) {
 }
 
 export default function App() {
-  const { layout, activeSidebar } = useStore()
+  const { layout, activeSidebar, workspacePath } = useStore()
 
   // Listen for Pi agent actions (open file, switch pane, etc.)
   useEffect(() => {
@@ -37,6 +37,40 @@ export default function App() {
     })
     return () => window.electron.pi.offAction()
   }, [])
+
+  // Live file updates: watch workspace directory for external changes
+  useEffect(() => {
+    if (!workspacePath) return
+
+    window.electron.fs.watch(workspacePath)
+
+    const handleChange = async (event: { dir: string; eventType: string; filename: string }) => {
+      if (!event.filename) return
+      const { openFiles, updateFileContent } = useStore.getState()
+      // Build the full path — the event dir is the watched directory
+      const fullPath = event.dir + '/' + event.filename
+      const file = openFiles.find(f => f.path === fullPath)
+      if (!file) return
+      // Don't overwrite unsaved user changes
+      if (file.isDirty) return
+      try {
+        const newContent = await window.electron.fs.readfile(fullPath)
+        // Re-check isDirty after async read in case user edited during the read
+        const current = useStore.getState().openFiles.find(f => f.path === fullPath)
+        if (current && !current.isDirty && current.content !== newContent) {
+          updateFileContent(fullPath, newContent)
+        }
+      } catch {
+        // File may have been deleted or become unreadable — ignore
+      }
+    }
+
+    const handler = window.electron.fs.onChanged(handleChange)
+
+    return () => {
+      window.electron.fs.offChanged(handler)
+    }
+  }, [workspacePath])
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

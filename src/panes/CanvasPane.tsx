@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useEffect, memo } from 'react'
+import React, { useCallback, useState, useRef, useEffect, useMemo, memo } from 'react'
 import {
   ReactFlow, Background, BackgroundVariant,
   useNodesState, useEdgesState, addEdge, Connection, MarkerType,
@@ -24,6 +24,7 @@ canvasStyles.textContent = `
 `
 document.head.appendChild(canvasStyles)
 import { useGhostDB } from '@/lib/useGhostDB'
+import { useUndoStack } from '@/lib/useUndoStack'
 import { useStore } from '@/store'
 import type { GhostedQuery } from '@/types/electron'
 
@@ -594,19 +595,81 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     return () => { cancelled = true }
   }, [filePath])
 
-  // Debounced save to .canvas file on disk
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+  // ── Undo stack + dirty tracking ──────────────────────────────────────────
+  const undo = useUndoStack<{ nodes: Node[]; edges: Edge[] }>(50)
+  const [dirty, setDirty] = useState(false)
+  const skipSnapshot = useRef(false) // true during undo/redo to avoid pushing
+
+  // Initialize undo stack after loading
   useEffect(() => {
-    if (!loaded) return // Don't save before initial load completes
-    clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
-      const fp = filePathRef.current
-      if (fp) {
-        window.electron.fs.writefile(fp, serializeCanvas(nodes, edges)).catch(() => {})
-      }
-    }, 500)
-    return () => clearTimeout(saveTimer.current)
+    if (!loaded) return
+    undo.reset({ nodes, edges })
+    undo.markSaved()
+    setDirty(false)
+  }, [loaded])
+
+  // Push snapshot on every meaningful change (debounced to batch rapid updates)
+  const snapshotTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!loaded || skipSnapshot.current) return
+    clearTimeout(snapshotTimer.current)
+    snapshotTimer.current = setTimeout(() => {
+      undo.push({ nodes, edges })
+      setDirty(undo.isDirty())
+    }, 300)
+    return () => clearTimeout(snapshotTimer.current)
   }, [nodes, edges, loaded])
+
+  // Save to disk (manual Cmd+S only — no auto-save)
+  const saveCanvas = useCallback(() => {
+    const fp = filePathRef.current
+    if (!fp) return
+    window.electron.fs.writefile(fp, serializeCanvas(nodes, edges)).catch(() => {})
+    undo.markSaved()
+    setDirty(false)
+  }, [nodes, edges])
+
+  // Keyboard: Cmd+Z undo, Cmd+Shift+Z redo, Cmd+S save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        const state = undo.undo()
+        if (state) {
+          skipSnapshot.current = true
+          setNodes(state.nodes)
+          setEdges(state.edges)
+          setDirty(undo.isDirty())
+          requestAnimationFrame(() => { skipSnapshot.current = false })
+        }
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault()
+        const state = undo.redo()
+        if (state) {
+          skipSnapshot.current = true
+          setNodes(state.nodes)
+          setEdges(state.edges)
+          setDirty(undo.isDirty())
+          requestAnimationFrame(() => { skipSnapshot.current = false })
+        }
+      } else if (e.key === 's') {
+        e.preventDefault()
+        saveCanvas()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [saveCanvas])
+
+  // Expose dirty state to the store for tab indicator
+  const { markFileDirty } = useStore()
+  useEffect(() => {
+    if (filePath) markFileDirty(filePath, dirty)
+  }, [dirty, filePath])
 
   const onConnect = useCallback((c: Connection) =>
     setEdges(eds => addEdge({
