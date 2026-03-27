@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Ghosted
-  text: One window. Everything mounted. Nothing lost.
-  tagline: Editor, terminal, knowledge graph, agent canvas, kanban, file tree. Six panes that stay alive when you switch between them. No tab graveyard. No state resets. Just your whole workflow, always ready.
+  text: A simple IDE for everything.
+  tagline: Code, terminal, knowledge graph, agent canvas, kanban, and files — all in one window. Nothing resets when you switch panes.
   image:
     light: /ghosted-icon-light.svg
     dark: /ghosted-icon-dark.svg
