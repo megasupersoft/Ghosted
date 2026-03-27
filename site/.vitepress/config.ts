@@ -1,4 +1,8 @@
 import { defineConfig } from 'vitepress'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
 
 export default defineConfig({
   title: 'Ghosted',
@@ -45,7 +49,7 @@ export default defineConfig({
     ],
     footer: {
       message: 'Made by <a href="https://megasupersoft.com">Megasupersoft</a>. Ships with <a href="https://bruceos.com">BruceOS</a>.',
-      copyright: 'MIT Licensed. Do whatever you want.',
+      copyright: `v${pkg.version} — MIT Licensed. Do whatever you want.`,
     },
     search: {
       provider: 'local',

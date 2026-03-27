@@ -1,6 +1,6 @@
 # /publish — Ghosted Site Deploy
 
-Builds the VitePress docs site and deploys to Cloudflare Pages. Pushes to main auto-deploy via Cloudflare git integration — use this for manual deploys.
+Commits, pushes, builds, and deploys the docs site to Cloudflare Pages.
 
 ## Step 1 — Preflight
 
@@ -13,7 +13,19 @@ npx wrangler whoami
 - If wrangler not authenticated → tell user to run `! npx wrangler login`
 - If Node < 18 → stop
 
-## Step 2 — Build
+## Step 2 — Commit & push
+
+If there are uncommitted changes in `site/` or related files:
+
+```bash
+git add site/ .claude/skills/publish/
+git commit -m "docs(site): update"
+git push origin main
+```
+
+If clean, just push any unpushed commits. Always push — that's the whole point.
+
+## Step 3 — Build
 
 ```bash
 cd site && npm install && npm run docs:build
@@ -21,7 +33,7 @@ cd site && npm install && npm run docs:build
 
 If build fails → stop and fix.
 
-## Step 3 — Deploy
+## Step 4 — Deploy
 
 ```bash
 cd site && npx wrangler pages deploy .vitepress/dist --project-name=ghosted-site
@@ -33,6 +45,6 @@ If the project doesn't exist yet, wrangler will prompt to create it. Tell the us
 ! cd site && npx wrangler pages deploy .vitepress/dist --project-name=ghosted-site
 ```
 
-## Step 4 — Verify
+## Step 5 — Verify
 
-Print the deployment URL. Tell the user to check it in the browser.
+Print the deployment URL and the production URL (ghosted.megasupersoft.com).
