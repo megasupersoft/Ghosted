@@ -17,8 +17,7 @@ export default defineConfig({
       dark: '/ghosted-icon-dark.svg',
     },
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'GitHub', link: 'https://github.com/megasupersoft/Ghosted' },
+      { text: 'Docs', link: '/guide/getting-started' },
       { text: 'Download', link: 'https://github.com/megasupersoft/Ghosted/releases/latest' },
     ],
     sidebar: {
@@ -44,12 +43,9 @@ export default defineConfig({
         },
       ],
     },
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/megasupersoft/Ghosted' },
-    ],
     footer: {
       message: 'Made by <a href="https://megasupersoft.com">Megasupersoft</a>. Ships with <a href="https://bruceos.com">BruceOS</a>.',
-      copyright: `v${pkg.version} — MIT Licensed. Do whatever you want.`,
+      copyright: `v${pkg.version}`,
     },
     search: {
       provider: 'local',

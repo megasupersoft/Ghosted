@@ -4,16 +4,11 @@ layout: home
 hero:
   name: Ghosted
   text: A simple IDE for everything.
-  tagline: Code, terminal, knowledge graph, agent canvas, kanban, and files — all in one window. Nothing resets when you switch panes.
+  tagline: Code, terminal, knowledge graph, agent canvas, kanban, and files.
   image:
     light: /ghosted-icon-light.svg
     dark: /ghosted-icon-dark.svg
     alt: Ghosted
-  actions:
-    - theme: alt
-      text: How It Works
-      link: /guide/getting-started
-
 features:
   - icon: '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>'
     title: Editor

@@ -16,17 +16,28 @@
 /* ── Light mode ── */
 
 html:not(.dark) {
+  --vp-c-bg: #e8e8ee;
+  --vp-c-bg-soft: #dddde5;
+  --vp-c-bg-mute: #d2d2dc;
+  --vp-c-bg-alt: #dddde5;
+
+  --vp-c-text-1: #2e2e3c;
+  --vp-c-text-2: #55556a;
+  --vp-c-text-3: #7e7e95;
+
+  --vp-c-divider: #c0c0cc;
+  --vp-c-border: #c0c0cc;
+
   --vp-c-brand-1: #6b5ce7;
   --vp-c-brand-2: #5a4bd6;
   --vp-c-brand-3: #ebe8fd;
-  --vp-c-brand-soft: rgba(107, 92, 231, 0.1);
+  --vp-c-brand-soft: rgba(107, 92, 231, 0.12);
 
   --vp-button-brand-bg: #6b5ce7;
   --vp-button-brand-text: #ffffff;
   --vp-button-brand-hover-bg: #5a4bd6;
 
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, #6b5ce7, #8b7cf8, #4a9cf5);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
   --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(107, 92, 231, 0.2), rgba(74, 156, 245, 0.08));
   --vp-home-hero-image-filter: blur(56px);
 }
@@ -56,8 +67,7 @@ html:not(.dark) {
   --vp-button-brand-text: #1e1e28;
   --vp-button-brand-hover-bg: #c8c2f5;
 
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, #b0a8f0, #c084fc, #67e8f9);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
   --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(176, 168, 240, 0.3), rgba(103, 232, 249, 0.1));
   --vp-home-hero-image-filter: blur(56px);
 }
@@ -71,6 +81,14 @@ html:not(.dark) {
 .VPHero .main .name {
   font-weight: 700;
   letter-spacing: -0.02em;
+  font-size: 4rem;
+  padding-bottom: 32px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .main .name {
+    font-size: 5.5rem;
+  }
 }
 
 .VPHero .main .text {
@@ -89,8 +107,9 @@ html:not(.dark) {
 .VPHero .main .tagline {
   font-size: 1.05rem;
   line-height: 1.65;
-  max-width: 540px;
+  max-width: 380px;
   color: var(--vp-c-text-2);
+  padding-top: 28px;
 }
 
 /* Brand button — make it pop more */
