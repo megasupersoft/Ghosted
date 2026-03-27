@@ -20,7 +20,7 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
             </svg>
           </div>
           <div class="download-btn__text">
-            <span class="download-btn__label">Download for macOS</span>
+            <span class="download-btn__label">macOS</span>
             <span class="download-btn__meta">v{{ version }} · Apple Silicon · DMG</span>
           </div>
         </a>
@@ -32,7 +32,7 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
             </svg>
           </div>
           <div class="download-btn__text">
-            <span class="download-btn__label">Download for Linux</span>
+            <span class="download-btn__label">Linux</span>
             <span class="download-btn__meta">v{{ version }} · x86_64 · AppImage</span>
           </div>
         </a>
@@ -44,7 +44,7 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
             </svg>
           </div>
           <div class="download-btn__text">
-            <span class="download-btn__label">Download for Windows</span>
+            <span class="download-btn__label">Windows</span>
             <span class="download-btn__meta">v{{ version }} · Coming soon</span>
           </div>
         </a>
@@ -57,6 +57,7 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
 .download-buttons {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
   padding-top: 32px;
 }
@@ -70,15 +71,16 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
 
 .download-btn {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 18px 28px;
+  gap: 12px;
+  padding: 24px 28px;
   border-radius: 14px;
   text-decoration: none;
   transition: all 0.2s ease;
   cursor: pointer;
   border: 1px solid transparent;
-  min-width: 260px;
+  min-width: 160px;
 }
 
 .download-btn:hover {
@@ -140,7 +142,7 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
   display: flex;
   flex-direction: column;
   gap: 3px;
-  text-align: left;
+  text-align: center;
 }
 
 .download-btn__label {
