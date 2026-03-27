@@ -2,16 +2,19 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Ghosted',
-  description: 'The dev workspace that never sleeps.',
+  description: 'One window. Everything mounted. Nothing lost.',
   head: [
     ['link', { rel: 'icon', href: '/ghosted-icon.png' }],
   ],
   appearance: 'dark',
   themeConfig: {
-    logo: '/ghosted-icon.png',
+    logo: {
+      light: '/ghosted-icon-light.svg',
+      dark: '/ghosted-icon-dark.svg',
+    },
     nav: [
-      { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'GitHub', link: 'https://github.com/megasupersoft/Ghosted' },
       { text: 'Download', link: 'https://github.com/megasupersoft/Ghosted/releases/latest' },
     ],
     sidebar: {
@@ -41,8 +44,8 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/megasupersoft/Ghosted' },
     ],
     footer: {
-      message: 'Built by Megasupersoft Ltd.',
-      copyright: 'MIT License',
+      message: 'Made by <a href="https://megasupersoft.com">Megasupersoft</a>. Ships with <a href="https://bruceos.com">BruceOS</a>.',
+      copyright: 'MIT Licensed. Do whatever you want.',
     },
     search: {
       provider: 'local',
