@@ -4,8 +4,8 @@
       "id": "ctx",
       "type": "ghosted",
       "position": {
-        "x": -397.16687008017504,
-        "y": -27.54889583945107
+        "x": -212.909466891109,
+        "y": 88.91237978697262
       },
       "data": {
         "label": "Workspace Context",
@@ -24,8 +24,8 @@
         }
       },
       "measured": {
-        "width": 151,
-        "height": 63
+        "width": 155,
+        "height": 65
       },
       "selected": false,
       "dragging": false
@@ -34,8 +34,8 @@
       "id": "brief",
       "type": "ghosted",
       "position": {
-        "x": -271.6704519165112,
-        "y": 172.54464586313702
+        "x": -363.3515453105887,
+        "y": 259.2530741091507
       },
       "data": {
         "label": "Brief",
@@ -44,7 +44,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -53,8 +53,8 @@
       "id": "arch",
       "type": "ghosted",
       "position": {
-        "x": -174.0450520230666,
-        "y": 283.6351331235948
+        "x": -137.50063288867022,
+        "y": 403.3321718479684
       },
       "data": {
         "label": "Arch",
@@ -63,26 +63,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
-      },
-      "selected": false,
-      "dragging": false
-    },
-    {
-      "id": "impl",
-      "type": "ghosted",
-      "position": {
-        "x": -95.92313554226436,
-        "y": 425.40490830999823
-      },
-      "data": {
-        "label": "Implement",
-        "nodeType": "prompt",
-        "prompt": "Implement the feature. TypeScript, follow CLAUDE.md conventions. No any without comment."
-      },
-      "measured": {
-        "width": 260,
-        "height": 76
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -91,8 +72,8 @@
       "id": "rev",
       "type": "ghosted",
       "position": {
-        "x": -118.02861637887806,
-        "y": 571.125941867094
+        "x": -258.02861637887804,
+        "y": 539.125941867094
       },
       "data": {
         "label": "Review",
@@ -101,7 +82,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -110,8 +91,8 @@
       "id": "ship",
       "type": "ghosted",
       "position": {
-        "x": 46.75455760611976,
-        "y": 698.4100079842863
+        "x": -177.24544239388024,
+        "y": 660.4100079842863
       },
       "data": {
         "label": "Ship",
@@ -120,7 +101,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 64
+        "height": 66
       },
       "selected": false,
       "dragging": false
@@ -129,8 +110,8 @@
       "id": "run1",
       "type": "run",
       "position": {
-        "x": 219.4458259325044,
-        "y": 813.1545293072824
+        "x": -96.55417406749561,
+        "y": 786.1545293072824
       },
       "data": {
         "label": "Run Workflow",
@@ -138,7 +119,7 @@
       },
       "measured": {
         "width": 150,
-        "height": 76
+        "height": 79
       },
       "selected": false,
       "dragging": false
@@ -147,8 +128,8 @@
       "id": "21",
       "type": "note",
       "position": {
-        "x": -29.637439403482354,
-        "y": 42.903919110486825
+        "x": 24.362560596517653,
+        "y": 214.9039191104868
       },
       "data": {
         "label": "Note",
@@ -164,36 +145,6 @@
     }
   ],
   "edges": [
-    {
-      "id": "e-arch-impl",
-      "source": "arch",
-      "target": "impl",
-      "animated": true,
-      "style": {
-        "stroke": "#8b7cf8",
-        "strokeWidth": 1.5
-      },
-      "markerEnd": {
-        "type": "arrowclosed",
-        "color": "#8b7cf8"
-      },
-      "selected": false
-    },
-    {
-      "id": "e-impl-rev",
-      "source": "impl",
-      "target": "rev",
-      "animated": true,
-      "style": {
-        "stroke": "#8b7cf8",
-        "strokeWidth": 1.5
-      },
-      "markerEnd": {
-        "type": "arrowclosed",
-        "color": "#8b7cf8"
-      },
-      "selected": false
-    },
     {
       "id": "e-rev-ship",
       "source": "rev",
@@ -253,6 +204,34 @@
       },
       "id": "xy-edge__brief-arch",
       "selected": false
+    },
+    {
+      "source": "arch",
+      "target": "rev",
+      "animated": true,
+      "style": {
+        "stroke": "#8b7cf8",
+        "strokeWidth": 1.5
+      },
+      "markerEnd": {
+        "type": "arrowclosed",
+        "color": "#8b7cf8"
+      },
+      "id": "xy-edge__arch-rev"
+    },
+    {
+      "source": "ctx",
+      "target": "arch",
+      "animated": true,
+      "style": {
+        "stroke": "#8b7cf8",
+        "strokeWidth": 1.5
+      },
+      "markerEnd": {
+        "type": "arrowclosed",
+        "color": "#8b7cf8"
+      },
+      "id": "xy-edge__ctx-arch"
     }
   ],
   "idCounter": 21

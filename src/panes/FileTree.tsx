@@ -10,7 +10,7 @@ import {
   Trash2, Pencil, Copy, FolderOpen as RevealIcon,
   FileJson, FileVideo, FileAudio, FileArchive,
   Lock, Database, Terminal, Shield, Cog,
-  FileCheck, Package, Scroll, Image, Music,
+  FileCheck, Package, Scroll, Image, Music, Undo2,
 } from 'lucide-react'
 
 interface FileNode { id: string; name: string; path: string; isDirectory: boolean }
@@ -249,13 +249,15 @@ interface ContextMenuProps {
   onNewFolder: () => void
   onRename: () => void
   onDelete: () => void
+  onUndo: () => void
+  canUndo: boolean
   onCopyPath: () => void
   onCopyRelativePath: () => void
   onRevealInFileManager: () => void
   onClose: () => void
 }
 
-function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, onCopyPath, onCopyRelativePath, onRevealInFileManager, onClose }: ContextMenuProps) {
+function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, onUndo, canUndo, onCopyPath, onCopyRelativePath, onRevealInFileManager, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -289,6 +291,14 @@ function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, o
       <button className={itemClass} onClick={() => { onNewFolder(); onClose() }}>
         <FolderPlus size={13} /> New Folder
       </button>
+      {canUndo && (
+        <>
+          <div style={{ height: 1, background: 'var(--border)', margin: '3px 4px' }} />
+          <button className={itemClass} onClick={() => { onUndo(); onClose() }}>
+            <Undo2 size={13} /> Undo
+          </button>
+        </>
+      )}
       {node && (
         <>
           <div style={{ height: 1, background: 'var(--border)', margin: '3px 4px' }} />
@@ -314,52 +324,6 @@ function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, o
   )
 }
 
-// ─── Delete confirmation ──────────────────────────────────────────────────────
-
-function DeleteConfirm({ name, onConfirm, onCancel }: { name: string; onConfirm: () => void; onCancel: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel()
-      if (e.key === 'Enter') onConfirm()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [onConfirm, onCancel])
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1001,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.5)',
-    }} onClick={onCancel}>
-      <div ref={ref} onClick={e => e.stopPropagation()} style={{
-        background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)',
-        borderRadius: 'var(--radius-lg)', padding: '16px 20px', minWidth: 280,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-      }}>
-        <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 12 }}>
-          Delete <strong>{name}</strong>?
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-          This action cannot be undone.
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onCancel} style={{
-            fontSize: 12, padding: '5px 14px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-mid)', color: 'var(--text-secondary)',
-          }}>Cancel</button>
-          <button onClick={onConfirm} style={{
-            fontSize: 12, padding: '5px 14px', borderRadius: 'var(--radius-sm)',
-            background: 'var(--red)', color: '#fff', border: 'none',
-          }}>Delete</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── File row ─────────────────────────────────────────────────────────────────
 
 interface FileRowProps {
@@ -373,25 +337,26 @@ interface FileRowProps {
   onRenameSubmit: (oldPath: string, newName: string) => void
   onRenameCancel: () => void
   onStartRename: (path: string) => void
+  onMoveFile: (srcPath: string, destDir: string) => void
+  onExternalDrop: (files: File[], destDir: string) => void
   creatingIn: string | null
   creatingType: 'file' | 'folder' | null
   onCreateSubmit: (parentPath: string, name: string) => void
   onCreateCancel: () => void
   refreshKey: number
-  /** Parent directory paths at each ancestor depth */
   ancestorPaths?: string[]
-  /** Whether the bright path line is active at each ancestor depth on this row */
   activeAtDepth?: boolean[]
 }
 
 function FileRow({
   node, depth, onOpen, onContextMenu, selectedPath, onSelect,
-  renamingPath, onRenameSubmit, onRenameCancel, onStartRename,
+  renamingPath, onRenameSubmit, onRenameCancel, onStartRename, onMoveFile, onExternalDrop,
   creatingIn, creatingType, onCreateSubmit, onCreateCancel,
   refreshKey, ancestorPaths = [], activeAtDepth = [],
 }: FileRowProps) {
   const [open, setOpen] = useState(false)
   const [children, setChildren] = useState<FileNode[]>([])
+  const [dropOver, setDropOver] = useState(false)
   const showHidden = useSettings(s => s.showHiddenFiles)
 
   const loadChildren = useCallback(async () => {
@@ -445,17 +410,59 @@ function FileRow({
       <div
         onClick={() => { onSelect(node.path); toggle() }}
         onDoubleClick={e => { e.stopPropagation(); onStartRename(node.path) }}
-        onContextMenu={e => { e.preventDefault(); onSelect(node.path); onContextMenu(e, node) }}
-        draggable={!node.isDirectory}
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onSelect(node.path); onContextMenu(e, node) }}
+        draggable
         onDragStart={e => {
-          if (node.isDirectory) return
-          e.dataTransfer.effectAllowed = 'copy'
+          e.dataTransfer.effectAllowed = 'copyMove'
           e.dataTransfer.setData('application/ghosted-file', JSON.stringify({ path: node.path, name: node.name }))
+          e.dataTransfer.setData('application/ghosted-explorer-move', node.path)
+          // Allow dragging to external apps (Finder, etc.)
+          e.dataTransfer.setData('text/uri-list', `file://${encodeURI(node.path)}`)
+          e.dataTransfer.setData('text/plain', node.path)
+        }}
+        onDragOver={e => {
+          if (!node.isDirectory) return
+          // Accept internal explorer moves
+          if (e.dataTransfer.types.includes('application/ghosted-explorer-move')) {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'move'
+            setDropOver(true)
+            return
+          }
+          // Accept native file drops from OS
+          if (e.dataTransfer.types.includes('Files')) {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'copy'
+            setDropOver(true)
+          }
+        }}
+        onDragLeave={() => setDropOver(false)}
+        onDrop={e => {
+          setDropOver(false)
+          if (!node.isDirectory) return
+
+          // Internal explorer move
+          const srcPath = e.dataTransfer.getData('application/ghosted-explorer-move')
+          if (srcPath) {
+            if (srcPath === node.path || srcPath.startsWith(node.path + '/')) return
+            e.preventDefault()
+            e.stopPropagation()
+            onMoveFile(srcPath, node.path)
+            return
+          }
+
+          // Native file drop from OS (Finder, etc.)
+          if (e.dataTransfer.files.length > 0) {
+            e.preventDefault()
+            e.stopPropagation()
+            onExternalDrop(Array.from(e.dataTransfer.files), node.path)
+          }
         }}
         className="filetree-row"
         style={{
           paddingLeft: 6 + depth * 38,
           position: 'relative',
+          ...(dropOver ? { background: 'var(--accent-dim)' } : {}),
         }}
       >
         {/* Tree guide lines */}
@@ -574,6 +581,7 @@ function FileRow({
               key={c.id} node={c} depth={depth + 1} onOpen={onOpen}
               onContextMenu={onContextMenu} selectedPath={selectedPath} onSelect={onSelect}
               renamingPath={renamingPath} onRenameSubmit={onRenameSubmit} onRenameCancel={onRenameCancel} onStartRename={onStartRename}
+              onMoveFile={onMoveFile} onExternalDrop={onExternalDrop}
               creatingIn={creatingIn} creatingType={creatingType}
               onCreateSubmit={onCreateSubmit} onCreateCancel={onCreateCancel}
               refreshKey={refreshKey}
@@ -596,6 +604,20 @@ export default function FileTree() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // ── Filesystem undo stack ───────────────────────────────────────────────
+  type FsAction =
+    | { type: 'create'; path: string; isDirectory: boolean }
+    | { type: 'delete'; path: string; isDirectory: boolean; content?: string }
+    | { type: 'rename'; oldPath: string; newPath: string }
+
+  const undoStack = useRef<FsAction[]>([])
+  const MAX_UNDO = 30
+
+  const pushUndo = (action: FsAction) => {
+    undoStack.current.push(action)
+    if (undoStack.current.length > MAX_UNDO) undoStack.current.shift()
+  }
+
   // Context menu state
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; node: FileNode | null } | null>(null)
 
@@ -606,8 +628,6 @@ export default function FileTree() {
   // Rename state
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
 
-  // Delete confirm state
-  const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null)
 
   const loadDir = useCallback(async (p: string) => {
     try {
@@ -625,13 +645,41 @@ export default function FileTree() {
 
   useEffect(() => { if (workspacePath) loadDir(workspacePath) }, [workspacePath, loadDir])
 
+  const refresh = useCallback(() => {
+    if (workspacePath) loadDir(workspacePath)
+    setRefreshKey(k => k + 1)
+  }, [workspacePath, loadDir])
+
+  const handleUndo = useCallback(async () => {
+    const action = undoStack.current.pop()
+    if (!action) return
+    try {
+      switch (action.type) {
+        case 'create':
+          await window.electron.fs.delete(action.path)
+          break
+        case 'delete':
+          if (action.isDirectory) {
+            await window.electron.fs.mkdir(action.path)
+          } else {
+            await window.electron.fs.newfile(action.path, action.content ?? '')
+          }
+          break
+        case 'rename':
+          await window.electron.fs.rename(action.newPath, action.oldPath)
+          break
+      }
+      refresh()
+    } catch {}
+  }, [refresh])
+
   // ─── File watcher ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!workspacePath) return
     window.electron.fs.watch(workspacePath)
 
     let debounce: ReturnType<typeof setTimeout>
-    window.electron.fs.onChanged(() => {
+    const handler = window.electron.fs.onChanged(() => {
       clearTimeout(debounce)
       debounce = setTimeout(() => {
         loadDir(workspacePath)
@@ -640,8 +688,7 @@ export default function FileTree() {
     })
 
     return () => {
-      window.electron.fs.unwatch(workspacePath)
-      window.electron.fs.offChanged()
+      window.electron.fs.offChanged(handler)
       clearTimeout(debounce)
     }
   }, [workspacePath, loadDir])
@@ -673,6 +720,75 @@ export default function FileTree() {
 
   // ─── CRUD operations ───────────────────────────────────────────────────────
 
+  // ── Clipboard (copy/cut/paste) ─────────────────────────────────────────────
+  const [clipboard, setClipboard] = useState<{ path: string; cut: boolean } | null>(null)
+
+  // ── Move file (drag-drop or cut-paste) ────────────────────────────────────
+  const handleExternalDrop = useCallback(async (files: File[], destDir: string) => {
+    for (const file of files) {
+      const filePath = (file as any).path as string | undefined
+      if (!filePath) continue
+      const name = filePath.split('/').pop() ?? ''
+      const dest = `${destDir}/${name}`
+      try {
+        await window.electron.fs.copy(filePath, dest)
+        pushUndo({ type: 'create', path: dest, isDirectory: false })
+      } catch {}
+    }
+    refresh()
+  }, [refresh])
+
+  const handleMoveFile = useCallback(async (srcPath: string, destDir: string) => {
+    const name = srcPath.split('/').pop() ?? ''
+    const newPath = `${destDir}/${name}`
+    if (srcPath === newPath) return
+    try {
+      await window.electron.fs.rename(srcPath, newPath)
+      pushUndo({ type: 'rename', oldPath: srcPath, newPath })
+      refresh()
+    } catch {}
+  }, [refresh])
+
+  const handlePaste = useCallback(async () => {
+    if (!clipboard || !selectedPath) return
+    const destDir = getParentDir(selectedPath)
+    const name = clipboard.path.split('/').pop() ?? ''
+    const destPath = `${destDir}/${name}`
+
+    if (clipboard.cut) {
+      // Move
+      if (clipboard.path === destPath) return
+      try {
+        await window.electron.fs.rename(clipboard.path, destPath)
+        pushUndo({ type: 'rename', oldPath: clipboard.path, newPath: destPath })
+        refresh()
+      } catch {}
+      setClipboard(null)
+    } else {
+      // Copy — read content and write to new location
+      try {
+        const stat = await window.electron.fs.stat(clipboard.path)
+        if (stat?.isDirectory) {
+          // Can't copy directories yet — would need recursive copy
+          return
+        }
+        const content = await window.electron.fs.readfile(clipboard.path)
+        // Avoid overwriting — add " copy" suffix if target exists
+        let finalPath = destPath
+        const exists = await window.electron.fs.exists(destPath)
+        if (exists) {
+          const dot = name.lastIndexOf('.')
+          const base = dot > 0 ? name.slice(0, dot) : name
+          const ext = dot > 0 ? name.slice(dot) : ''
+          finalPath = `${destDir}/${base} copy${ext}`
+        }
+        await window.electron.fs.newfile(finalPath, content)
+        pushUndo({ type: 'create', path: finalPath, isDirectory: false })
+        refresh()
+      } catch {}
+    }
+  }, [clipboard, selectedPath, refresh])
+
   const getParentDir = (nodePath: string | null): string => {
     if (!nodePath) return workspacePath ?? ''
     // Check if selected node is a directory
@@ -701,11 +817,14 @@ export default function FileTree() {
   const handleCreateSubmit = async (parentPath: string, name: string) => {
     try {
       const fullPath = `${parentPath}/${name}`
-      if (creatingType === 'folder') {
+      const isDir = creatingType === 'folder'
+      if (isDir) {
         await window.electron.fs.mkdir(fullPath)
       } else {
         await window.electron.fs.newfile(fullPath)
       }
+      pushUndo({ type: 'create', path: fullPath, isDirectory: isDir })
+      refresh()
     } catch {}
     setCreatingIn(null)
     setCreatingType(null)
@@ -716,17 +835,23 @@ export default function FileTree() {
       const parentDir = oldPath.slice(0, oldPath.lastIndexOf('/'))
       const newPath = `${parentDir}/${newName}`
       await window.electron.fs.rename(oldPath, newPath)
+      pushUndo({ type: 'rename', oldPath, newPath })
+      refresh()
     } catch {}
     setRenamingPath(null)
   }
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
+  const deleteNode = useCallback(async (node: FileNode) => {
     try {
-      await window.electron.fs.delete(deleteTarget.path)
+      let content: string | undefined
+      if (!node.isDirectory) {
+        try { content = await window.electron.fs.readfile(node.path) } catch {}
+      }
+      await window.electron.fs.delete(node.path)
+      pushUndo({ type: 'delete', path: node.path, isDirectory: node.isDirectory, content })
+      refresh()
     } catch {}
-    setDeleteTarget(null)
-  }
+  }, [refresh])
 
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     setCtxMenu({ x: e.clientX, y: e.clientY, node })
@@ -741,20 +866,62 @@ export default function FileTree() {
   // ─── Keyboard shortcuts ──────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Cmd+Z undo (works regardless of selection)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        // Only handle if the explorer sidebar is focused
+        const active = useStore.getState().activeSidebar
+        if (active === 'explorer' && undoStack.current.length > 0) {
+          e.preventDefault()
+          handleUndo()
+          return
+        }
+      }
       if (!selectedPath) return
       if (e.key === 'F2') {
         e.preventDefault()
         setRenamingPath(selectedPath)
       }
-      if (e.key === 'Delete') {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
         e.preventDefault()
         const node = findNodeByPath(roots, selectedPath)
-        if (node) setDeleteTarget(node)
+        if (node) deleteNode(node)
+      }
+      // Copy/Cut/Paste
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !e.shiftKey) {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        const active = useStore.getState().activeSidebar
+        if (active === 'explorer' && selectedPath) {
+          e.preventDefault()
+          setClipboard({ path: selectedPath, cut: false })
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        const active = useStore.getState().activeSidebar
+        if (active === 'explorer' && selectedPath) {
+          e.preventDefault()
+          setClipboard({ path: selectedPath, cut: true })
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        const active = useStore.getState().activeSidebar
+        if (active === 'explorer') {
+          e.preventDefault()
+          handlePaste()
+        }
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [selectedPath, roots])
+  }, [selectedPath, roots, handleUndo, handlePaste])
 
   // ─── Root-level creating (when creatingIn = workspacePath) ────────────────
   const isCreatingAtRoot = creatingIn === workspacePath
@@ -767,7 +934,7 @@ export default function FileTree() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <FolderSearch size={14} color="var(--text-muted)" />
+          <FolderSearch size={18} color="var(--text-muted)" />
           <span style={{ color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Explorer</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -791,14 +958,27 @@ export default function FileTree() {
               </button>
             </>
           )}
-          <button onClick={openWorkspace} title="Open folder" style={{ color: 'var(--accent)', width: 30, height: 30, borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-dim)', boxShadow: '0 0 6px var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={openWorkspace} title="Open folder" className="filetree-header-btn" style={{ color: 'var(--text-muted)', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}>
             <FolderOpen size={18} />
           </button>
         </div>
       </div>
 
       {/* File list */}
-      <div style={{ overflowY: 'auto', flex: 1, padding: '4px' }}>
+      <div
+        style={{ overflowY: 'auto', flex: 1, padding: '4px' }}
+        onDragOver={e => {
+          if (!workspacePath || !e.dataTransfer.types.includes('Files')) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }}
+        onDrop={e => {
+          if (!workspacePath || e.dataTransfer.files.length === 0) return
+          // Only handle if not already caught by a folder row
+          e.preventDefault()
+          handleExternalDrop(Array.from(e.dataTransfer.files), workspacePath)
+        }}
+      >
         {roots.length === 0 && !isCreatingAtRoot ? (
           <div style={{ color: 'var(--text-ghost)', padding: '24px 12px', fontSize: 13, textAlign: 'center', lineHeight: 1.8 }}>
             No workspace open.<br />
@@ -826,6 +1006,7 @@ export default function FileTree() {
                 selectedPath={selectedPath} onSelect={setSelectedPath}
                 renamingPath={renamingPath}
                 onRenameSubmit={handleRenameSubmit} onRenameCancel={() => setRenamingPath(null)} onStartRename={setRenamingPath}
+                onMoveFile={handleMoveFile} onExternalDrop={handleExternalDrop}
                 creatingIn={creatingIn} creatingType={creatingType}
                 onCreateSubmit={handleCreateSubmit}
                 onCreateCancel={() => { setCreatingIn(null); setCreatingType(null) }}
@@ -845,7 +1026,9 @@ export default function FileTree() {
           onNewFile={() => startCreate('file')}
           onNewFolder={() => startCreate('folder')}
           onRename={() => ctxMenu.node && setRenamingPath(ctxMenu.node.path)}
-          onDelete={() => ctxMenu.node && setDeleteTarget(ctxMenu.node)}
+          onDelete={() => ctxMenu.node && deleteNode(ctxMenu.node)}
+          onUndo={handleUndo}
+          canUndo={undoStack.current.length > 0}
           onCopyPath={() => ctxMenu.node && navigator.clipboard.writeText(ctxMenu.node.path)}
           onCopyRelativePath={() => {
             if (ctxMenu.node && workspacePath) {
@@ -860,14 +1043,6 @@ export default function FileTree() {
         />
       )}
 
-      {/* Delete confirmation dialog */}
-      {deleteTarget && (
-        <DeleteConfirm
-          name={deleteTarget.name}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
-        />
-      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react'
 import { useStore } from '@/store'
 import { LeafNode, PaneId, DropZone, TabEntry, countLeaves, getActiveTab } from '@/store/layout'
 import {
@@ -6,7 +6,7 @@ import {
   PanelRight, PanelBottom, X, Plus, Pin,
 } from 'lucide-react'
 
-import { registerPortalTarget } from './PanePool'
+import { getPaneContainer } from './PanePool'
 
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']
 const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']
@@ -134,12 +134,40 @@ function AddPaneDropdown({ onAdd }: { onAdd: (p: PaneId) => void }) {
   )
 }
 
+// --- Pane slot: adopts a permanent container from PanePool ---
+
+function PaneSlot({ tabId, visible, dragActive }: { tabId: string; visible: boolean; dragActive: boolean }) {
+  const slotRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const slot = slotRef.current
+    if (!slot) return
+    const container = getPaneContainer(tabId)
+    // Move the permanent container into this slot
+    if (container.parentElement !== slot) {
+      slot.appendChild(container)
+    }
+  }, [tabId])
+
+  return (
+    <div
+      ref={slotRef}
+      style={{
+        flex: 1, overflow: 'hidden',
+        display: visible ? 'flex' : 'none',
+        flexDirection: 'column',
+        pointerEvents: dragActive ? 'none' : 'auto',
+      }}
+    />
+  )
+}
+
 // --- Main LeafView ---
 
 export default function LeafView({ leaf }: { leaf: LeafNode }) {
   const {
     focusedLeafId, setFocusedLeaf, splitLeaf, closeLeaf, addTab, closeTab, setActiveTab, reorderTab,
-    layout, draggingLeafId, setDraggingLeaf, moveLeaf, moveTab, togglePin,
+    layout, draggingLeafId, setDraggingLeaf, moveLeaf, moveTab, togglePin, openFiles,
   } = useStore()
   const isFocused = focusedLeafId === leaf.id
   const leafCount = countLeaves(layout)
@@ -376,7 +404,9 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
         }}
       >
         {/* Pane tabs */}
-        {leaf.tabs.map(tab => (
+        {leaf.tabs.map(tab => {
+          const isDirty = tab.filePath ? openFiles.some(f => f.path === tab.filePath && f.isDirty) : false
+          return (
           <div
             key={tab.id}
             className={`leaf-pane-tab ${tab.id === activeTab.id ? 'active' : ''}`}
@@ -385,6 +415,7 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
             onDragStart={e => handleTabDragStart(e, tab)}
           >
             <TabIcon tab={tab} />
+            {isDirty && <span className="editor-tab-dirty" />}
             <span>{tab.label ?? PANE_LABELS[tab.paneType]}</span>
             <button
               className={`leaf-pane-tab-pin ${tab.pinned ? 'pinned' : ''}`}
@@ -400,7 +431,8 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
               <X size={18} />
             </button>
           </div>
-        ))}
+          )
+        })}
         {/* Tab insert indicator */}
         {tabInsertIdx !== null && (
           <div className="tab-insert-indicator" style={{ left: tabInsertX }} />
@@ -416,16 +448,13 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
         </button>
       </div>
 
-      {/* Portal targets — PanePool renders actual content into these via createPortal */}
+      {/* Pane slots — each slot adopts its permanent container from PanePool via DOM appendChild */}
       {leaf.tabs.map(tab => (
-        <div
+        <PaneSlot
           key={tab.id}
-          ref={el => registerPortalTarget(tab.id, el)}
-          style={{
-            flex: 1, overflow: 'hidden',
-            display: tab.id === activeTab.id ? 'flex' : 'none',
-            flexDirection: 'column',
-          }}
+          tabId={tab.id}
+          visible={tab.id === activeTab.id}
+          dragActive={!!draggingLeafId}
         />
       ))}
 

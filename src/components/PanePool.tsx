@@ -1,14 +1,15 @@
 /**
- * PanePool — portal-based pane lifecycle manager
+ * PanePool — stable pane lifecycle manager
  *
- * Renders all pane instances (terminals, editors, etc.) at a stable root
- * level and projects them into layout slots via React portals. When panels
- * are moved, resized, or rearranged, only the portal target changes — the
- * pane component never unmounts, so terminal sessions, graph positions,
- * and editor state are fully preserved.
+ * Each tab gets a permanent DOM container that NEVER changes. Pane components
+ * are portaled into these permanent containers. LeafView uses native DOM
+ * appendChild to move the container into the visible layout slot.
+ *
+ * This avoids React's createPortal unmount/remount behavior when the portal
+ * target changes — because the target NEVER changes.
  */
 
-import React, { useRef, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from '@/store'
 import { getAllTabs, PaneId } from '@/store/layout'
@@ -39,68 +40,54 @@ function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: s
   )
 }
 
-// ─── Portal target registry ────────────────────────────────────────────────
-// LeafView registers target DOM elements here; PanePool reads them to create portals.
+// ─── Permanent containers ──────────────────────────────────────────────────
+// Each tab gets a permanent div. Portal target never changes = no unmount.
 
-let targets = new Map<string, HTMLElement>()
-const listeners = new Set<() => void>()
+const paneContainers = new Map<string, HTMLDivElement>()
 
-function subscribe(cb: () => void) {
-  listeners.add(cb)
-  return () => { listeners.delete(cb) }
-}
-
-function getSnapshot() {
-  return targets
-}
-
-export function registerPortalTarget(tabId: string, el: HTMLElement | null) {
-  if (el === null) {
-    if (!targets.has(tabId)) return
-    targets = new Map(targets)
-    targets.delete(tabId)
-    listeners.forEach(l => l())
-    return
+export function getPaneContainer(tabId: string): HTMLDivElement {
+  let el = paneContainers.get(tabId)
+  if (!el) {
+    el = document.createElement('div')
+    el.style.cssText = 'display:flex;flex-direction:column;flex:1;overflow:hidden;height:100%;width:100%;'
+    el.dataset.paneId = tabId
+    paneContainers.set(tabId, el)
   }
-  if (targets.get(tabId) === el) return // idempotent
-  targets = new Map(targets)
-  targets.set(tabId, el)
-  listeners.forEach(l => l())
+  return el
+}
+
+export function removePaneContainer(tabId: string) {
+  const el = paneContainers.get(tabId)
+  if (el) {
+    el.remove()
+    paneContainers.delete(tabId)
+  }
 }
 
 // ─── PanePool component ───────────────────────────────────────────────────
 
 export default function PanePool() {
-  const offscreenRef = useRef<HTMLDivElement>(null)
-  const targetMap = useSyncExternalStore(subscribe, getSnapshot)
-
-  // Get all tabs from layout. Custom equality: only re-render when tab identity changes.
   const tabs = useStore(
-    s => getAllTabs(s.layout),
+    useCallback(s => getAllTabs(s.layout), []),
     (a, b) => a.length === b.length && a.every((t, i) => t.id === b[i].id && t.paneType === b[i].paneType && t.filePath === b[i].filePath)
   )
 
+  // Clean up containers for tabs that no longer exist
+  useEffect(() => {
+    const activeIds = new Set(tabs.map(t => t.id))
+    for (const id of paneContainers.keys()) {
+      if (!activeIds.has(id)) removePaneContainer(id)
+    }
+  }, [tabs])
+
   return (
     <>
-      {/* Offscreen fallback for tabs briefly between layout positions */}
-      <div
-        ref={offscreenRef}
-        style={{
-          position: 'fixed',
-          left: -9999,
-          width: 1,
-          height: 1,
-          overflow: 'hidden',
-          pointerEvents: 'none',
-        }}
-      />
       {tabs.map(tab => {
-        const target = targetMap.get(tab.id) ?? offscreenRef.current
-        if (!target) return null
+        const container = getPaneContainer(tab.id)
         return createPortal(
           <PaneContent paneType={tab.paneType} tabId={tab.id} filePath={tab.filePath} />,
-          target,
-          tab.id // stable key — React never unmounts the component
+          container,
+          tab.id
         )
       })}
     </>

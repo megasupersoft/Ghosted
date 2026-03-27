@@ -102,6 +102,26 @@ function loadWorkspacePath(): string | null {
   } catch { return null }
 }
 
+function loadOpenFiles(): OpenFile[] {
+  try {
+    const saved = localStorage.getItem('ghosted:openFiles')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) return parsed.map((f: any) => ({ ...f, isDirty: false }))
+    }
+  } catch {}
+  return []
+}
+
+function saveOpenFiles(files: OpenFile[]) {
+  // Save file metadata + content for text files (skip large files >1MB)
+  const toSave = files
+    .filter(f => f.fileType === 'text' || f.fileType === 'canvas')
+    .filter(f => f.content.length < 1_000_000)
+    .map(f => ({ path: f.path, name: f.name, content: f.content, isDirty: false, fileType: f.fileType }))
+  localStorage.setItem('ghosted:openFiles', JSON.stringify(toSave))
+}
+
 function paneTypeForExt(ext: string): PaneId {
   return ext === 'canvas' ? 'canvas' : 'editor'
 }
@@ -113,8 +133,8 @@ export const useStore = create<GhostedState>((set, get) => ({
     set({ workspacePath: p })
   },
 
-  // ── File content pool ──────────────────────────────────────────────────────
-  openFiles: [],
+  // ── File content pool (persisted to localStorage) ──────────────────────────
+  openFiles: loadOpenFiles(),
   activeFilePath: null,
 
   openFile: (path, name, content, fileType) => {
@@ -368,6 +388,15 @@ export const useStore = create<GhostedState>((set, get) => ({
     set({ layout: newLayout, nextNodeId: newNextId, focusedLeafId: newFocusId, draggingLeafId: null })
   },
 }))
+
+// Persist open files to localStorage (debounced)
+let _saveFilesTimer: ReturnType<typeof setTimeout>
+useStore.subscribe((state, prev) => {
+  if (state.openFiles !== prev.openFiles) {
+    clearTimeout(_saveFilesTimer)
+    _saveFilesTimer = setTimeout(() => saveOpenFiles(state.openFiles), 500)
+  }
+})
 
 // Helper for FileTree: find focused editor leaf or first editor leaf
 export function getEditorLeafId(): string | null {

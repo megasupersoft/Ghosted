@@ -97,6 +97,9 @@ function createWindow() {
   win.on('unmaximize', debouncedSave)
   win.on('close', () => saveWindowState(win))
 
+  // Prevent Electron's default context menu so our custom React menus work
+  win.webContents.on('context-menu', (e) => e.preventDefault())
+
   const loadBuilt = () => win.loadFile(path.join(__dirname, '../dist/index.html'))
 
   if (isDev) {
@@ -148,6 +151,10 @@ ipcMain.handle('fs:delete', async (_e, targetPath: string) => {
   } else {
     fs.unlinkSync(targetPath)
   }
+  return true
+})
+ipcMain.handle('fs:copy', async (_e, srcPath: string, destPath: string) => {
+  fs.cpSync(srcPath, destPath, { recursive: true })
   return true
 })
 ipcMain.handle('fs:exists', async (_e, targetPath: string) => fs.existsSync(targetPath))

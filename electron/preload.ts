@@ -10,15 +10,20 @@ contextBridge.exposeInMainWorld('electron', {
     newfile: (p: string, c?: string) => ipcRenderer.invoke('fs:newfile', p, c),
     rename: (oldPath: string, newPath: string) => ipcRenderer.invoke('fs:rename', oldPath, newPath),
     delete: (p: string) => ipcRenderer.invoke('fs:delete', p),
+    copy: (src: string, dest: string) => ipcRenderer.invoke('fs:copy', src, dest),
     exists: (p: string) => ipcRenderer.invoke('fs:exists', p),
     stat: (p: string) => ipcRenderer.invoke('fs:stat', p),
     watch: (p: string) => ipcRenderer.invoke('fs:watch', p),
     unwatch: (p: string) => ipcRenderer.invoke('fs:unwatch', p),
     onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => {
-      ipcRenderer.removeAllListeners('fs:changed')
-      ipcRenderer.on('fs:changed', (_e, event) => cb(event))
+      const handler = (_e: any, event: any) => cb(event)
+      ipcRenderer.on('fs:changed', handler)
+      return handler
     },
-    offChanged: () => ipcRenderer.removeAllListeners('fs:changed'),
+    offChanged: (handler?: any) => {
+      if (handler) ipcRenderer.removeListener('fs:changed', handler)
+      else ipcRenderer.removeAllListeners('fs:changed')
+    },
   },
   pty: {
     create: (id: string, cwd: string, cols?: number, rows?: number) => ipcRenderer.invoke('pty:create', id, cwd, cols, rows),
