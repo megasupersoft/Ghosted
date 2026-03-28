@@ -1,0 +1,220 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ───────────────────────────────────────────
+   Ghosted docs — spectral violet
+   ─────────────────────────────────────────── */
+
+:root {
+  --vp-c-brand-1: #b0a8f0;
+  --vp-c-brand-2: #c8c2f5;
+  --vp-c-brand-3: #363050;
+  --vp-c-brand-soft: rgba(176, 168, 240, 0.14);
+  --vp-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ── Light mode ── */
+
+html:not(.dark) {
+  --vp-c-bg: #e8e8ee;
+  --vp-c-bg-soft: #dddde5;
+  --vp-c-bg-mute: #d2d2dc;
+  --vp-c-bg-alt: #dddde5;
+
+  --vp-c-text-1: #2e2e3c;
+  --vp-c-text-2: #55556a;
+  --vp-c-text-3: #7e7e95;
+
+  --vp-c-divider: #c0c0cc;
+  --vp-c-border: #c0c0cc;
+
+  --vp-c-brand-1: #6b5ce7;
+  --vp-c-brand-2: #5a4bd6;
+  --vp-c-brand-3: #ebe8fd;
+  --vp-c-brand-soft: rgba(107, 92, 231, 0.12);
+
+  --vp-button-brand-bg: #6b5ce7;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-bg: #5a4bd6;
+
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(107, 92, 231, 0.2), rgba(74, 156, 245, 0.08));
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+/* ── Dark mode ── */
+
+.dark {
+  --vp-c-bg: #1e1e28;
+  --vp-c-bg-soft: #252532;
+  --vp-c-bg-mute: #2e2e3c;
+  --vp-c-bg-alt: #252532;
+
+  --vp-c-text-1: #f0f0f5;
+  --vp-c-text-2: #ababc0;
+  --vp-c-text-3: #7e7e95;
+
+  --vp-c-divider: #484858;
+  --vp-c-border: #484858;
+  --vp-c-gutter: #1e1e28;
+
+  --vp-c-brand-1: #b0a8f0;
+  --vp-c-brand-2: #c8c2f5;
+  --vp-c-brand-3: #363050;
+  --vp-c-brand-soft: rgba(176, 168, 240, 0.14);
+
+  --vp-button-brand-bg: #b0a8f0;
+  --vp-button-brand-text: #1e1e28;
+  --vp-button-brand-hover-bg: #c8c2f5;
+
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(176, 168, 240, 0.3), rgba(103, 232, 249, 0.1));
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+/* ── Hero ── */
+
+.VPHero .image-bg {
+  opacity: 0.8;
+}
+
+.VPHero .main .name {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 4rem;
+  padding-bottom: 32px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .main .name {
+    font-size: 5.5rem;
+  }
+}
+
+.VPHero .main .text {
+  font-size: 2.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  .VPHero .main .text {
+    font-size: 3.25rem;
+  }
+}
+
+.VPHero .main .tagline {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  max-width: 380px;
+  color: var(--vp-c-text-2);
+  padding-top: 28px;
+}
+
+/* Brand button — make it pop more */
+.VPHero .actions .VPButton.brand {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 8px;
+  padding: 0.65rem 1.5rem;
+}
+
+.VPHero .actions .VPButton.alt {
+  border-radius: 8px;
+  padding: 0.65rem 1.5rem;
+}
+
+/* ── Feature cards ── */
+
+.VPFeatures .VPFeature {
+  border: none;
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  transition: transform 0.2s ease;
+}
+
+.VPFeatures .VPFeature:hover {
+  transform: translateY(-2px);
+}
+
+.VPFeatures .VPFeature .title {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.VPFeatures .VPFeature .details {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
+.VPFeatures .VPFeature .icon {
+  color: var(--vp-c-brand-1);
+}
+
+/* ── Inline code ── */
+
+:not(pre) > code {
+  background: var(--vp-c-bg-mute);
+  border: 1px solid var(--vp-c-border);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.875em;
+  color: var(--vp-c-brand-2);
+}
+
+/* ── Code blocks ── */
+
+div[class*='language-'] {
+  border-radius: 10px;
+  border: 1px solid var(--vp-c-border);
+}
+
+/* ── Sidebar tweaks ── */
+
+.VPSidebar .group .title {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vp-c-text-3);
+}
+
+/* ── Footer ── */
+
+.VPFooter .message {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--vp-c-text-3);
+}
+
+/* ── Nav ── */
+
+.VPNavBar .title {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* ── Scrollbar ── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--vp-c-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--vp-c-brand-1);
+}
