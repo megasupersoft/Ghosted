@@ -53,6 +53,11 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
         </a>
       </div>
     </template>
+    <template #home-hero-after>
+      <div class="screenshot-section">
+        <img src="/screenshot.png" alt="Ghosted workspace showing editor, canvas, terminal, and knowledge graph panes" />
+      </div>
+    </template>
   </Layout>
 </template>
 
@@ -151,6 +156,21 @@ const winUrl = `https://github.com/megasupersoft/Ghosted/releases/latest`
   opacity: 0.7;
   font-family: var(--vp-font-family-mono);
   white-space: nowrap;
+}
+
+/* Screenshot */
+.screenshot-section {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.screenshot-section img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  display: block;
 }
 
 /* How It Works link */
