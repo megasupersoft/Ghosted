@@ -34,10 +34,11 @@ test('quick-open via ⌘K opens a file in Monaco', async () => {
   const { window } = ctx
   await openPalette(window)
   await window.locator('[cmdk-input]').fill('hello.ts')
-  await expect(window.locator('[cmdk-item]', { hasText: 'hello.ts' })).toBeVisible({
-    timeout: 10000,
-  })
-  await window.keyboard.press('Enter')
+  const item = window.locator('[cmdk-item]', { hasText: 'hello.ts' })
+  await expect(item).toBeVisible({ timeout: 10000 })
+  // Click rather than Enter — cmdk's selected row can shift during async
+  // file-list re-renders on slow CI machines
+  await item.click()
 
   await expect(window.locator('.leaf-pane-tab', { hasText: 'hello.ts' })).toBeVisible({
     timeout: 10000,
