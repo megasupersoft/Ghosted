@@ -664,16 +664,60 @@ ipcMain.handle('git:diffSummary', async (_e, cwd: string) => {
   }
 })
 
-ipcMain.handle('git:remote', async (_e, cwd: string) => {
+function repoRemote(cwd: string): { owner: string; name: string } | null {
   try {
     const url = git(cwd, ['remote', 'get-url', 'origin'])
     const ssh = url.match(/github\.com[:/]([^/]+)\/([^/.]+)/)
-    if (ssh) return { owner: ssh[1], repo: ssh[2] }
-    return null
+    return ssh ? { owner: ssh[1], name: ssh[2] } : null
   } catch {
     return null
   }
+}
+
+ipcMain.handle('git:remote', async (_e, cwd: string) => {
+  const remote = repoRemote(cwd)
+  return remote ? { owner: remote.owner, repo: remote.name } : null
 })
+
+// ── GitHub Projects sync (PM panes) ─────────────────────────────────────────
+let pmService: import('./projectSync').ProjectSyncService | null = null
+
+function getPmService(): import('./projectSync').ProjectSyncService {
+  if (!pmService) {
+    // Lazy import keeps startup lean — the service only loads when a PM pane connects
+    const { ProjectSyncService } = require('./projectSync') as typeof import('./projectSync')
+    pmService = new ProjectSyncService({
+      userDataDir: app.getPath('userData'),
+      getRepoRemote: repoRemote,
+      onUpdate: (snapshot) => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (win && !win.isDestroyed()) win.webContents.send('pm:update', snapshot)
+      },
+    })
+  }
+  return pmService
+}
+
+const PM_OP_KINDS = new Set(['setStatus', 'setPriority', 'setDate', 'reorder', 'create'])
+
+ipcMain.handle('pm:connect', async (_e, cwd: string) => getPmService().connect(assertAllowed(cwd)))
+ipcMain.handle('pm:select', async (_e, projectNumber: number) => {
+  if (typeof projectNumber !== 'number') return
+  await getPmService().selectProject(projectNumber)
+})
+ipcMain.handle('pm:refresh', async () => getPmService().refresh())
+ipcMain.handle('pm:state', () => getPmService().snapshot())
+ipcMain.handle('pm:visibility', (_e, visible: boolean) => getPmService().setVisible(Boolean(visible)))
+ipcMain.handle('pm:op', (_e, op: unknown) => {
+  const o = op as { kind?: string; opId?: string; itemId?: string; attempts?: number }
+  if (!o || typeof o !== 'object' || !PM_OP_KINDS.has(String(o.kind))) return false
+  if (typeof o.opId !== 'string' || typeof o.itemId !== 'string') return false
+  o.attempts = 0
+  getPmService().enqueue(o as import('./pmShared').PmOp)
+  return true
+})
+
+app.on('before-quit', () => pmService?.destroy())
 
 ipcMain.handle('git:aheadBehind', async (_e, cwd: string) => {
   try {

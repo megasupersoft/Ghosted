@@ -1,3 +1,5 @@
+import type { PmSnapshot } from '../../electron/pmShared'
+
 // GhostedDB types (mirror of electron/ghostdb.ts)
 export interface GhostedFile {
   path: string
@@ -98,6 +100,16 @@ declare global {
       }
       cli: {
         install: () => Promise<{ ok: boolean; path?: string; error?: string }>
+      }
+      pm: {
+        connect: (cwd: string) => Promise<PmSnapshot>
+        select: (projectNumber: number) => Promise<void>
+        refresh: () => Promise<void>
+        state: () => Promise<PmSnapshot>
+        visibility: (visible: boolean) => Promise<void>
+        op: (op: unknown) => Promise<boolean>
+        onUpdate: (cb: (snapshot: PmSnapshot) => void) => void
+        offUpdate: () => void
       }
       fileDrop: {
         getPath: (file: File) => Promise<string | null>

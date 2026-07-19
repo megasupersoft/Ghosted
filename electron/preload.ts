@@ -68,6 +68,19 @@ contextBridge.exposeInMainWorld('electron', {
   cli: {
     install: () => ipcRenderer.invoke('cli:install'),
   },
+  pm: {
+    connect: (cwd: string) => ipcRenderer.invoke('pm:connect', cwd),
+    select: (projectNumber: number) => ipcRenderer.invoke('pm:select', projectNumber),
+    refresh: () => ipcRenderer.invoke('pm:refresh'),
+    state: () => ipcRenderer.invoke('pm:state'),
+    visibility: (visible: boolean) => ipcRenderer.invoke('pm:visibility', visible),
+    op: (op: unknown) => ipcRenderer.invoke('pm:op', op),
+    onUpdate: (cb: (snapshot: unknown) => void) => {
+      ipcRenderer.removeAllListeners('pm:update')
+      ipcRenderer.on('pm:update', (_e, snapshot) => cb(snapshot))
+    },
+    offUpdate: () => ipcRenderer.removeAllListeners('pm:update'),
+  },
   fileDrop: {
     // Resolve a genuinely dropped OS File to its disk path and grant the main
     // process read access to it for this session. Runs in the preload so the
