@@ -75,7 +75,10 @@ export default function CommandPalette() {
       run(async () => {
         try {
           const content = await window.electron.fs.readfile(f.path)
-          useStore.getState().openFile(f.path, f.name, content, 'text')
+          // f.name is the extension-less wikilink name — the editor needs the
+          // real filename for tab labels and language detection.
+          const fileName = f.path.split('/').pop() ?? f.name
+          useStore.getState().openFile(f.path, fileName, content, 'text')
         } catch {}
       }),
     [run],
@@ -129,7 +132,8 @@ export default function CommandPalette() {
             {PANES.map((p) => (
               <Command.Item
                 key={p.id}
-                value={`pane open ${p.label}`}
+                value={`Open ${p.label} Pane`}
+                keywords={['pane', p.id]}
                 onSelect={() =>
                   run(() => {
                     const s = useStore.getState()
@@ -151,7 +155,8 @@ export default function CommandPalette() {
             {SIDEBARS.map((s) => (
               <Command.Item
                 key={s.id}
-                value={`sidebar toggle ${s.label}`}
+                value={`Toggle ${s.label}`}
+                keywords={['sidebar']}
                 onSelect={() => run(() => useStore.getState().toggleSidebar(s.id))}
                 className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-secondary-foreground data-[selected=true]:bg-hover data-[selected=true]:text-foreground"
               >
@@ -166,7 +171,8 @@ export default function CommandPalette() {
             className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:font-sans [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase"
           >
             <Command.Item
-              value="workspace open folder"
+              value="Open Folder"
+              keywords={['workspace']}
               onSelect={() =>
                 run(async () => {
                   const folder = await window.electron.dialog.openFolder()
@@ -179,7 +185,8 @@ export default function CommandPalette() {
               Open Folder…
             </Command.Item>
             <Command.Item
-              value="workspace new file"
+              value="New File"
+              keywords={['workspace', 'create']}
               onSelect={() =>
                 run(() => {
                   const s = useStore.getState()

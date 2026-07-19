@@ -266,14 +266,15 @@ textarea:focus {
   background: var(--accent-dim);
 }
 .ghost-resize-handle:active,
-.ghost-resize-handle[data-resize-handle-active] {
+.ghost-resize-handle[data-separator="active"] {
   background: var(--accent);
 }
-.ghost-resize-handle[data-panel-group-direction="horizontal"] {
+/* react-resizable-panels v4: a vertical separator divides a horizontal group */
+.ghost-resize-handle[aria-orientation="vertical"] {
   width: 3px;
   cursor: col-resize;
 }
-.ghost-resize-handle[data-panel-group-direction="vertical"] {
+.ghost-resize-handle[aria-orientation="horizontal"] {
   height: 3px;
   cursor: row-resize;
 }

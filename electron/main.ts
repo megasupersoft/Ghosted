@@ -17,6 +17,12 @@ if (process.platform === 'linux') {
 // Set the app name so macOS menu bar and dock say "Ghosted" instead of "Electron"
 app.setName('Ghosted')
 
+// Test isolation: e2e runs point userData at a temp dir so window state and
+// workspace grants never touch (or depend on) the real profile.
+if (process.env.GHOSTED_USER_DATA) {
+  app.setPath('userData', process.env.GHOSTED_USER_DATA)
+}
+
 // ── Window state persistence ─────────────────────────────────────────────────
 const STATE_FILE = path.join(app.getPath('userData'), 'window-state.json')
 

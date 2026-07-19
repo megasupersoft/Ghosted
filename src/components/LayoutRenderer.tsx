@@ -16,11 +16,11 @@ function SplitView({ node }: { node: SplitNode }) {
       onLayoutChanged={onLayoutChanged}
       style={{ height: '100%' }}
     >
-      <Panel id={`${node.id}-a`} defaultSize={node.sizes[0]} minSize={10}>
+      <Panel id={`${node.id}-a`} defaultSize={`${node.sizes[0]}%`} minSize="10%">
         <LayoutRenderer node={node.children[0]} />
       </Panel>
       <Separator className="ghost-resize-handle" />
-      <Panel id={`${node.id}-b`} defaultSize={node.sizes[1]} minSize={10}>
+      <Panel id={`${node.id}-b`} defaultSize={`${node.sizes[1]}%`} minSize="10%">
         <LayoutRenderer node={node.children[1]} />
       </Panel>
     </Group>

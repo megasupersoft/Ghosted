@@ -6,6 +6,7 @@ import LayoutRenderer from '@/components/LayoutRenderer'
 import PanePool from '@/components/PanePool'
 import StatusBar from '@/components/StatusBar'
 import Titlebar from '@/components/Titlebar'
+import { useGhostDB } from '@/lib/useGhostDB'
 import FileTree from '@/panes/FileTree'
 import SettingsPane from '@/panes/SettingsPane'
 import SourceControlPane from '@/panes/SourceControlPane'
@@ -26,6 +27,9 @@ function SidebarContent({ id }: { id: string }) {
 
 export default function App() {
   const { layout, activeSidebar, workspacePath } = useStore()
+  // Index the workspace at app level so the palette's quick-open and the
+  // graph/canvas panes all see a warm GhostedDB regardless of pane order.
+  useGhostDB()
   const sidebarLayout = useDefaultLayout({
     id: 'ghosted-sidebar',
     panelIds: ['ghosted-sidebar-nav', 'ghosted-sidebar-main'],
@@ -95,15 +99,15 @@ export default function App() {
           >
             <Panel
               id="ghosted-sidebar-nav"
-              defaultSize={18}
-              minSize={10}
-              maxSize={40}
+              defaultSize="18%"
+              minSize="10%"
+              maxSize="40%"
               style={{ overflow: 'hidden' }}
             >
               <SidebarContent id={activeSidebar} />
             </Panel>
             <Separator className="ghost-resize-handle" />
-            <Panel id="ghosted-sidebar-main" minSize={30}>
+            <Panel id="ghosted-sidebar-main" minSize="30%">
               <LayoutRenderer node={layout} />
             </Panel>
           </Group>
