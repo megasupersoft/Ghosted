@@ -38,16 +38,18 @@ export default function CommandPalette() {
   const [files, setFiles] = useState<GhostedFile[]>([])
   const workspacePath = useStore((s) => s.workspacePath)
 
-  // ⌘K / Ctrl+K toggles the palette
+  // ⌘K / Ctrl+K toggles the palette. Capture phase so the shortcut wins even
+  // when focus is inside xterm, which swallows Ctrl+K as a control sequence.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
+        e.stopPropagation()
         setOpen((o) => !o)
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   // Load workspace files from GhostedDB whenever the palette opens
