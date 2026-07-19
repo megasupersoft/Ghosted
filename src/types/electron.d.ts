@@ -83,6 +83,9 @@ declare global {
       dialog: {
         openFolder: () => Promise<string | null>
       }
+      workspace: {
+        restore: (path: string) => Promise<boolean>
+      }
       db: {
         index:     (workspacePath: string) => Promise<DBStats>
         query:     (q: GhostedQuery)       => Promise<GhostedQueryResult>

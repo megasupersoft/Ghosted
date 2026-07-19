@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electron', {
   dialog: {
     openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   },
+  workspace: {
+    restore: (p: string) => ipcRenderer.invoke('workspace:restore', p),
+  },
   db: {
     index:   (workspacePath: string) => ipcRenderer.invoke('db:index', workspacePath),
     query:   (q: unknown)            => ipcRenderer.invoke('db:query', q),

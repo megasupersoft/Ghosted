@@ -4,6 +4,7 @@ import { execSync, execFileSync } from 'child_process'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
+import { pathToFileURL } from 'url'
 
 const isDev = !app.isPackaged
 const VITE_DEV_SERVER = 'http://localhost:5173'
@@ -117,50 +118,108 @@ function createWindow() {
   }
 }
 
+// ── Workspace access control ─────────────────────────────────────────────────
+// The renderer only gets filesystem access inside workspace roots the user has
+// granted through the native folder picker. Grants persist in userData so a
+// restored workspace keeps working across launches without re-prompting.
+const ROOTS_FILE = path.join(app.getPath('userData'), 'granted-roots.json')
+
+function loadGrantedRoots(): string[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(ROOTS_FILE, 'utf-8'))
+    if (Array.isArray(parsed)) return parsed.filter((r): r is string => typeof r === 'string')
+  } catch {}
+  return []
+}
+let grantedRoots: string[] = loadGrantedRoots()
+
+function grantRoot(dir: string) {
+  const resolved = path.resolve(dir)
+  if (!grantedRoots.includes(resolved)) {
+    grantedRoots.push(resolved)
+    try { fs.writeFileSync(ROOTS_FILE, JSON.stringify(grantedRoots)) } catch {}
+  }
+}
+
+function isAllowedPath(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0) return false
+  const resolved = path.resolve(p)
+  return grantedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
+}
+
+function assertAllowed(p: string): string {
+  if (!isAllowedPath(p)) throw new Error(`Access denied: path is outside granted workspace roots`)
+  return path.resolve(p)
+}
+
+// Restore access to a previously granted workspace on startup. Called by the
+// renderer before it touches the filesystem. Only paths granted in an earlier
+// session are accepted — with a one-time migration exception for installs that
+// predate granted-roots.json (bounded: must be an existing directory, and not
+// the home directory or a filesystem root).
+ipcMain.handle('workspace:restore', (_e, dir: string) => {
+  if (typeof dir !== 'string' || !dir) return false
+  const resolved = path.resolve(dir)
+  if (grantedRoots.includes(resolved)) return true
+  if (!fs.existsSync(ROOTS_FILE)) {
+    try {
+      const stat = fs.statSync(resolved)
+      const isRoot = resolved === path.parse(resolved).root
+      if (stat.isDirectory() && !isRoot && resolved !== os.homedir()) {
+        grantRoot(resolved)
+        return true
+      }
+    } catch {}
+  }
+  return false
+})
+
 // ── File system IPC ──
 ipcMain.handle('fs:readdir', async (_e, dirPath: string) => {
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+  const dir = assertAllowed(dirPath)
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.map(e => ({
     name: e.name,
-    path: path.join(dirPath, e.name),
+    path: path.join(dir, e.name),
     isDirectory: e.isDirectory(),
   }))
 })
-ipcMain.handle('fs:readfile', async (_e, filePath: string) => fs.readFileSync(filePath, 'utf-8'))
+ipcMain.handle('fs:readfile', async (_e, filePath: string) => fs.readFileSync(assertAllowed(filePath), 'utf-8'))
 ipcMain.handle('fs:writefile', async (_e, filePath: string, content: string) => {
-  fs.writeFileSync(filePath, content, 'utf-8')
+  fs.writeFileSync(assertAllowed(filePath), content, 'utf-8')
   return true
 })
 ipcMain.handle('fs:homedir', () => os.homedir())
 ipcMain.handle('fs:mkdir', async (_e, dirPath: string) => {
-  fs.mkdirSync(dirPath, { recursive: true })
+  fs.mkdirSync(assertAllowed(dirPath), { recursive: true })
   return true
 })
 ipcMain.handle('fs:newfile', async (_e, filePath: string, content?: string) => {
-  fs.writeFileSync(filePath, content ?? '', 'utf-8')
+  fs.writeFileSync(assertAllowed(filePath), content ?? '', 'utf-8')
   return true
 })
 ipcMain.handle('fs:rename', async (_e, oldPath: string, newPath: string) => {
-  fs.renameSync(oldPath, newPath)
+  fs.renameSync(assertAllowed(oldPath), assertAllowed(newPath))
   return true
 })
 ipcMain.handle('fs:delete', async (_e, targetPath: string) => {
-  const stat = fs.statSync(targetPath)
+  const target = assertAllowed(targetPath)
+  const stat = fs.statSync(target)
   if (stat.isDirectory()) {
-    fs.rmSync(targetPath, { recursive: true, force: true })
+    fs.rmSync(target, { recursive: true, force: true })
   } else {
-    fs.unlinkSync(targetPath)
+    fs.unlinkSync(target)
   }
   return true
 })
 ipcMain.handle('fs:copy', async (_e, srcPath: string, destPath: string) => {
-  fs.cpSync(srcPath, destPath, { recursive: true })
+  fs.cpSync(assertAllowed(srcPath), assertAllowed(destPath), { recursive: true })
   return true
 })
-ipcMain.handle('fs:exists', async (_e, targetPath: string) => fs.existsSync(targetPath))
+ipcMain.handle('fs:exists', async (_e, targetPath: string) => isAllowedPath(targetPath) && fs.existsSync(path.resolve(targetPath)))
 ipcMain.handle('fs:stat', async (_e, targetPath: string) => {
   try {
-    const stat = fs.statSync(targetPath)
+    const stat = fs.statSync(assertAllowed(targetPath))
     return { isDirectory: stat.isDirectory(), isFile: stat.isFile(), size: stat.size, mtime: stat.mtimeMs }
   } catch { return null }
 })
@@ -169,6 +228,7 @@ ipcMain.handle('fs:stat', async (_e, targetPath: string) => {
 const watchers = new Map<string, fs.FSWatcher>()
 
 ipcMain.handle('fs:watch', async (_e, dirPath: string) => {
+  if (!isAllowedPath(dirPath)) return false
   if (watchers.has(dirPath)) return true
   try {
     const watcher = fs.watch(dirPath, { recursive: true }, (eventType, filename) => {
@@ -188,8 +248,16 @@ ipcMain.handle('fs:unwatch', async (_e, dirPath: string) => {
   return true
 })
 
-ipcMain.handle('shell:openExternal', (_e, url: string) => shell.openExternal(url))
-ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) => shell.showItemInFolder(fullPath))
+// Only web/mail URLs may leave the app — file://, smb://, and app-scheme URLs
+// printed to the terminal or embedded in markdown must not trigger OS opens.
+const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+ipcMain.handle('shell:openExternal', (_e, url: string) => {
+  try {
+    if (!SAFE_EXTERNAL_PROTOCOLS.has(new URL(url).protocol)) return
+  } catch { return }
+  return shell.openExternal(url)
+})
+ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) => shell.showItemInFolder(assertAllowed(fullPath)))
 ipcMain.handle('dialog:openFolder', async () => {
   const win = BrowserWindow.getFocusedWindow()
   if (!win) return null
@@ -197,7 +265,9 @@ ipcMain.handle('dialog:openFolder', async () => {
     properties: ['openDirectory'],
     title: 'Open Workspace',
   })
-  return result.canceled ? null : result.filePaths[0]
+  if (result.canceled || !result.filePaths[0]) return null
+  grantRoot(result.filePaths[0])
+  return result.filePaths[0]
 })
 
 // ── Terminal IPC (node-pty) ──
@@ -317,8 +387,10 @@ ipcMain.handle('pty:resize', (_e, id: string, cols: number, rows: number) => ter
 ipcMain.handle('pty:kill', (_e, id: string) => { terminals.get(id)?.kill(); terminals.delete(id) })
 
 // ── Git IPC ──
+// cwd is confined to granted workspace roots so the renderer can only run
+// git/gh against repos the user has actually opened.
 function git(cwd: string, args: string[]): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 30000 }).trim()
+  return execFileSync('git', args, { cwd: assertAllowed(cwd), encoding: 'utf-8', timeout: 30000 }).trim()
 }
 
 ipcMain.handle('gh:run', async (_e, cwd: string, args: string) => {
@@ -326,7 +398,7 @@ ipcMain.handle('gh:run', async (_e, cwd: string, args: string) => {
     // Use execFileSync with shell:false to avoid $ being interpreted by the shell
     // Split args respecting quoted strings
     const parsed = parseArgs(args)
-    const result = execFileSync('gh', parsed, { cwd, encoding: 'utf-8', timeout: 15000 }).trim()
+    const result = execFileSync('gh', parsed, { cwd: assertAllowed(cwd), encoding: 'utf-8', timeout: 15000 }).trim()
     return { ok: true, data: result }
   } catch (err: any) { return { ok: false, error: err.message } }
 })
@@ -581,16 +653,19 @@ ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
   piSessions.delete(sessionId)
 })
 
-// Register protocol to serve local files (images, videos) to the renderer
+// Register protocol to serve local files (images, videos) to the renderer.
+// Reads are confined to granted workspace roots; the scheme is listed in the
+// CSP (img-src/media-src) instead of bypassing it.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'ghosted-file', privileges: { bypassCSP: true, stream: true, supportFetchAPI: true } }
+  { scheme: 'ghosted-file', privileges: { stream: true, supportFetchAPI: true } }
 ])
 
 app.whenReady().then(() => {
-  registerGhostedDB()
+  registerGhostedDB(isAllowedPath)
   protocol.handle('ghosted-file', (request) => {
     const filePath = decodeURIComponent(request.url.replace('ghosted-file://', ''))
-    return net.fetch(`file://${filePath}`)
+    if (!isAllowedPath(filePath)) return new Response('Forbidden', { status: 403 })
+    return net.fetch(pathToFileURL(path.resolve(filePath)).toString())
   })
   createWindow()
 })

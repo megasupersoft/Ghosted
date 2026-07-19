@@ -266,8 +266,12 @@ class GhostedIndex {
 
 const db = new GhostedIndex()
 
-export function registerGhostedDB(): void {
-  ipcMain.handle('db:index', async (_e, wp: string) => { await db.index(wp); return db.stats() })
+export function registerGhostedDB(isAllowedPath: (p: string) => boolean): void {
+  ipcMain.handle('db:index', async (_e, wp: string) => {
+    if (!isAllowedPath(wp)) throw new Error('Access denied: path is outside granted workspace roots')
+    await db.index(wp)
+    return db.stats()
+  })
   ipcMain.handle('db:query', (_e, q: GhostedQuery)  => db.query(q))
   ipcMain.handle('db:get',   (_e, p: string)         => db.get(p))
   ipcMain.handle('db:stats', ()                      => db.stats())
