@@ -67,6 +67,7 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [ ] Lazy-mount panes on first activation (React 19 <Activity>) for startup time
 - [ ] ACP/MCP agent pane on existing PTY + pi infrastructure
 - [x] Packaged-build smoke test (verified: builds, signs, boots, PTY works in package)
+- [ ] Packaging deferred until features land — NOTE: electron-builder 26 OOMs in "searching for node modules" on this tree even at 8GB heap (runaway collector traversal; first packaged build worked). Investigate before next release: npm ci tree, collector bug reports, or builder downgrade
 
 ## Done
 - [x] Electron + Vite + React 18 + TypeScript scaffold
