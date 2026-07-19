@@ -100,7 +100,7 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [ ] Canvas JSON export/import
 - [ ] Graph search + depth control
 - [ ] pi.dev RPC integration in terminal pane
-- [ ] `ghosted .` CLI launcher
+- [x] `ghosted .` CLI launcher — bin/ghosted script, single-instance lock with workspace handoff, palette installer
 - [ ] BruceOS AppImage packaging
 
 ## Blockers

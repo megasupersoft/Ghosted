@@ -90,6 +90,12 @@ declare global {
       }
       workspace: {
         restore: (path: string) => Promise<boolean>
+        initial: () => Promise<string | null>
+        onOpen: (cb: (dir: string) => void) => void
+        offOpen: () => void
+      }
+      cli: {
+        install: () => Promise<{ ok: boolean; path?: string; error?: string }>
       }
       fileDrop: {
         getPath: (file: File) => Promise<string | null>

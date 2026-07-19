@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
+import { devCliArgs, extractWorkspaceArg } from './cliArgs'
 import { registerGhostedDB } from './ghostdb'
 
 const isDev = !app.isPackaged
@@ -21,6 +22,39 @@ app.setName('Ghosted')
 // workspace grants never touch (or depend on) the real profile.
 if (process.env.GHOSTED_USER_DATA) {
   app.setPath('userData', process.env.GHOSTED_USER_DATA)
+}
+
+// ── CLI launcher (`ghosted .`) ───────────────────────────────────────────────
+const isExistingDir = (p: string) => {
+  try {
+    return fs.statSync(p).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+const userArgs = (argv: string[]) => (app.isPackaged ? argv.slice(1) : devCliArgs(argv))
+
+const cliWorkspace = extractWorkspaceArg(userArgs(process.argv), process.cwd(), isExistingDir)
+
+// One app instance per profile — the lock is scoped to userData, so isolated
+// e2e profiles never collide with a running dev instance. A second `ghosted .`
+// hands its directory to the running instance and exits.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', (_e, argv, workingDirectory) => {
+    const dir = extractWorkspaceArg(userArgs(argv), workingDirectory, isExistingDir)
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    }
+    if (dir) {
+      grantRoot(dir)
+      win?.webContents.send('workspace:open', dir)
+    }
+  })
 }
 
 // ── Window state persistence ─────────────────────────────────────────────────
@@ -202,6 +236,40 @@ ipcMain.handle('workspace:restore', (_e, dir: string) => {
     } catch {}
   }
   return false
+})
+
+// The workspace handed over by the CLI launcher, if any. Granted on first ask
+// (after module init) — a CLI-provided path is user intent, same trust as the
+// native folder picker.
+ipcMain.handle('workspace:initial', () => {
+  if (!cliWorkspace) return null
+  grantRoot(cliWorkspace)
+  return cliWorkspace
+})
+
+// Symlink the bundled `ghosted` launcher script into /usr/local/bin.
+ipcMain.handle('cli:install', () => {
+  if (process.platform === 'win32') {
+    return { ok: false, error: 'CLI install is not supported on Windows yet' }
+  }
+  const source = app.isPackaged
+    ? path.join(process.resourcesPath, 'bin', 'ghosted')
+    : path.join(__dirname, '..', 'bin', 'ghosted')
+  const target = '/usr/local/bin/ghosted'
+  try {
+    if (!fs.existsSync(source)) return { ok: false, error: `launcher script missing: ${source}` }
+    fs.chmodSync(source, 0o755)
+    try {
+      if (fs.lstatSync(target).isSymbolicLink() || fs.existsSync(target)) fs.unlinkSync(target)
+    } catch {}
+    fs.symlinkSync(source, target)
+    return { ok: true, path: target }
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: `${err.message} — run manually: sudo ln -sf "${source}" "${target}"`,
+    }
+  }
 })
 
 // ── File system IPC ──

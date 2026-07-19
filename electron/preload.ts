@@ -55,6 +55,15 @@ contextBridge.exposeInMainWorld('electron', {
   },
   workspace: {
     restore: (p: string) => ipcRenderer.invoke('workspace:restore', p),
+    initial: () => ipcRenderer.invoke('workspace:initial'),
+    onOpen: (cb: (dir: string) => void) => {
+      ipcRenderer.removeAllListeners('workspace:open')
+      ipcRenderer.on('workspace:open', (_e, dir: string) => cb(dir))
+    },
+    offOpen: () => ipcRenderer.removeAllListeners('workspace:open'),
+  },
+  cli: {
+    install: () => ipcRenderer.invoke('cli:install'),
   },
   fileDrop: {
     // Resolve a genuinely dropped OS File to its disk path and grant the main

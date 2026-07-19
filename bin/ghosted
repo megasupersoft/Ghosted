@@ -1,0 +1,42 @@
+#!/bin/sh
+# ghosted — open a folder in Ghosted from the terminal (like `code .`)
+# usage: ghosted [dir]   (defaults to the current directory)
+
+TARGET="${1:-.}"
+
+case "$TARGET" in
+  -h|--help)
+    echo "usage: ghosted [dir]"
+    echo "Opens the directory (default: .) as a Ghosted workspace."
+    echo "Set GHOSTED_BIN to point at a custom app binary."
+    exit 0
+    ;;
+esac
+
+ABS="$(cd "$TARGET" 2>/dev/null && pwd)" || {
+  echo "ghosted: no such directory: $TARGET" >&2
+  exit 1
+}
+
+BIN="$GHOSTED_BIN"
+if [ -z "$BIN" ]; then
+  for candidate in \
+    "/Applications/Ghosted.app/Contents/MacOS/Ghosted" \
+    "$HOME/Applications/Ghosted.app/Contents/MacOS/Ghosted" \
+    "/opt/Ghosted/ghosted" \
+    "$HOME/.local/bin/Ghosted.AppImage"; do
+    if [ -x "$candidate" ]; then
+      BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$BIN" ]; then
+  echo "ghosted: Ghosted app binary not found — set GHOSTED_BIN=/path/to/binary" >&2
+  exit 1
+fi
+
+# Detach so the shell isn't held open; the single-instance lock hands the
+# path to a running Ghosted if one exists.
+nohup "$BIN" "$ABS" >/dev/null 2>&1 &

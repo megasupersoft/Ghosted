@@ -35,6 +35,15 @@ export default function App() {
     panelIds: ['ghosted-sidebar-nav', 'ghosted-sidebar-main'],
   })
 
+  // `ghosted .` in a second shell hands its directory to this instance
+  useEffect(() => {
+    window.electron.workspace.onOpen((dir) => {
+      useStore.getState().setWorkspacePath(dir)
+      useStore.getState().addStatus('info', `Opened workspace ${dir}`)
+    })
+    return () => window.electron.workspace.offOpen()
+  }, [])
+
   // Listen for Pi agent actions (open file, switch pane, etc.)
   useEffect(() => {
     window.electron.pi.onAction((action: any) => {

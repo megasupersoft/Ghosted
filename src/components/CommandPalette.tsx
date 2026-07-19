@@ -187,6 +187,22 @@ export default function CommandPalette() {
               Open Folder…
             </Command.Item>
             <Command.Item
+              value="Install ghosted CLI"
+              keywords={['terminal', 'shell', 'path', 'launcher']}
+              onSelect={() =>
+                run(async () => {
+                  const res = await window.electron.cli.install()
+                  const s = useStore.getState()
+                  if (res.ok) s.addStatus('info', `ghosted CLI installed at ${res.path}`)
+                  else s.addStatus('error', `CLI install failed: ${res.error}`)
+                })
+              }
+              className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-secondary-foreground data-[selected=true]:bg-hover data-[selected=true]:text-foreground"
+            >
+              <Terminal size={16} className="opacity-60" />
+              Install ghosted CLI (`ghosted .` in your shell)
+            </Command.Item>
+            <Command.Item
               value="New File"
               keywords={['workspace', 'create']}
               onSelect={() =>

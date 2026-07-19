@@ -124,7 +124,7 @@ npm run test:e2e     # Playwright Electron smoke test (needs npm run build first
 - Cloudflare Pages config: root `site`, build `npm run docs:build`, output `.vitepress/dist`
 
 ## Roadmap
-- [ ] `ghosted .` CLI launcher
+- [x] `ghosted .` CLI launcher (bin/ghosted + single-instance handoff; palette: "Install ghosted CLI")
 - [ ] Canvas JSON export/import
 - [ ] Graph search + depth control
 - [ ] pi.dev RPC in terminal pane
