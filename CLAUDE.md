@@ -16,7 +16,8 @@ github_project: 5
 ### Starting a session
 1. Read `PROGRESS.md` if it exists — know what's in flight
 2. Check GitHub Projects: `gh project item-list 5 --owner megasupersoft --format json`
-3. Confirm what we're working on today
+3. `/verify` if building on prior work — confirm the tree is green before adding to it
+4. Confirm what we're working on today
 
 ### Before writing code against any external API or library
 1. `chub search "<library>"` — check if docs exist
@@ -31,10 +32,20 @@ github_project: 5
 
 ### Before any PR or release
 1. `/review` — bugs, node-pty leaks, IPC safety, React cleanup
-2. Fix all CRITICAL and HIGH before proceeding
+2. `/security` — if the change touched IPC, preload, CSP, protocols, or the workspace-grant system
+3. Fix all CRITICAL and HIGH before proceeding
 
 ### To ship
 1. `/ship` — version bump, build, tag, push, update GitHub Projects
+
+### Ending a session
+1. `/wrap` — dated PROGRESS.md entry from actual commits + durable learnings to memory
+
+### Other skills
+- `/commit` — gated Conventional Commit (lint + typecheck first, never AI attribution)
+- `/verify` — full green battery: lint, typecheck, unit, build, e2e
+- `/debug` — Electron-aware diagnosis (main vs preload vs renderer, known failure patterns)
+- `/shadcn <component>` — add shadcn/ui components correctly (Base UI, token bridge)
 
 ### Automatic checks
 - New pane? → `/arch` first — IPC, store slice, mount/unmount lifecycle
