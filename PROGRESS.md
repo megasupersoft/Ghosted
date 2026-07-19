@@ -6,7 +6,27 @@ updated: 2026-07-20
 # Ghosted Progress
 
 ## Current status
-v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19, Zustand 5, @xterm/xterm 6, Tailwind 4), IPC security hardening (workspace-confined fs/git, CSP, safe openExternal), Biome + Vitest + Playwright + CI, ⌘K command palette.
+v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19, Zustand 5, @xterm/xterm 6, Tailwind 4), IPC security hardening (workspace-confined fs/git, CSP, safe openExternal), Biome + Vitest + Playwright + CI (green on main), ⌘K command palette. All pushed to origin/main.
+
+## Session 2026-07-20
+
+**Shipped**
+- Full modernization sweep in 4 phases: security hardening, dependency wave, tooling floor, Tailwind 4 + ⌘K palette (details in section below)
+- Six project skills added: /wrap, /commit, /verify, /debug, /shadcn, /security — adapted from best variants in other repos, wired into CLAUDE.md workflow
+- Project permissions: git push moved from deny to allow in .claude/settings.json
+- Rebased onto remote, untracked 59 accidentally-committed VitePress dep-cache artifacts + duplicate root screenshot, pushed everything
+- CI green on main twice (49s/51s); checkout/setup-node bumped off deprecated Node 20 runners
+
+**In flight**
+- None — working tree clean, local == origin/main
+
+**Blockers**
+- None
+
+**Next**
+- Packaged-build smoke test (electron-builder 26 + Electron 43 + node-pty pipeline untested since upgrade)
+- Start UI migration: shadcn components + inline-style → Tailwind pane-by-pane
+- Signing/notarization + electron-updater release pipeline
 
 ## Modernization sweep (2026-07-20)
 - [x] SECURITY: all fs/git/db IPC confined to granted workspace roots (persisted in userData); openExternal scheme allowlist; ghosted-file:// confined + no CSP bypass; production CSP injected at build
