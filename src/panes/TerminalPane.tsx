@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import 'xterm/css/xterm.css'
+import '@xterm/xterm/css/xterm.css'
 import { useStore } from '@/store'
 import { useSettings } from '@/store/settings'
 
@@ -39,7 +39,7 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
           waitAttempts++
         }
 
-        const { Terminal } = await import('xterm')
+        const { Terminal } = await import('@xterm/xterm')
         const { FitAddon } = await import('@xterm/addon-fit')
         const { WebLinksAddon } = await import('@xterm/addon-web-links')
 

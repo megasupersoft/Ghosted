@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 contextBridge.exposeInMainWorld('electron', {
   fs: {
@@ -54,6 +54,18 @@ contextBridge.exposeInMainWorld('electron', {
   },
   workspace: {
     restore: (p: string) => ipcRenderer.invoke('workspace:restore', p),
+  },
+  fileDrop: {
+    // Resolve a genuinely dropped OS File to its disk path and grant the main
+    // process read access to it for this session. Runs in the preload so the
+    // path provably comes from a real File — renderer code cannot construct a
+    // File backed by an arbitrary path.
+    getPath: async (file: File): Promise<string | null> => {
+      const p = webUtils.getPathForFile(file)
+      if (!p) return null
+      const ok = await ipcRenderer.invoke('fs:grantDropped', p)
+      return ok ? p : null
+    },
   },
   db: {
     index:   (workspacePath: string) => ipcRenderer.invoke('db:index', workspacePath),

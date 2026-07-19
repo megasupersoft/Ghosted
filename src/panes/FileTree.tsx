@@ -726,7 +726,7 @@ export default function FileTree() {
   // ── Move file (drag-drop or cut-paste) ────────────────────────────────────
   const handleExternalDrop = useCallback(async (files: File[], destDir: string) => {
     for (const file of files) {
-      const filePath = (file as any).path as string | undefined
+      const filePath = await window.electron.fileDrop.getPath(file)
       if (!filePath) continue
       const name = filePath.split('/').pop() ?? ''
       const dest = `${destDir}/${name}`

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
-const MonacoEditor = React.lazy(() => import('@monaco-editor/react'))
+const MonacoEditor = React.lazy(() => import('@/lib/monacoSetup'))
 
 function getLang(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''

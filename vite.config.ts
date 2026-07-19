@@ -4,16 +4,16 @@ import electron from 'vite-plugin-electron'
 import path from 'path'
 
 // Production CSP, injected only into the built index.html — the dev server needs
-// inline scripts for React refresh. jsdelivr entries cover @monaco-editor/react's
-// CDN loader; remove them once monaco is bundled locally.
+// inline scripts for React refresh. Monaco is bundled locally, so no remote
+// origins are allowed at all.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-  "font-src 'self' data: https://cdn.jsdelivr.net",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
   "img-src 'self' data: blob: ghosted-file:",
   "media-src 'self' blob: ghosted-file:",
-  "connect-src 'self' https://cdn.jsdelivr.net",
+  "connect-src 'self'",
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

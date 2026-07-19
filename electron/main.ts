@@ -141,11 +141,26 @@ function grantRoot(dir: string) {
   }
 }
 
+// Session-only grants for individual files/folders dropped from the OS.
+// Populated via fs:grantDropped, which is only reachable through the preload's
+// webUtils bridge (a genuine File object is required to obtain a path).
+const droppedGrants = new Set<string>()
+
 function isAllowedPath(p: string): boolean {
   if (typeof p !== 'string' || p.length === 0) return false
   const resolved = path.resolve(p)
-  return grantedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
+  if (grantedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))) return true
+  for (const g of droppedGrants) {
+    if (resolved === g || resolved.startsWith(g + path.sep)) return true
+  }
+  return false
 }
+
+ipcMain.handle('fs:grantDropped', (_e, p: string) => {
+  if (typeof p !== 'string' || !p || !path.isAbsolute(p)) return false
+  droppedGrants.add(path.resolve(p))
+  return true
+})
 
 function assertAllowed(p: string): string {
   if (!isAllowedPath(p)) throw new Error(`Access denied: path is outside granted workspace roots`)

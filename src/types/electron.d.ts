@@ -68,7 +68,7 @@ declare global {
         offChanged: (handler?: any) => void
       }
       pty: {
-        create: (id: string, cwd: string, cols?: number, rows?: number) => Promise<boolean>
+        create: (id: string, cwd: string, cols?: number, rows?: number) => Promise<{ ok: boolean; error?: string } | boolean>
         write: (id: string, data: string) => Promise<void>
         resize: (id: string, cols: number, rows: number) => Promise<void>
         kill: (id: string) => Promise<void>
@@ -85,6 +85,9 @@ declare global {
       }
       workspace: {
         restore: (path: string) => Promise<boolean>
+      }
+      fileDrop: {
+        getPath: (file: File) => Promise<string | null>
       }
       db: {
         index:     (workspacePath: string) => Promise<DBStats>

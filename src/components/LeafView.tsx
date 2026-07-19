@@ -299,10 +299,12 @@ export default function LeafView({ leaf }: { leaf: LeafNode }) {
       const currentZone = dropZone
       setDropZone(null)
       const files = Array.from(e.dataTransfer.files)
-      for (let i = 0; i < files.length; i++) {
-        const filePath = (files[i] as any).path as string | undefined
-        if (filePath) openDroppedFile(filePath, i === 0 ? currentZone : null)
-      }
+      ;(async () => {
+        for (let i = 0; i < files.length; i++) {
+          const filePath = await window.electron.fileDrop.getPath(files[i])
+          if (filePath) openDroppedFile(filePath, i === 0 ? currentZone : null)
+        }
+      })()
       return
     }
 

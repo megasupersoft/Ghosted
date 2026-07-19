@@ -9,6 +9,9 @@ declare module 'force-graph' {
     nodeCanvasObject(fn: (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => void): ForceGraphInstance
     linkColor(fn: () => string): ForceGraphInstance
     linkWidth(width: number): ForceGraphInstance
+    linkDirectionalParticles(n: number): ForceGraphInstance
+    linkDirectionalParticleWidth(w: number): ForceGraphInstance
+    linkDirectionalParticleColor(fn: () => string): ForceGraphInstance
     warmupTicks(ticks: number): ForceGraphInstance
     cooldownTime(ms: number): ForceGraphInstance
     width(w: number): ForceGraphInstance

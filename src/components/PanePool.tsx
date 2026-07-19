@@ -11,6 +11,7 @@
 
 import React, { useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useStoreWithEqualityFn } from 'zustand/traditional'
 import { useStore } from '@/store'
 import { getAllTabs, PaneId } from '@/store/layout'
 
@@ -67,8 +68,9 @@ export function removePaneContainer(tabId: string) {
 // ─── PanePool component ───────────────────────────────────────────────────
 
 export default function PanePool() {
-  const tabs = useStore(
-    useCallback(s => getAllTabs(s.layout), []),
+  const tabs = useStoreWithEqualityFn(
+    useStore,
+    useCallback((s: ReturnType<typeof useStore.getState>) => getAllTabs(s.layout), []),
     (a, b) => a.length === b.length && a.every((t, i) => t.id === b[i].id && t.paneType === b[i].paneType && t.filePath === b[i].filePath)
   )
 

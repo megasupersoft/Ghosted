@@ -11,9 +11,9 @@ export default function Titlebar() {
       height: 'var(--titlebar-h)',
       background: 'var(--bg-base)',
       display: 'flex', alignItems: 'center',
-      WebkitAppRegion: 'drag' as any,
+      WebkitAppRegion: 'drag',
       userSelect: 'none', flexShrink: 0,
-    }}>
+    } as React.CSSProperties}>
       <div style={{ flex: 1 }} />
       {projectName && (
         <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 500 }}>

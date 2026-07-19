@@ -609,7 +609,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
   }, [loaded])
 
   // Push snapshot on every meaningful change (debounced to batch rapid updates)
-  const snapshotTimer = useRef<ReturnType<typeof setTimeout>>()
+  const snapshotTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => {
     if (!loaded || skipSnapshot.current) return
     clearTimeout(snapshotTimer.current)
@@ -970,7 +970,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
   // ── Shake detection — track drag movement for direction reversals ─────
   const shakeHistory = useRef<{ id: string; xs: number[]; ts: number[] }>({ id: '', xs: [], ts: [] })
 
-  const onNodeDrag = useCallback((_e: React.MouseEvent, draggedNode: Node) => {
+  const onNodeDrag = useCallback((_e: MouseEvent | TouchEvent, draggedNode: Node) => {
     const now = Date.now()
     const h = shakeHistory.current
 
@@ -1114,7 +1114,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
   }, [setEdges, getAbsolutePos])
 
   // ── Group reparenting on drag stop ──────────────────────────────────────
-  const onNodeDragStop = useCallback((_e: React.MouseEvent, draggedNode: Node) => {
+  const onNodeDragStop = useCallback((_e: MouseEvent | TouchEvent, draggedNode: Node) => {
     const d = draggedNode.data as GhostedNodeData
     if (d.nodeType === 'group') return
 

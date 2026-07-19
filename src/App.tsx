@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels'
+import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
 import Titlebar from '@/components/Titlebar'
 import ActivityBar from '@/components/ActivityBar'
 import StatusBar from '@/components/StatusBar'
@@ -21,6 +21,10 @@ function SidebarContent({ id }: { id: string }) {
 
 export default function App() {
   const { layout, activeSidebar, workspacePath } = useStore()
+  const sidebarLayout = useDefaultLayout({
+    id: 'ghosted-sidebar',
+    panelIds: ['ghosted-sidebar-nav', 'ghosted-sidebar-main'],
+  })
 
   // Listen for Pi agent actions (open file, switch pane, etc.)
   useEffect(() => {
@@ -78,15 +82,15 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <ActivityBar />
         {activeSidebar ? (
-          <PanelGroup direction="horizontal" autoSaveId="ghosted-sidebar">
-            <Panel defaultSize={18} minSize={10} maxSize={40} style={{ overflow: 'hidden' }}>
+          <Group orientation="horizontal" defaultLayout={sidebarLayout.defaultLayout} onLayoutChanged={sidebarLayout.onLayoutChanged}>
+            <Panel id="ghosted-sidebar-nav" defaultSize={18} minSize={10} maxSize={40} style={{ overflow: 'hidden' }}>
               <SidebarContent id={activeSidebar} />
             </Panel>
-            <PanelResizeHandle className="ghost-resize-handle" />
-            <Panel minSize={30}>
+            <Separator className="ghost-resize-handle" />
+            <Panel id="ghosted-sidebar-main" minSize={30}>
               <LayoutRenderer node={layout} />
             </Panel>
-          </PanelGroup>
+          </Group>
         ) : (
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <LayoutRenderer node={layout} />
