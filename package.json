@@ -1,7 +1,7 @@
 {
   "name": "ghosted",
   "version": "0.1.2",
-  "description": "Ghosted — the dev workspace that never sleeps.",
+  "description": "Ghosted \u2014 the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
     "postinstall": "bash scripts/setup-mac.sh && node scripts/rebuild-pty.js",
@@ -91,11 +91,13 @@
       "icon": "build/icons",
       "category": "Development",
       "desktop": {
-        "Name": "Ghosted",
-        "Comment": "The dev workspace that never sleeps",
-        "Terminal": "false",
-        "Type": "Application",
-        "Categories": "Development;IDE;TextEditor;"
+        "entry": {
+          "Name": "Ghosted",
+          "Comment": "The dev workspace that never sleeps",
+          "Terminal": "false",
+          "Type": "Application",
+          "Categories": "Development;IDE;TextEditor;"
+        }
       }
     },
     "mac": {
