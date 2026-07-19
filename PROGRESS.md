@@ -6,7 +6,26 @@ updated: 2026-07-20
 # Ghosted Progress
 
 ## Current status
-v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19, Zustand 5, @xterm/xterm 6, Tailwind 4), IPC security hardening (workspace-confined fs/git, CSP, safe openExternal), Biome + Vitest + Playwright + CI (green on main), ⌘K command palette. All pushed to origin/main.
+v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19, Zustand 5, @xterm/xterm 6, Tailwind 4), IPC security hardening, Biome + Vitest + 10-test Playwright regression suite green on macOS and Linux CI, ⌘K palette, packaged build verified (boots with working PTY). Pre-feature gates cleared — ready for feature work.
+
+## Session 2026-07-20 (later)
+
+**Shipped**
+- 10-test Playwright regression suite driving the real app: explorer, ⌘K quick-open, Monaco save round-trip, markdown preview, PTY shell round-trip, graph, canvas, kanban, sidebar resize; isolated userData via GHOSTED_USER_DATA env
+- Six real bugs the suite caught, fixed: GhostedDB only indexed when canvas mounted; palette passed extension-less filenames; palette values didn't match labels; panels-v4 separators 0px wide + numeric sizes now pixels (sidebar was 18px); Ctrl+K dead with terminal focus on Linux/Windows (xterm swallows it — capture-phase listener); electron-builder 26 linux.desktop schema
+- Packaged-build smoke test passed: --mac --dir builds, afterPack node-pty hook works, packaged app boots and PTY round-trips a command, auto-signed with Developer ID
+- CI stabilized for Electron on Linux (workers: 1 for ETXTBSY, click vs Enter in cmdk) — green on main
+
+**In flight**
+- None — working tree clean, local == origin/main
+
+**Blockers**
+- None
+
+**Next**
+- Feature work is unblocked — pick from roadmap (canvas JSON export/import, graph search, ghosted CLI launcher)
+- UI migration: shadcn components + inline-style → Tailwind pane-by-pane
+- Signing/notarization + electron-updater release pipeline
 
 ## Session 2026-07-20
 
@@ -47,7 +66,7 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [ ] Sentry crashes + opt-in PostHog analytics
 - [ ] Lazy-mount panes on first activation (React 19 <Activity>) for startup time
 - [ ] ACP/MCP agent pane on existing PTY + pi infrastructure
-- [ ] Packaged-build smoke test (electron-builder 26 + Electron 43 + node-pty pipeline untested)
+- [x] Packaged-build smoke test (verified: builds, signs, boots, PTY works in package)
 
 ## Done
 - [x] Electron + Vite + React 18 + TypeScript scaffold
