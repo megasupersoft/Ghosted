@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* Bridge Ghosted's design tokens into Tailwind theme namespaces so utilities
    (bg-surface, text-muted-fg, border-line, …) and future shadcn components

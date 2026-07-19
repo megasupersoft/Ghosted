@@ -19,11 +19,11 @@ import {
   mkTab,
   removeTabFromLeaf,
   reorderTabInLeaf,
+  type SplitNode,
   setActiveTabInLeaf,
   splitLeaf,
   splitLeafAtPosition,
   splitLeafWithTab,
-  type SplitNode,
   updateSplitSizes,
   updateTab,
 } from './layout'
@@ -188,7 +188,15 @@ describe('splits', () => {
 
   it('splitLeafWithTab preserves the moved tab identity', () => {
     const tab = mkTab('moved-tab', 'canvas', 'My Canvas', '/w.canvas')
-    const tree = splitLeafWithTab(editor(), 'leaf-1', 'horizontal', 'leaf-n', 'split-n', tab, false) as SplitNode
+    const tree = splitLeafWithTab(
+      editor(),
+      'leaf-1',
+      'horizontal',
+      'leaf-n',
+      'split-n',
+      tab,
+      false,
+    ) as SplitNode
     const newLeaf = tree.children[1] as LeafNode
     expect(newLeaf.tabs).toEqual([tab])
     expect(newLeaf.activeTabId).toBe('moved-tab')

@@ -1,8 +1,17 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": ["src/**", "electron/**", "scripts/**", "vite.config.ts"]
+    "includes": [
+      "src/**",
+      "electron/**",
+      "scripts/**",
+      "vite.config.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -35,6 +44,11 @@
         "useKeyWithClickEvents": "off",
         "useMediaCaption": "off"
       }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   }
 }
