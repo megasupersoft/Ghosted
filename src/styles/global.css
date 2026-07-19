@@ -256,6 +256,27 @@ textarea:focus {
   background: var(--accent);
 }
 
+/* ===== Canvas export/import buttons ===== */
+.canvas-io-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition:
+    color 0.1s,
+    border-color 0.1s;
+}
+.canvas-io-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
 /* ===== Split panel resize handles ===== */
 .ghost-resize-handle {
   background: var(--bg-base);

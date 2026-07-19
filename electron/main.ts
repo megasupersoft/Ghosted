@@ -372,6 +372,34 @@ ipcMain.handle('shell:openExternal', (_e, url: string) => {
 ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) =>
   shell.showItemInFolder(assertAllowed(fullPath)),
 )
+// Native file pickers. A user-chosen path is user intent — grant it so the
+// renderer can read/write exactly that file and nothing else.
+ipcMain.handle('dialog:saveFile', async (_e, defaultName?: string, filterExts?: string[]) => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (!win) return null
+  const result = await dialog.showSaveDialog(win, {
+    title: 'Export',
+    defaultPath: defaultName,
+    ...(filterExts?.length ? { filters: [{ name: 'Export', extensions: filterExts }] } : {}),
+  })
+  if (result.canceled || !result.filePath) return null
+  droppedGrants.add(path.resolve(result.filePath))
+  return result.filePath
+})
+
+ipcMain.handle('dialog:openFile', async (_e, filterExts?: string[]) => {
+  const win = BrowserWindow.getFocusedWindow()
+  if (!win) return null
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Import',
+    properties: ['openFile'],
+    ...(filterExts?.length ? { filters: [{ name: 'Import', extensions: filterExts }] } : {}),
+  })
+  if (result.canceled || !result.filePaths[0]) return null
+  droppedGrants.add(path.resolve(result.filePaths[0]))
+  return result.filePaths[0]
+})
+
 ipcMain.handle('dialog:openFolder', async () => {
   const win = BrowserWindow.getFocusedWindow()
   if (!win) return null

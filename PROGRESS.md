@@ -98,7 +98,7 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [x] node-pty spawn-helper asar path fix for packaged builds
 
 ## In Flight
-- [ ] Canvas JSON export/import
+- [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible
 - [ ] Graph search + depth control
 - [ ] pi.dev RPC integration in terminal pane
 - [x] `ghosted .` CLI launcher — bin/ghosted script, single-instance lock with workspace handoff, palette installer

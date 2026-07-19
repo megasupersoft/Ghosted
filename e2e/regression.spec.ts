@@ -117,6 +117,8 @@ test('canvas pane mounts xyflow for a .canvas file', async () => {
   const { window } = ctx
   await window.locator('.filetree-row', { hasText: 'flow.canvas' }).click()
   await expect(window.locator('.react-flow').first()).toBeVisible({ timeout: 15000 })
+  await expect(window.locator('.canvas-io-btn', { hasText: 'Export' })).toBeVisible()
+  await expect(window.locator('.canvas-io-btn', { hasText: 'Import' })).toBeVisible()
   await shot('06-canvas')
 })
 

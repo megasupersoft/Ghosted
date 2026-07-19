@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electron', {
   },
   dialog: {
     openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+    saveFile: (defaultName?: string, filterExts?: string[]) =>
+      ipcRenderer.invoke('dialog:saveFile', defaultName, filterExts),
+    openFile: (filterExts?: string[]) => ipcRenderer.invoke('dialog:openFile', filterExts),
   },
   workspace: {
     restore: (p: string) => ipcRenderer.invoke('workspace:restore', p),

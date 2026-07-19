@@ -18,6 +18,7 @@ import {
   useReactFlow,
   type XYPosition,
 } from '@xyflow/react'
+import { Download, Upload } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 
@@ -37,6 +38,7 @@ canvasStyles.textContent = `
 `
 document.head.appendChild(canvasStyles)
 
+import { fromJsonCanvas, isJsonCanvasDoc, toJsonCanvas } from '@/lib/jsonCanvas'
 import { useGhostDB } from '@/lib/useGhostDB'
 import { useUndoStack } from '@/lib/useUndoStack'
 import { useStore } from '@/store'
@@ -1149,6 +1151,68 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     }
   }, [menu])
 
+  // ── JSON Canvas 1.0 export/import (jsoncanvas.org) ──────────────────────
+  const exportJsonCanvas = useCallback(async () => {
+    const suggested = `${(filePath?.split('/').pop() ?? 'canvas').replace(/\.canvas$/, '')}.export.canvas`
+    const target = await window.electron.dialog.saveFile(suggested, ['canvas', 'json'])
+    if (!target) return
+    try {
+      const doc = toJsonCanvas(nodes, edges)
+      await window.electron.fs.writefile(target, JSON.stringify(doc, null, 2))
+      useStore.getState().addStatus('info', `Exported JSON Canvas → ${target}`)
+    } catch (err) {
+      useStore.getState().addStatus('error', `Export failed: ${(err as Error).message}`)
+    }
+  }, [filePath, nodes, edges])
+
+  const importJsonCanvas = useCallback(async () => {
+    const source = await window.electron.dialog.openFile(['canvas', 'json'])
+    if (!source) return
+    try {
+      const raw = await window.electron.fs.readfile(source)
+      const parsed = JSON.parse(raw)
+      const makeId = () => String(++idCounter)
+
+      let imported: { nodes: Node[]; edges: Edge[] } | null = null
+      if (isJsonCanvasDoc(parsed)) {
+        imported = fromJsonCanvas(parsed, makeId)
+      } else {
+        // Ghosted's internal save format — remap ids so it merges cleanly
+        const internal = deserializeCanvas(raw)
+        if (internal) {
+          const idMap = new Map(internal.nodes.map((n) => [n.id, makeId()]))
+          imported = {
+            nodes: internal.nodes.map((n) => ({ ...n, id: idMap.get(n.id) ?? n.id })),
+            edges: internal.edges
+              .filter((e) => idMap.has(e.source) && idMap.has(e.target))
+              .map((e) => ({
+                ...e,
+                id: makeId(),
+                source: idMap.get(e.source) as string,
+                target: idMap.get(e.target) as string,
+              })),
+          }
+        }
+      }
+      if (!imported || imported.nodes.length === 0) {
+        useStore.getState().addStatus('warn', 'Import: no canvas nodes found in file')
+        return
+      }
+      const imp = imported
+      // Run nodes need their execute callback rewired
+      const withCallbacks = imp.nodes.map((n) =>
+        (n.data as GhostedNodeData).nodeType === 'run'
+          ? { ...n, data: { ...n.data, onRun: runFromNode } }
+          : n,
+      )
+      setNodes((ns) => [...ns, ...withCallbacks])
+      setEdges((es) => [...es, ...imp.edges])
+      useStore.getState().addStatus('info', `Imported ${imp.nodes.length} nodes from ${source}`)
+    } catch (err) {
+      useStore.getState().addStatus('error', `Import failed: ${(err as Error).message}`)
+    }
+  }, [runFromNode, setNodes, setEdges])
+
   const addNode = (p: (typeof PALETTE)[0], pos: { x: number; y: number }) => {
     const id = String(++idCounter)
     const isGroup = p.nodeType === 'group'
@@ -1460,6 +1524,26 @@ function CanvasInner({ filePath }: { filePath?: string }) {
         >
           <Background color="#353550" variant={BackgroundVariant.Dots} gap={24} size={1} />
         </ReactFlow>
+
+        {/* Export / Import (JSON Canvas 1.0) */}
+        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, zIndex: 20 }}>
+          <button
+            type="button"
+            onClick={importJsonCanvas}
+            className="canvas-io-btn"
+            title="Import a JSON Canvas (Obsidian-compatible) or Ghosted .canvas file into this canvas"
+          >
+            <Download size={12} /> Import
+          </button>
+          <button
+            type="button"
+            onClick={exportJsonCanvas}
+            className="canvas-io-btn"
+            title="Export as JSON Canvas 1.0 (jsoncanvas.org) — opens in Obsidian and other canvas apps"
+          >
+            <Upload size={12} /> Export
+          </button>
+        </div>
 
         {/* Cut line overlay */}
         {cutting && <CutLineOverlay points={cutPoints} />}

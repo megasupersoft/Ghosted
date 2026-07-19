@@ -87,6 +87,8 @@ declare global {
       }
       dialog: {
         openFolder: () => Promise<string | null>
+        saveFile: (defaultName?: string, filterExts?: string[]) => Promise<string | null>
+        openFile: (filterExts?: string[]) => Promise<string | null>
       }
       workspace: {
         restore: (path: string) => Promise<boolean>

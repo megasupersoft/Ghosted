@@ -125,7 +125,7 @@ npm run test:e2e     # Playwright Electron smoke test (needs npm run build first
 
 ## Roadmap
 - [x] `ghosted .` CLI launcher (bin/ghosted + single-instance handoff; palette: "Install ghosted CLI")
-- [ ] Canvas JSON export/import
+- [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible
 - [ ] Graph search + depth control
 - [ ] pi.dev RPC in terminal pane
 - [ ] BruceOS AppImage packaging
