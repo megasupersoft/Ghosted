@@ -79,12 +79,11 @@ describe('round-trip', () => {
 
     const prompt = back.nodes.find((x) => (x.data as any).nodeType === 'prompt')
     expect(prompt?.type).toBe('ghosted')
-    expect((prompt?.data as any).prompt).toBe('Summarize the workspace')
-    expect((prompt?.data as any).status).toBe('idle')
+    expect(prompt?.data).toMatchObject({ prompt: 'Summarize the workspace', status: 'idle' })
 
     const group = back.nodes.find((x) => (x.data as any).nodeType === 'group')
     expect(group?.type).toBe('group')
-    expect((group?.style as any).width).toBe(340)
+    expect(group?.style).toMatchObject({ width: 340 })
 
     expect(back.edges).toHaveLength(1)
     expect(back.edges[0].source).toBe(prompt?.id)
