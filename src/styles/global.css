@@ -1,3 +1,35 @@
+@import 'tailwindcss';
+
+/* Bridge Ghosted's design tokens into Tailwind theme namespaces so utilities
+   (bg-surface, text-muted-fg, border-line, …) and future shadcn components
+   draw from the same palette as the hand-written CSS below. */
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-hover: var(--bg-hover);
+  --color-selection: var(--bg-selection);
+  --color-card: var(--bg-surface);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-elevated);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--bg-base);
+  --color-secondary: var(--bg-elevated);
+  --color-secondary-foreground: var(--text-secondary);
+  --color-muted: var(--bg-hover);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--bg-hover);
+  --color-accent-foreground: var(--text-primary);
+  --color-destructive: var(--red);
+  --color-border: var(--border);
+  --color-input: var(--border-mid);
+  --color-ring: var(--accent);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-mono);
+}
+
 *,
 *::before,
 *::after {
@@ -557,6 +589,14 @@ textarea:focus {
   padding: 0;
   font-size: 13px;
   line-height: 1.6;
+}
+.md-preview ul,
+.pi-msg-bubble ul {
+  list-style: disc;
+}
+.md-preview ol,
+.pi-msg-bubble ol {
+  list-style: decimal;
 }
 .md-preview ul,
 .md-preview ol {

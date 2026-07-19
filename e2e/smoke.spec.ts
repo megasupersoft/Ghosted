@@ -14,5 +14,15 @@ test('app boots, loads the workspace shell, and PTY is available', async () => {
   const isPackaged = await app.evaluate(({ app: a }) => a.isPackaged)
   expect(isPackaged).toBe(false)
 
+  // Command palette opens on ⌘K/Ctrl+K and closes on Escape
+  const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+  await window.keyboard.press(`${mod}+KeyK`)
+  const paletteInput = window.locator('[cmdk-input]')
+  await expect(paletteInput).toBeVisible({ timeout: 5000 })
+  await paletteInput.fill('terminal')
+  await expect(window.locator('[cmdk-item]').first()).toBeVisible()
+  await window.keyboard.press('Escape')
+  await expect(paletteInput).toBeHidden()
+
   await app.close()
 })

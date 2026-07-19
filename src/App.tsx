@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
 import ActivityBar from '@/components/ActivityBar'
+import CommandPalette from '@/components/CommandPalette'
 import LayoutRenderer from '@/components/LayoutRenderer'
 import PanePool from '@/components/PanePool'
 import StatusBar from '@/components/StatusBar'
@@ -83,6 +84,7 @@ export default function App() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Titlebar />
+      <CommandPalette />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <ActivityBar />
         {activeSidebar ? (
