@@ -14,10 +14,10 @@
       "Bash(git log*)",
       "Bash(git add*)",
       "Bash(git commit*)",
+      "Bash(git push*)",
       "Bash(npx electron-builder*)"
     ],
     "deny": [
-      "Bash(git push*)",
       "Bash(git tag*)",
       "Bash(npm run preview)"
     ]
