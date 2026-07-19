@@ -14,10 +14,12 @@ async function boot() {
     } catch {}
   }
 
-  ReactDOM.createRoot(document.getElementById('root')!).render(
+  const root = document.getElementById('root')
+  if (!root) throw new Error('#root element missing from index.html')
+  ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <App />
-    </React.StrictMode>
+    </React.StrictMode>,
   )
 }
 

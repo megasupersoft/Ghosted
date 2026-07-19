@@ -1,21 +1,25 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
-import Titlebar from '@/components/Titlebar'
 import ActivityBar from '@/components/ActivityBar'
-import StatusBar from '@/components/StatusBar'
-import FileTree from '@/panes/FileTree'
-import SourceControlPane from '@/panes/SourceControlPane'
-import SettingsPane from '@/panes/SettingsPane'
 import LayoutRenderer from '@/components/LayoutRenderer'
 import PanePool from '@/components/PanePool'
+import StatusBar from '@/components/StatusBar'
+import Titlebar from '@/components/Titlebar'
+import FileTree from '@/panes/FileTree'
+import SettingsPane from '@/panes/SettingsPane'
+import SourceControlPane from '@/panes/SourceControlPane'
 import { useStore } from '@/store'
 
 function SidebarContent({ id }: { id: string }) {
   switch (id) {
-    case 'explorer': return <FileTree />
-    case 'source-control': return <SourceControlPane />
-    case 'settings': return <SettingsPane />
-    default: return null
+    case 'explorer':
+      return <FileTree />
+    case 'source-control':
+      return <SourceControlPane />
+    case 'settings':
+      return <SettingsPane />
+    default:
+      return null
   }
 }
 
@@ -52,15 +56,15 @@ export default function App() {
       if (!event.filename) return
       const { openFiles, updateFileContent } = useStore.getState()
       // Build the full path — the event dir is the watched directory
-      const fullPath = event.dir + '/' + event.filename
-      const file = openFiles.find(f => f.path === fullPath)
+      const fullPath = `${event.dir}/${event.filename}`
+      const file = openFiles.find((f) => f.path === fullPath)
       if (!file) return
       // Don't overwrite unsaved user changes
       if (file.isDirty) return
       try {
         const newContent = await window.electron.fs.readfile(fullPath)
         // Re-check isDirty after async read in case user edited during the read
-        const current = useStore.getState().openFiles.find(f => f.path === fullPath)
+        const current = useStore.getState().openFiles.find((f) => f.path === fullPath)
         if (current && !current.isDirty && current.content !== newContent) {
           updateFileContent(fullPath, newContent)
         }
@@ -82,8 +86,18 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <ActivityBar />
         {activeSidebar ? (
-          <Group orientation="horizontal" defaultLayout={sidebarLayout.defaultLayout} onLayoutChanged={sidebarLayout.onLayoutChanged}>
-            <Panel id="ghosted-sidebar-nav" defaultSize={18} minSize={10} maxSize={40} style={{ overflow: 'hidden' }}>
+          <Group
+            orientation="horizontal"
+            defaultLayout={sidebarLayout.defaultLayout}
+            onLayoutChanged={sidebarLayout.onLayoutChanged}
+          >
+            <Panel
+              id="ghosted-sidebar-nav"
+              defaultSize={18}
+              minSize={10}
+              maxSize={40}
+              style={{ overflow: 'hidden' }}
+            >
               <SidebarContent id={activeSidebar} />
             </Panel>
             <Separator className="ghost-resize-handle" />

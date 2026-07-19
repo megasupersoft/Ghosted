@@ -1,7 +1,7 @@
-import { defineConfig, type Plugin } from 'vite'
+import path from 'node:path'
 import react from '@vitejs/plugin-react'
+import { defineConfig, type Plugin } from 'vite'
 import electron from 'vite-plugin-electron'
-import path from 'path'
 
 // Production CSP, injected only into the built index.html — the dev server needs
 // inline scripts for React refresh. Monaco is bundled locally, so no remote
@@ -26,11 +26,13 @@ const injectCsp: Plugin = {
   transformIndexHtml(html) {
     return {
       html,
-      tags: [{
-        tag: 'meta',
-        attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
-        injectTo: 'head-prepend' as const,
-      }],
+      tags: [
+        {
+          tag: 'meta',
+          attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+          injectTo: 'head-prepend' as const,
+        },
+      ],
     }
   },
 }
@@ -46,7 +48,14 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['node-pty', 'chokidar', 'gray-matter', 'fsevents', '@mariozechner/pi-coding-agent', '@sinclair/typebox'],
+              external: [
+                'node-pty',
+                'chokidar',
+                'gray-matter',
+                'fsevents',
+                '@mariozechner/pi-coding-agent',
+                '@sinclair/typebox',
+              ],
             },
           },
         },
@@ -65,7 +74,7 @@ export default defineConfig({
     ]),
   ],
   resolve: {
-    alias: { '@': path.resolve(__dirname, 'src') }
+    alias: { '@': path.resolve(__dirname, 'src') },
   },
   base: './',
   build: {
@@ -78,5 +87,5 @@ export default defineConfig({
   server: {
     port: 5173,
     hmr: { overlay: false },
-  }
+  },
 })

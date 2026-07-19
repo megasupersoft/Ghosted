@@ -3,9 +3,9 @@
 export type PaneId = 'editor' | 'terminal' | 'graph' | 'canvas' | 'kanban' | 'ai'
 
 export interface TabEntry {
-  id: string       // unique tab ID, used as leafId for pane components
+  id: string // unique tab ID, used as leafId for pane components
   paneType: PaneId
-  label?: string   // display name (file name or tool name)
+  label?: string // display name (file name or tool name)
   filePath?: string // for file-based tabs
   pinned?: boolean
 }
@@ -36,9 +36,12 @@ export function mkLeaf(id: string, paneType: PaneId, label?: string, filePath?: 
 }
 
 // Find a tab by file path in any leaf
-export function findTabByFilePath(tree: LayoutNode, filePath: string): { leaf: LeafNode; tab: TabEntry } | null {
+export function findTabByFilePath(
+  tree: LayoutNode,
+  filePath: string,
+): { leaf: LeafNode; tab: TabEntry } | null {
   if (tree.type === 'leaf') {
-    const tab = tree.tabs.find(t => t.filePath === filePath)
+    const tab = tree.tabs.find((t) => t.filePath === filePath)
     return tab ? { leaf: tree, tab } : null
   }
   return findTabByFilePath(tree.children[0], filePath) ?? findTabByFilePath(tree.children[1], filePath)
@@ -47,7 +50,7 @@ export function findTabByFilePath(tree: LayoutNode, filePath: string): { leaf: L
 // Update a tab's properties
 export function updateTab(tree: LayoutNode, tabId: string, updates: Partial<TabEntry>): LayoutNode {
   if (tree.type === 'leaf') {
-    const idx = tree.tabs.findIndex(t => t.id === tabId)
+    const idx = tree.tabs.findIndex((t) => t.id === tabId)
     if (idx === -1) return tree
     const tabs = [...tree.tabs]
     tabs[idx] = { ...tabs[idx], ...updates }
@@ -55,17 +58,14 @@ export function updateTab(tree: LayoutNode, tabId: string, updates: Partial<TabE
   }
   return {
     ...tree,
-    children: [
-      updateTab(tree.children[0], tabId, updates),
-      updateTab(tree.children[1], tabId, updates),
-    ],
+    children: [updateTab(tree.children[0], tabId, updates), updateTab(tree.children[1], tabId, updates)],
   }
 }
 
 export const DEFAULT_LAYOUT: LayoutNode = mkLeaf('leaf-1', 'editor')
 
 export function getActiveTab(leaf: LeafNode): TabEntry {
-  return leaf.tabs.find(t => t.id === leaf.activeTabId) ?? leaf.tabs[0]
+  return leaf.tabs.find((t) => t.id === leaf.activeTabId) ?? leaf.tabs[0]
 }
 
 // Migrate old format (single paneType) to new format (tabs array)
@@ -92,7 +92,7 @@ export function findLeaf(tree: LayoutNode, leafId: string): LeafNode | null {
 
 // Find a leaf that contains a specific tab ID
 export function findLeafByTabId(tree: LayoutNode, tabId: string): LeafNode | null {
-  if (tree.type === 'leaf') return tree.tabs.some(t => t.id === tabId) ? tree : null
+  if (tree.type === 'leaf') return tree.tabs.some((t) => t.id === tabId) ? tree : null
   return findLeafByTabId(tree.children[0], tabId) ?? findLeafByTabId(tree.children[1], tabId)
 }
 
@@ -102,7 +102,7 @@ export function countLeaves(tree: LayoutNode): number {
 }
 
 export function findFirstLeafByPane(tree: LayoutNode, paneType: PaneId): LeafNode | null {
-  if (tree.type === 'leaf') return tree.tabs.some(t => t.paneType === paneType) ? tree : null
+  if (tree.type === 'leaf') return tree.tabs.some((t) => t.paneType === paneType) ? tree : null
   return findFirstLeafByPane(tree.children[0], paneType) ?? findFirstLeafByPane(tree.children[1], paneType)
 }
 
@@ -120,10 +120,7 @@ export function splitLeaf(
       type: 'split',
       id: newSplitId,
       direction,
-      children: [
-        { ...tree },
-        mkLeaf(newLeafId, activeTab.paneType),
-      ],
+      children: [{ ...tree }, mkLeaf(newLeafId, activeTab.paneType)],
       sizes: [50, 50],
     }
   }
@@ -155,7 +152,7 @@ export function changeLeafPane(tree: LayoutNode, leafId: string, paneType: PaneI
     const activeTab = getActiveTab(tree)
     return {
       ...tree,
-      tabs: tree.tabs.map(t => t.id === activeTab.id ? { ...t, paneType } : t),
+      tabs: tree.tabs.map((t) => (t.id === activeTab.id ? { ...t, paneType } : t)),
     }
   }
   return {
@@ -175,10 +172,7 @@ export function addTabToLeaf(tree: LayoutNode, leafId: string, tab: TabEntry): L
   }
   return {
     ...tree,
-    children: [
-      addTabToLeaf(tree.children[0], leafId, tab),
-      addTabToLeaf(tree.children[1], leafId, tab),
-    ],
+    children: [addTabToLeaf(tree.children[0], leafId, tab), addTabToLeaf(tree.children[1], leafId, tab)],
   }
 }
 
@@ -186,11 +180,12 @@ export function addTabToLeaf(tree: LayoutNode, leafId: string, tab: TabEntry): L
 export function removeTabFromLeaf(tree: LayoutNode, leafId: string, tabId: string): LayoutNode {
   if (tree.type === 'leaf') {
     if (tree.id !== leafId) return tree
-    const remaining = tree.tabs.filter(t => t.id !== tabId)
+    const remaining = tree.tabs.filter((t) => t.id !== tabId)
     if (remaining.length === 0) return tree // caller should close leaf instead
-    const newActiveId = tree.activeTabId === tabId
-      ? remaining[Math.max(0, tree.tabs.findIndex(t => t.id === tabId) - 1)].id
-      : tree.activeTabId
+    const newActiveId =
+      tree.activeTabId === tabId
+        ? remaining[Math.max(0, tree.tabs.findIndex((t) => t.id === tabId) - 1)].id
+        : tree.activeTabId
     return { ...tree, tabs: remaining, activeTabId: newActiveId }
   }
   return {
@@ -218,10 +213,15 @@ export function setActiveTabInLeaf(tree: LayoutNode, leafId: string, tabId: stri
 }
 
 // Move a tab to a new position within the same leaf
-export function reorderTabInLeaf(tree: LayoutNode, leafId: string, tabId: string, toIndex: number): LayoutNode {
+export function reorderTabInLeaf(
+  tree: LayoutNode,
+  leafId: string,
+  tabId: string,
+  toIndex: number,
+): LayoutNode {
   if (tree.type === 'leaf') {
     if (tree.id !== leafId) return tree
-    const fromIndex = tree.tabs.findIndex(t => t.id === tabId)
+    const fromIndex = tree.tabs.findIndex((t) => t.id === tabId)
     if (fromIndex === -1 || fromIndex === toIndex) return tree
     const tabs = [...tree.tabs]
     const [moved] = tabs.splice(fromIndex, 1)
@@ -274,8 +274,24 @@ export function splitLeafAtPosition(
   return {
     ...tree,
     children: [
-      splitLeafAtPosition(tree.children[0], targetLeafId, direction, newLeafId, newSplitId, newPaneType, insertBefore),
-      splitLeafAtPosition(tree.children[1], targetLeafId, direction, newLeafId, newSplitId, newPaneType, insertBefore),
+      splitLeafAtPosition(
+        tree.children[0],
+        targetLeafId,
+        direction,
+        newLeafId,
+        newSplitId,
+        newPaneType,
+        insertBefore,
+      ),
+      splitLeafAtPosition(
+        tree.children[1],
+        targetLeafId,
+        direction,
+        newLeafId,
+        newSplitId,
+        newPaneType,
+        insertBefore,
+      ),
     ],
   }
 }

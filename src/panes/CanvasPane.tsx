@@ -1,11 +1,24 @@
-import React, { useCallback, useState, useRef, useEffect, useMemo, memo } from 'react'
 import {
-  ReactFlow, Background, BackgroundVariant,
-  useNodesState, useEdgesState, addEdge, Connection, MarkerType,
-  useReactFlow, ReactFlowProvider, Handle, Position,
-  SelectionMode, NodeResizer,
-  type Node, type Edge, type NodeProps, type XYPosition,
+  addEdge,
+  Background,
+  BackgroundVariant,
+  type Connection,
+  type Edge,
+  Handle,
+  MarkerType,
+  type Node,
+  type NodeProps,
+  NodeResizer,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  SelectionMode,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+  type XYPosition,
 } from '@xyflow/react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 
 // Override ReactFlow selection box styles
@@ -23,6 +36,7 @@ canvasStyles.textContent = `
   }
 `
 document.head.appendChild(canvasStyles)
+
 import { useGhostDB } from '@/lib/useGhostDB'
 import { useUndoStack } from '@/lib/useUndoStack'
 import { useStore } from '@/store'
@@ -41,7 +55,7 @@ export interface GhostedNodeData extends Record<string, unknown> {
   skillPath?: string
   // context node — queries GhostedDB
   query?: GhostedQuery
-  injectFields?: string[]   // frontmatter fields to include, default: all
+  injectFields?: string[] // frontmatter fields to include, default: all
   // terminal node
   command?: string
   // note node
@@ -56,21 +70,21 @@ export interface GhostedNodeData extends Record<string, unknown> {
 }
 
 const STATUS_COLOR: Record<NodeStatus, string> = {
-  idle:    '#8b7cf8',
+  idle: '#8b7cf8',
   running: '#fbbf24',
-  done:    '#4ade80',
-  error:   '#f87171',
+  done: '#4ade80',
+  error: '#f87171',
 }
 
 const TYPE_COLOR: Record<GhostedNodeData['nodeType'], string> = {
-  prompt:   '#8b7cf8',
-  skill:    '#c084fc',
-  context:  '#67e8f9',
+  prompt: '#8b7cf8',
+  skill: '#c084fc',
+  context: '#67e8f9',
   terminal: '#4ade80',
-  output:   '#fbbf24',
-  note:     '#e8d590',
-  group:    '#444',
-  run:      '#f97316',
+  output: '#fbbf24',
+  note: '#e8d590',
+  group: '#444',
+  run: '#f97316',
 }
 
 // ─── Custom node component ────────────────────────────────────────────────────
@@ -82,29 +96,39 @@ const GhostedNode = memo(({ data, selected }: NodeProps) => {
   const typeColor = TYPE_COLOR[d.nodeType]
 
   return (
-    <div style={{
-      background: `${typeColor}12`,
-      border: `1.5px solid ${selected ? '#fff' : color}`,
-      borderRadius: 8,
-      padding: '8px 14px',
-      minWidth: 150,
-      maxWidth: 260,
-      color: '#e2e2f0',
-      fontSize: 12,
-      position: 'relative',
-      transition: 'border-color 0.2s, box-shadow 0.2s',
-      boxShadow: status === 'running' ? `0 0 12px ${color}88` : undefined,
-    }}>
-      <Handle type="target" position={Position.Top}
-        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }} />
+    <div
+      style={{
+        background: `${typeColor}12`,
+        border: `1.5px solid ${selected ? '#fff' : color}`,
+        borderRadius: 8,
+        padding: '8px 14px',
+        minWidth: 150,
+        maxWidth: 260,
+        color: '#e2e2f0',
+        fontSize: 12,
+        position: 'relative',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        boxShadow: status === 'running' ? `0 0 12px ${color}88` : undefined,
+      }}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }}
+      />
 
       {/* Type badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <span style={{
-          width: 7, height: 7, borderRadius: 2,
-          background: typeColor, flexShrink: 0,
-          boxShadow: status === 'running' ? `0 0 6px ${color}` : undefined,
-        }} />
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 2,
+            background: typeColor,
+            flexShrink: 0,
+            boxShadow: status === 'running' ? `0 0 6px ${color}` : undefined,
+          }}
+        />
         <span style={{ fontSize: 10, color: typeColor, textTransform: 'uppercase', letterSpacing: 1 }}>
           {d.nodeType}
         </span>
@@ -116,14 +140,28 @@ const GhostedNode = memo(({ data, selected }: NodeProps) => {
       </div>
 
       {/* Label */}
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: d.prompt || d.command || d.skillPath || d.query ? 4 : 0 }}>
+      <div
+        style={{
+          fontWeight: 600,
+          fontSize: 13,
+          marginBottom: d.prompt || d.command || d.skillPath || d.query ? 4 : 0,
+        }}
+      >
         {d.label}
       </div>
 
       {/* Preview */}
       {d.prompt && (
-        <div style={{ fontSize: 11, color: '#aaa', overflow: 'hidden',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: '#aaa',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
           {d.prompt}
         </div>
       )}
@@ -134,25 +172,35 @@ const GhostedNode = memo(({ data, selected }: NodeProps) => {
       )}
       {d.query && (
         <div style={{ fontSize: 10, color: '#888' }}>
-          DB query: {d.query.where?.map(w => `${w.field}`).join(', ') || 'all files'}
+          DB query: {d.query.where?.map((w) => `${w.field}`).join(', ') || 'all files'}
         </div>
       )}
       {d.command && (
-        <div style={{ fontSize: 10, color: '#4ade80', fontFamily: 'monospace' }}>
-          $ {d.command}
-        </div>
+        <div style={{ fontSize: 10, color: '#4ade80', fontFamily: 'monospace' }}>$ {d.command}</div>
       )}
 
       {/* Result preview */}
       {d.result && status === 'done' && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#4ade8088', overflow: 'hidden',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 10,
+            color: '#4ade8088',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
           {d.result}
         </div>
       )}
 
-      <Handle type="source" position={Position.Bottom}
-        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }}
+      />
     </div>
   )
 })
@@ -167,7 +215,9 @@ const NoteNode = memo(({ id, data, selected }: NodeProps) => {
   const flow = useReactFlow()
 
   // Sync from external data changes
-  useEffect(() => { setText(d.noteText || d.label) }, [d.noteText, d.label])
+  useEffect(() => {
+    setText(d.noteText || d.label)
+  }, [d.noteText, d.label])
 
   useEffect(() => {
     if (editing && textareaRef.current) {
@@ -178,14 +228,15 @@ const NoteNode = memo(({ id, data, selected }: NodeProps) => {
 
   const commit = () => {
     setEditing(false)
-    flow.setNodes(ns => ns.map(n =>
-      n.id === id ? { ...n, data: { ...n.data, noteText: text } } : n
-    ))
+    flow.setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, noteText: text } } : n)))
   }
 
   return (
     <div
-      onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        setEditing(true)
+      }}
       style={{
         background: '#2a2518',
         border: `1.5px solid ${selected ? '#fff' : '#4a421e'}`,
@@ -199,21 +250,38 @@ const NoteNode = memo(({ id, data, selected }: NodeProps) => {
         whiteSpace: 'pre-wrap',
       }}
     >
-      <div style={{ fontSize: 9, color: '#a08830', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+      <div
+        style={{
+          fontSize: 9,
+          color: '#a08830',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginBottom: 4,
+        }}
+      >
         Note
       </div>
       {editing ? (
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={(e) => setText(e.target.value)}
           onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Escape') commit() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') commit()
+          }}
           style={{
-            width: '100%', minHeight: 40, resize: 'vertical',
-            background: 'transparent', border: 'none', outline: 'none',
-            color: '#e8d590', fontSize: 12, lineHeight: 1.5,
-            fontFamily: 'inherit', padding: 0,
+            width: '100%',
+            minHeight: 40,
+            resize: 'vertical',
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            color: '#e8d590',
+            fontSize: 12,
+            lineHeight: 1.5,
+            fontFamily: 'inherit',
+            padding: 0,
           }}
         />
       ) : (
@@ -229,36 +297,44 @@ const GroupNode = memo(({ data, selected }: NodeProps) => {
   const d = data as GhostedNodeData
   const color = d.groupColor || '#666'
   return (
-    <div style={{
-      background: 'rgba(10, 10, 16, 0.75)',
-      border: `1.5px solid ${selected ? '#fff' : '#2a2a35'}`,
-      borderRadius: 8,
-      width: '100%',
-      height: '100%',
-      position: 'relative',
-    }}>
+    <div
+      style={{
+        background: 'rgba(10, 10, 16, 0.75)',
+        border: `1.5px solid ${selected ? '#fff' : '#2a2a35'}`,
+        borderRadius: 8,
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+      }}
+    >
       <NodeResizer
         isVisible={!!selected}
-        minWidth={200} minHeight={120}
+        minWidth={200}
+        minHeight={120}
         lineStyle={{ borderColor: '#2a2a35' }}
         handleStyle={{ background: '#444', border: '1px solid #666', width: 8, height: 8, borderRadius: 2 }}
       />
       {/* Header bar — matches other node badge style */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '6px 12px',
-        borderBottom: `1px solid ${color}22`,
-      }}>
-        <span style={{
-          width: 7, height: 7, borderRadius: 2,
-          background: color, flexShrink: 0,
-        }} />
-        <span style={{ fontSize: 10, color, textTransform: 'uppercase', letterSpacing: 1 }}>
-          group
-        </span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e2f0', marginLeft: 4 }}>
-          {d.label}
-        </span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 12px',
+          borderBottom: `1px solid ${color}22`,
+        }}
+      >
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 2,
+            background: color,
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ fontSize: 10, color, textTransform: 'uppercase', letterSpacing: 1 }}>group</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e2f0', marginLeft: 4 }}>{d.label}</span>
       </div>
     </div>
   )
@@ -273,29 +349,37 @@ const RunNode = memo(({ id, data, selected }: NodeProps) => {
   const color = TYPE_COLOR.run
 
   return (
-    <div style={{
-      background: `${color}12`,
-      border: `1.5px solid ${selected ? '#fff' : isRunning ? '#fbbf24' : color}`,
-      borderRadius: 8,
-      padding: '8px 14px',
-      minWidth: 150,
-      color: '#e2e2f0',
-      fontSize: 12,
-      position: 'relative',
-      transition: 'border-color 0.2s, box-shadow 0.2s',
-      boxShadow: isRunning ? `0 0 12px #fbbf2488` : undefined,
-    }}>
-      <Handle type="target" position={Position.Top}
-        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }} />
+    <div
+      style={{
+        background: `${color}12`,
+        border: `1.5px solid ${selected ? '#fff' : isRunning ? '#fbbf24' : color}`,
+        borderRadius: 8,
+        padding: '8px 14px',
+        minWidth: 150,
+        color: '#e2e2f0',
+        fontSize: 12,
+        position: 'relative',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        boxShadow: isRunning ? `0 0 12px #fbbf2488` : undefined,
+      }}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: '#555', border: '1.5px solid #888', width: 8, height: 8 }}
+      />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-        <span style={{
-          width: 7, height: 7, borderRadius: 2,
-          background: color, flexShrink: 0,
-        }} />
-        <span style={{ fontSize: 10, color, textTransform: 'uppercase', letterSpacing: 1 }}>
-          run
-        </span>
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 2,
+            background: color,
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ fontSize: 10, color, textTransform: 'uppercase', letterSpacing: 1 }}>run</span>
         {status !== 'idle' && (
           <span style={{ marginLeft: 'auto', fontSize: 10, color: STATUS_COLOR[status] }}>
             {isRunning ? '⟳' : status === 'done' ? '✓' : '✗'}
@@ -303,16 +387,21 @@ const RunNode = memo(({ id, data, selected }: NodeProps) => {
         )}
       </div>
 
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-        {d.label}
-      </div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{d.label}</div>
 
       <button
-        onClick={(e) => { e.stopPropagation(); d.onRun?.(id) }}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          d.onRun?.(id)
+        }}
         disabled={isRunning}
         style={{
           width: '100%',
-          padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+          padding: '4px 12px',
+          borderRadius: 4,
+          fontSize: 11,
+          fontWeight: 600,
           background: isRunning ? '#fbbf2422' : `${color}22`,
           color: isRunning ? '#fbbf24' : color,
           border: `1px solid ${isRunning ? '#fbbf24' : color}44`,
@@ -324,8 +413,17 @@ const RunNode = memo(({ id, data, selected }: NodeProps) => {
       </button>
 
       {d.result && status === 'done' && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#4ade8088', overflow: 'hidden',
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 10,
+            color: '#4ade8088',
+            overflow: 'hidden',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
           {d.result}
         </div>
       )}
@@ -340,7 +438,11 @@ const nodeTypes = { ghosted: GhostedNode, note: NoteNode, group: GroupNode, run:
 async function resolveNode(
   node: Node,
   previousOutput: string,
-  query: (q: GhostedQuery) => Promise<{ files: { name: string; frontmatter: Record<string,unknown>; body: string }[]; total: number; took: number }>,
+  query: (q: GhostedQuery) => Promise<{
+    files: { name: string; frontmatter: Record<string, unknown>; body: string }[]
+    total: number
+    took: number
+  }>,
   readFile: (p: string) => Promise<string>,
 ): Promise<string> {
   const d = node.data as GhostedNodeData
@@ -394,16 +496,19 @@ async function resolveNode(
 
 // Topological sort of nodes following edges (only among given node set)
 function topoSort(nodes: Node[], edges: Edge[]): Node[] {
-  const nodeIds = new Set(nodes.map(n => n.id))
-  const relevant = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
+  const nodeIds = new Set(nodes.map((n) => n.id))
+  const relevant = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
   const adj = new Map<string, string[]>()
   const inDeg = new Map<string, number>()
-  for (const n of nodes) { adj.set(n.id, []); inDeg.set(n.id, 0) }
+  for (const n of nodes) {
+    adj.set(n.id, [])
+    inDeg.set(n.id, 0)
+  }
   for (const e of relevant) {
     adj.get(e.source)?.push(e.target)
     inDeg.set(e.target, (inDeg.get(e.target) ?? 0) + 1)
   }
-  const queue = nodes.filter(n => (inDeg.get(n.id) ?? 0) === 0)
+  const queue = nodes.filter((n) => (inDeg.get(n.id) ?? 0) === 0)
   const result: Node[] = []
   while (queue.length > 0) {
     const n = queue.shift()!
@@ -411,7 +516,7 @@ function topoSort(nodes: Node[], edges: Edge[]): Node[] {
     for (const next of adj.get(n.id) ?? []) {
       const deg = (inDeg.get(next) ?? 1) - 1
       inDeg.set(next, deg)
-      if (deg === 0) queue.push(nodes.find(x => x.id === next)!)
+      if (deg === 0) queue.push(nodes.find((x) => x.id === next)!)
     }
   }
   return result.filter(Boolean)
@@ -431,42 +536,77 @@ function collectUpstream(nodeId: string, allNodes: Node[], allEdges: Edge[]): No
       }
     }
   }
-  return allNodes.filter(n => visited.has(n.id))
+  return allNodes.filter((n) => visited.has(n.id))
 }
 
 // ─── Default workflow (New Feature) ──────────────────────────────────────────
 
-const mkNode = (id: string, label: string, nodeType: GhostedNodeData['nodeType'],
-  extra: Partial<GhostedNodeData>, pos: {x:number;y:number}): Node => ({
+const mkNode = (
+  id: string,
+  label: string,
+  nodeType: GhostedNodeData['nodeType'],
+  extra: Partial<GhostedNodeData>,
+  pos: { x: number; y: number },
+): Node => ({
   id,
-  type: nodeType === 'note' ? 'note' : nodeType === 'group' ? 'group' : nodeType === 'run' ? 'run' : 'ghosted',
+  type:
+    nodeType === 'note' ? 'note' : nodeType === 'group' ? 'group' : nodeType === 'run' ? 'run' : 'ghosted',
   position: pos,
   data: { label, nodeType, status: 'idle' as NodeStatus, ...extra },
-  ...(nodeType === 'group' ? {
-    style: { width: 340, height: 400, padding: 0, borderRadius: 8, overflow: 'hidden' },
-    zIndex: -1,
-  } : {}),
+  ...(nodeType === 'group'
+    ? {
+        style: { width: 340, height: 400, padding: 0, borderRadius: 8, overflow: 'hidden' },
+        zIndex: -1,
+      }
+    : {}),
 })
 
 const INITIAL_NODES: Node[] = [
-  mkNode('ctx',  'Workspace Context', 'context',  { query: { ext: '.md', where: [{ field: 'status', op: 'exists' }], orderBy: 'mtime', orderDir: 'desc', limit: 10 } }, { x: 60, y: 0 }),
-  mkNode('brief','Brief',             'skill',    { skillPath: '.claude/skills/brief/SKILL.md'  }, { x: 60, y: 140 }),
-  mkNode('arch', 'Arch',              'skill',    { skillPath: '.claude/skills/arch/SKILL.md'   }, { x: 60, y: 280 }),
-  mkNode('impl', 'Implement',         'prompt',   { prompt: 'Implement the feature. TypeScript, follow CLAUDE.md conventions. No any without comment.' }, { x: 60, y: 420 }),
-  mkNode('rev',  'Review',            'skill',    { skillPath: '.claude/skills/review/SKILL.md' }, { x: 60, y: 560 }),
-  mkNode('ship', 'Ship',              'skill',    { skillPath: '.claude/skills/ship/SKILL.md'   }, { x: 60, y: 700 }),
-  mkNode('run1', 'Run Workflow',      'run',      {},                                              { x: 60, y: 840 }),
+  mkNode(
+    'ctx',
+    'Workspace Context',
+    'context',
+    {
+      query: {
+        ext: '.md',
+        where: [{ field: 'status', op: 'exists' }],
+        orderBy: 'mtime',
+        orderDir: 'desc',
+        limit: 10,
+      },
+    },
+    { x: 60, y: 0 },
+  ),
+  mkNode('brief', 'Brief', 'skill', { skillPath: '.claude/skills/brief/SKILL.md' }, { x: 60, y: 140 }),
+  mkNode('arch', 'Arch', 'skill', { skillPath: '.claude/skills/arch/SKILL.md' }, { x: 60, y: 280 }),
+  mkNode(
+    'impl',
+    'Implement',
+    'prompt',
+    { prompt: 'Implement the feature. TypeScript, follow CLAUDE.md conventions. No any without comment.' },
+    { x: 60, y: 420 },
+  ),
+  mkNode('rev', 'Review', 'skill', { skillPath: '.claude/skills/review/SKILL.md' }, { x: 60, y: 560 }),
+  mkNode('ship', 'Ship', 'skill', { skillPath: '.claude/skills/ship/SKILL.md' }, { x: 60, y: 700 }),
+  mkNode('run1', 'Run Workflow', 'run', {}, { x: 60, y: 840 }),
 ]
 
 const mkEdge = (s: string, t: string): Edge => ({
-  id: `e-${s}-${t}`, source: s, target: t, animated: true,
+  id: `e-${s}-${t}`,
+  source: s,
+  target: t,
+  animated: true,
   style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
   markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
 })
 
 const INITIAL_EDGES: Edge[] = [
-  mkEdge('ctx','brief'), mkEdge('brief','arch'), mkEdge('arch','impl'),
-  mkEdge('impl','rev'), mkEdge('rev','ship'), mkEdge('ship','run1'),
+  mkEdge('ctx', 'brief'),
+  mkEdge('brief', 'arch'),
+  mkEdge('arch', 'impl'),
+  mkEdge('impl', 'rev'),
+  mkEdge('rev', 'ship'),
+  mkEdge('ship', 'run1'),
 ]
 
 let idCounter = 20
@@ -480,10 +620,10 @@ interface SavedCanvasState {
 }
 
 function serializeCanvas(nodes: Node[], edges: Edge[]): string {
-  const cleanNodes = nodes.map(n => ({
+  const cleanNodes = nodes.map((n) => ({
     ...n,
     data: Object.fromEntries(
-      Object.entries(n.data).filter(([k]) => k !== 'onRun' && k !== 'status' && k !== 'result')
+      Object.entries(n.data).filter(([k]) => k !== 'onRun' && k !== 'status' && k !== 'result'),
     ),
   }))
   const state: SavedCanvasState = { nodes: cleanNodes, edges, idCounter }
@@ -495,7 +635,7 @@ function deserializeCanvas(raw: string): { nodes: Node[]; edges: Edge[] } | null
     const state: SavedCanvasState = JSON.parse(raw)
     if (!state.nodes?.length) return null
     idCounter = state.idCounter ?? 20
-    const nodes = state.nodes.map(n => ({
+    const nodes = state.nodes.map((n) => ({
       ...n,
       data: { ...n.data, status: 'idle' as NodeStatus },
     }))
@@ -508,24 +648,23 @@ function deserializeCanvas(raw: string): { nodes: Node[]; edges: Edge[] } | null
 // ─── Node palette ─────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  { nodeType: 'prompt'   as const, label: 'Prompt',   color: '#8b7cf8', desc: 'Text prompt for Claude' },
-  { nodeType: 'skill'    as const, label: 'Skill',    color: '#c084fc', desc: 'Load a SKILL.md file'   },
-  { nodeType: 'context'  as const, label: 'Context',  color: '#67e8f9', desc: 'Query workspace files'  },
-  { nodeType: 'terminal' as const, label: 'Terminal', color: '#4ade80', desc: 'Run a shell command'    },
-  { nodeType: 'output'   as const, label: 'Output',   color: '#fbbf24', desc: 'Capture final result'   },
-  { nodeType: 'run'      as const, label: 'Run',      color: '#f97316', desc: 'Execute upstream workflow' },
-  { nodeType: 'note'     as const, label: 'Note',     color: '#e8d590', desc: 'Sticky note'            },
-  { nodeType: 'group'    as const, label: 'Group',    color: '#444',    desc: 'Group nodes together'   },
+  { nodeType: 'prompt' as const, label: 'Prompt', color: '#8b7cf8', desc: 'Text prompt for Claude' },
+  { nodeType: 'skill' as const, label: 'Skill', color: '#c084fc', desc: 'Load a SKILL.md file' },
+  { nodeType: 'context' as const, label: 'Context', color: '#67e8f9', desc: 'Query workspace files' },
+  { nodeType: 'terminal' as const, label: 'Terminal', color: '#4ade80', desc: 'Run a shell command' },
+  { nodeType: 'output' as const, label: 'Output', color: '#fbbf24', desc: 'Capture final result' },
+  { nodeType: 'run' as const, label: 'Run', color: '#f97316', desc: 'Execute upstream workflow' },
+  { nodeType: 'note' as const, label: 'Note', color: '#e8d590', desc: 'Sticky note' },
+  { nodeType: 'group' as const, label: 'Group', color: '#444', desc: 'Group nodes together' },
 ]
 
 // ─── Edge-line intersection (for wire cutting) ───────────────────────────────
 
-function segmentsIntersect(
-  p1: XYPosition, p2: XYPosition,
-  p3: XYPosition, p4: XYPosition,
-): boolean {
-  const d1x = p2.x - p1.x, d1y = p2.y - p1.y
-  const d2x = p4.x - p3.x, d2y = p4.y - p3.y
+function segmentsIntersect(p1: XYPosition, p2: XYPosition, p3: XYPosition, p4: XYPosition): boolean {
+  const d1x = p2.x - p1.x,
+    d1y = p2.y - p1.y
+  const d2x = p4.x - p3.x,
+    d2y = p4.y - p3.y
   const cross = d1x * d2y - d1y * d2x
   if (Math.abs(cross) < 1e-10) return false
   const t = ((p3.x - p1.x) * d2y - (p3.y - p1.y) * d2x) / cross
@@ -539,7 +678,7 @@ function CutLineOverlay({ points }: { points: XYPosition[] }) {
   if (points.length < 2) return null
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
   return (
-    <svg style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
+    <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
       <path d={d} fill="none" stroke="#f87171" strokeWidth={2} strokeDasharray="6 4" opacity={0.8} />
     </svg>
   )
@@ -571,12 +710,19 @@ function CanvasInner({ filePath }: { filePath?: string }) {
   // Refs for run callback to access latest state without re-creating node data
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
-  useEffect(() => { nodesRef.current = nodes }, [nodes])
-  useEffect(() => { edgesRef.current = edges }, [edges])
+  useEffect(() => {
+    nodesRef.current = nodes
+  }, [nodes])
+  useEffect(() => {
+    edgesRef.current = edges
+  }, [edges])
 
   // Load canvas from file on mount or when filePath changes
   useEffect(() => {
-    if (!filePath) { setLoaded(true); return }
+    if (!filePath) {
+      setLoaded(true)
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {
@@ -592,8 +738,10 @@ function CanvasInner({ filePath }: { filePath?: string }) {
       }
       if (!cancelled) setLoaded(true)
     })()
-    return () => { cancelled = true }
-  }, [filePath])
+    return () => {
+      cancelled = true
+    }
+  }, [filePath, setEdges, setNodes])
 
   // ── Undo stack + dirty tracking ──────────────────────────────────────────
   const undo = useUndoStack<{ nodes: Node[]; edges: Edge[] }>(50)
@@ -606,7 +754,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     undo.reset({ nodes, edges })
     undo.markSaved()
     setDirty(false)
-  }, [loaded])
+  }, [loaded, undo.markSaved, edges, nodes, undo.reset])
 
   // Push snapshot on every meaningful change (debounced to batch rapid updates)
   const snapshotTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -618,7 +766,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
       setDirty(undo.isDirty())
     }, 300)
     return () => clearTimeout(snapshotTimer.current)
-  }, [nodes, edges, loaded])
+  }, [nodes, edges, loaded, undo.push, undo.isDirty])
 
   // Save to disk (manual Cmd+S only — no auto-save)
   const saveCanvas = useCallback(() => {
@@ -627,7 +775,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     window.electron.fs.writefile(fp, serializeCanvas(nodes, edges)).catch(() => {})
     undo.markSaved()
     setDirty(false)
-  }, [nodes, edges])
+  }, [nodes, edges, undo.markSaved])
 
   // Keyboard: Cmd+Z undo, Cmd+Shift+Z redo, Cmd+S save
   useEffect(() => {
@@ -644,7 +792,9 @@ function CanvasInner({ filePath }: { filePath?: string }) {
           setNodes(state.nodes)
           setEdges(state.edges)
           setDirty(undo.isDirty())
-          requestAnimationFrame(() => { skipSnapshot.current = false })
+          requestAnimationFrame(() => {
+            skipSnapshot.current = false
+          })
         }
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
         e.preventDefault()
@@ -654,7 +804,9 @@ function CanvasInner({ filePath }: { filePath?: string }) {
           setNodes(state.nodes)
           setEdges(state.edges)
           setDirty(undo.isDirty())
-          requestAnimationFrame(() => { skipSnapshot.current = false })
+          requestAnimationFrame(() => {
+            skipSnapshot.current = false
+          })
         }
       } else if (e.key === 's') {
         e.preventDefault()
@@ -663,26 +815,42 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [saveCanvas])
+  }, [saveCanvas, setEdges, undo.undo, undo.redo, undo.isDirty, setNodes])
 
   // Expose dirty state to the store for tab indicator
   const { markFileDirty } = useStore()
   useEffect(() => {
     if (filePath) markFileDirty(filePath, dirty)
-  }, [dirty, filePath])
+  }, [dirty, filePath, markFileDirty])
 
-  const onConnect = useCallback((c: Connection) =>
-    setEdges(eds => addEdge({
-      ...c, animated: true,
-      style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
-    }, eds)), [setEdges])
+  const onConnect = useCallback(
+    (c: Connection) =>
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...c,
+            animated: true,
+            style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
+          },
+          eds,
+        ),
+      ),
+    [setEdges],
+  )
 
-  const setNodeStatus = useCallback((id: string, status: NodeStatus, result?: string) => {
-    setNodes(ns => ns.map(n => n.id === id
-      ? { ...n, data: { ...n.data, status, ...(result !== undefined ? { result } : {}) } }
-      : n))
-  }, [setNodes])
+  const setNodeStatus = useCallback(
+    (id: string, status: NodeStatus, result?: string) => {
+      setNodes((ns) =>
+        ns.map((n) =>
+          n.id === id
+            ? { ...n, data: { ...n.data, status, ...(result !== undefined ? { result } : {}) } }
+            : n,
+        ),
+      )
+    },
+    [setNodes],
+  )
 
   // ── Delete selected nodes/edges ──────────────────────────────────────────
   useEffect(() => {
@@ -691,42 +859,18 @@ function CanvasInner({ filePath }: { filePath?: string }) {
         const tag = (e.target as HTMLElement).tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
-        const selectedNodeIds = new Set(nodes.filter(n => n.selected).map(n => n.id))
+        const selectedNodeIds = new Set(nodes.filter((n) => n.selected).map((n) => n.id))
         if (selectedNodeIds.size > 0) {
-          setNodes(ns => ns.filter(n => !selectedNodeIds.has(n.id)))
-          setEdges(es => es.filter(e => !selectedNodeIds.has(e.source) && !selectedNodeIds.has(e.target)))
+          setNodes((ns) => ns.filter((n) => !selectedNodeIds.has(n.id)))
+          setEdges((es) => es.filter((e) => !selectedNodeIds.has(e.source) && !selectedNodeIds.has(e.target)))
           return
         }
-        setEdges(es => es.filter(e => !e.selected))
+        setEdges((es) => es.filter((e) => !e.selected))
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [nodes, setNodes, setEdges])
-
-  // ── Wire cutting: key listeners ──────────────────────────────────────────
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'c' || e.key === 'C' || e.key === 'y' || e.key === 'Y') {
-        const tag = (e.target as HTMLElement).tagName
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return
-        cutKeyHeld.current = true
-        setCutKeyActive(true)
-      }
-    }
-    const up = (e: KeyboardEvent) => {
-      if (e.key === 'c' || e.key === 'C' || e.key === 'y' || e.key === 'Y') {
-        cutKeyHeld.current = false
-        setCutKeyActive(false)
-        if (cutting) {
-          finishCut()
-        }
-      }
-    }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
-  }, [cutting, cutPoints, edges, nodes])
 
   // ── Wire cutting: mouse handlers (capture phase to beat ReactFlow) ────
   useEffect(() => {
@@ -749,7 +893,7 @@ function CanvasInner({ filePath }: { filePath?: string }) {
       if (!cuttingRef.current) return
       const bounds = el.getBoundingClientRect()
       const pt = { x: e.clientX - bounds.left, y: e.clientY - bounds.top }
-      setCutPoints(prev => [...prev, pt])
+      setCutPoints((prev) => [...prev, pt])
     }
 
     const handleUp = () => {
@@ -776,18 +920,22 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     }
 
     const wrapper = wrapperRef.current
-    if (!wrapper) { setCutting(false); setCutPoints([]); return }
+    if (!wrapper) {
+      setCutting(false)
+      setCutPoints([])
+      return
+    }
     const bounds = wrapper.getBoundingClientRect()
 
-    const flowCutPoints = cutPoints.map(p =>
-      flow.screenToFlowPosition({ x: p.x + bounds.left, y: p.y + bounds.top })
+    const flowCutPoints = cutPoints.map((p) =>
+      flow.screenToFlowPosition({ x: p.x + bounds.left, y: p.y + bounds.top }),
     )
 
     const edgesToRemove = new Set<string>()
 
     for (const edge of edges) {
-      const sourceNode = nodes.find(n => n.id === edge.source)
-      const targetNode = nodes.find(n => n.id === edge.target)
+      const sourceNode = nodes.find((n) => n.id === edge.source)
+      const targetNode = nodes.find((n) => n.id === edge.target)
       if (!sourceNode || !targetNode) continue
 
       const sw = (sourceNode.measured?.width ?? 150) / 2
@@ -813,103 +961,150 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     }
 
     if (edgesToRemove.size > 0) {
-      setEdges(es => es.filter(e => !edgesToRemove.has(e.id)))
+      setEdges((es) => es.filter((e) => !edgesToRemove.has(e.id)))
     }
 
     setCutting(false)
     setCutPoints([])
   }, [cutPoints, edges, nodes, flow, setEdges])
 
-  const onWrapperMouseUp = useCallback(() => {
+  const _onWrapperMouseUp = useCallback(() => {
     if (cutting) {
       finishCut()
     }
   }, [cutting, finishCut])
 
-  // ── Run a workflow from a specific run node ─────────────────────────────
-  const runFromNode = useCallback(async (runNodeId: string) => {
-    if (runningSet.has(runNodeId) || !workspacePath) return
-    setRunningSet(prev => new Set(prev).add(runNodeId))
-    setRunLog([])
-
-    const currentNodes = nodesRef.current
-    const currentEdges = edgesRef.current
-
-    // Collect all upstream nodes from this run node
-    const upstream = collectUpstream(runNodeId, currentNodes, currentEdges)
-    const sorted = topoSort(upstream, currentEdges)
-
-    // Reset statuses for this subgraph
-    const upstreamIds = new Set(upstream.map(n => n.id))
-    setNodes(ns => ns.map(n => upstreamIds.has(n.id)
-      ? { ...n, data: { ...n.data, status: 'idle', result: undefined } }
-      : n))
-
-    const log = (msg: string) => setRunLog(l => [...l, msg])
-    let context = ''
-
-    for (const node of sorted) {
-      const d = node.data as GhostedNodeData
-      if (d.nodeType === 'note' || d.nodeType === 'group' || d.nodeType === 'run') continue
-      setNodeStatus(node.id, 'running')
-      log(`▶ ${d.label}`)
-
-      try {
-        if (d.nodeType === 'terminal' && d.command) {
-          const id = `canvas-${Date.now()}`
-          await window.electron.pty.create(id, workspacePath)
-          let output = ''
-          await new Promise<void>((resolve) => {
-            window.electron.pty.onData(id, (data) => { output += data })
-            window.electron.pty.onExit(id, () => resolve())
-            window.electron.pty.write(id, `${d.command}\n`)
-            setTimeout(() => resolve(), 10000)
-          })
-          await window.electron.pty.kill(id)
-          window.electron.pty.removeListeners(id)
-          context = [context, `## Terminal output\n\`\`\`\n${output.trim()}\n\`\`\``].filter(Boolean).join('\n\n')
-          setNodeStatus(node.id, 'done', output.trim().slice(0, 200))
-        } else {
-          const resolved = await resolveNode(node, context, query, window.electron.fs.readfile)
-          context = resolved
-          setNodeStatus(node.id, 'done', resolved.slice(-200))
-        }
-        log(`  ✓ ${d.label} done`)
-      } catch (err) {
-        setNodeStatus(node.id, 'error')
-        log(`  ✗ ${d.label} error: ${err}`)
-        setNodeStatus(runNodeId, 'error')
-        setRunningSet(prev => { const s = new Set(prev); s.delete(runNodeId); return s })
-        return
+  // ── Wire cutting: key listeners ──────────────────────────────────────────
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'c' || e.key === 'C' || e.key === 'y' || e.key === 'Y') {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
+        cutKeyHeld.current = true
+        setCutKeyActive(true)
       }
     }
-
-    // Final output
-    log('\n─── Final prompt ready ───')
-    log(`${context.length} chars | ${context.split('\n').length} lines`)
-
-    const termId = `canvas-pi-${Date.now()}`
-    try {
-      await window.electron.pty.create(termId, workspacePath)
-      const tmpPath = `${workspacePath}/.ghosted-workflow-prompt.md`
-      await window.electron.fs.writefile(tmpPath, context)
-      window.electron.pty.write(termId, `pi --print "$(cat .ghosted-workflow-prompt.md)"\n`)
-      log('▶ Piped to pi — check terminal pane')
-    } catch {
-      await navigator.clipboard.writeText(context).catch(() => {})
-      log('Copied to clipboard (pi not found)')
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'c' || e.key === 'C' || e.key === 'y' || e.key === 'Y') {
+        cutKeyHeld.current = false
+        setCutKeyActive(false)
+        if (cutting) {
+          finishCut()
+        }
+      }
     }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [cutting, finishCut])
 
-    setNodeStatus(runNodeId, 'done', `${context.length} chars`)
-    setRunningSet(prev => { const s = new Set(prev); s.delete(runNodeId); return s })
-  }, [runningSet, workspacePath, query, setNodes, setNodeStatus])
+  // ── Run a workflow from a specific run node ─────────────────────────────
+  const runFromNode = useCallback(
+    async (runNodeId: string) => {
+      if (runningSet.has(runNodeId) || !workspacePath) return
+      setRunningSet((prev) => new Set(prev).add(runNodeId))
+      setRunLog([])
+
+      const currentNodes = nodesRef.current
+      const currentEdges = edgesRef.current
+
+      // Collect all upstream nodes from this run node
+      const upstream = collectUpstream(runNodeId, currentNodes, currentEdges)
+      const sorted = topoSort(upstream, currentEdges)
+
+      // Reset statuses for this subgraph
+      const upstreamIds = new Set(upstream.map((n) => n.id))
+      setNodes((ns) =>
+        ns.map((n) =>
+          upstreamIds.has(n.id) ? { ...n, data: { ...n.data, status: 'idle', result: undefined } } : n,
+        ),
+      )
+
+      const log = (msg: string) => setRunLog((l) => [...l, msg])
+      let context = ''
+
+      for (const node of sorted) {
+        const d = node.data as GhostedNodeData
+        if (d.nodeType === 'note' || d.nodeType === 'group' || d.nodeType === 'run') continue
+        setNodeStatus(node.id, 'running')
+        log(`▶ ${d.label}`)
+
+        try {
+          if (d.nodeType === 'terminal' && d.command) {
+            const id = `canvas-${Date.now()}`
+            await window.electron.pty.create(id, workspacePath)
+            let output = ''
+            await new Promise<void>((resolve) => {
+              window.electron.pty.onData(id, (data) => {
+                output += data
+              })
+              window.electron.pty.onExit(id, () => resolve())
+              window.electron.pty.write(id, `${d.command}\n`)
+              setTimeout(() => resolve(), 10000)
+            })
+            await window.electron.pty.kill(id)
+            window.electron.pty.removeListeners(id)
+            context = [context, `## Terminal output\n\`\`\`\n${output.trim()}\n\`\`\``]
+              .filter(Boolean)
+              .join('\n\n')
+            setNodeStatus(node.id, 'done', output.trim().slice(0, 200))
+          } else {
+            const resolved = await resolveNode(node, context, query, window.electron.fs.readfile)
+            context = resolved
+            setNodeStatus(node.id, 'done', resolved.slice(-200))
+          }
+          log(`  ✓ ${d.label} done`)
+        } catch (err) {
+          setNodeStatus(node.id, 'error')
+          log(`  ✗ ${d.label} error: ${err}`)
+          setNodeStatus(runNodeId, 'error')
+          setRunningSet((prev) => {
+            const s = new Set(prev)
+            s.delete(runNodeId)
+            return s
+          })
+          return
+        }
+      }
+
+      // Final output
+      log('\n─── Final prompt ready ───')
+      log(`${context.length} chars | ${context.split('\n').length} lines`)
+
+      const termId = `canvas-pi-${Date.now()}`
+      try {
+        await window.electron.pty.create(termId, workspacePath)
+        const tmpPath = `${workspacePath}/.ghosted-workflow-prompt.md`
+        await window.electron.fs.writefile(tmpPath, context)
+        window.electron.pty.write(termId, `pi --print "$(cat .ghosted-workflow-prompt.md)"\n`)
+        log('▶ Piped to pi — check terminal pane')
+      } catch {
+        await navigator.clipboard.writeText(context).catch(() => {})
+        log('Copied to clipboard (pi not found)')
+      }
+
+      setNodeStatus(runNodeId, 'done', `${context.length} chars`)
+      setRunningSet((prev) => {
+        const s = new Set(prev)
+        s.delete(runNodeId)
+        return s
+      })
+    },
+    [runningSet, workspacePath, query, setNodes, setNodeStatus],
+  )
 
   // Inject onRun callback into all run nodes
   useEffect(() => {
-    setNodes(ns => {
+    setNodes((ns) => {
       let changed = false
-      const updated = ns.map(n => {
-        if ((n.data as GhostedNodeData).nodeType === 'run' && (n.data as GhostedNodeData).onRun !== runFromNode) {
+      const updated = ns.map((n) => {
+        if (
+          (n.data as GhostedNodeData).nodeType === 'run' &&
+          (n.data as GhostedNodeData).onRun !== runFromNode
+        ) {
           changed = true
           return { ...n, data: { ...n.data, onRun: runFromNode } }
         }
@@ -924,10 +1119,14 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     const el = wrapperRef.current
     if (!el) return
     const handler = (e: MouseEvent) => {
-      e.preventDefault(); e.stopPropagation()
+      e.preventDefault()
+      e.stopPropagation()
       const bounds = el.getBoundingClientRect()
-      setMenu({ x: e.clientX - bounds.left, y: e.clientY - bounds.top,
-        flowPos: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }) })
+      setMenu({
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top,
+        flowPos: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }),
+      })
     }
     el.addEventListener('contextmenu', handler, true)
     return () => el.removeEventListener('contextmenu', handler, true)
@@ -944,237 +1143,280 @@ function CanvasInner({ filePath }: { filePath?: string }) {
     const timer = setTimeout(() => {
       window.addEventListener('mousedown', close, true)
     }, 0)
-    return () => { clearTimeout(timer); window.removeEventListener('mousedown', close, true) }
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('mousedown', close, true)
+    }
   }, [menu])
 
-  const addNode = (p: typeof PALETTE[0], pos: { x: number; y: number }) => {
+  const addNode = (p: (typeof PALETTE)[0], pos: { x: number; y: number }) => {
     const id = String(++idCounter)
     const isGroup = p.nodeType === 'group'
     const isNote = p.nodeType === 'note'
     const isRun = p.nodeType === 'run'
-    setNodes(ns => [...ns, {
-      id,
-      type: isNote ? 'note' : isGroup ? 'group' : isRun ? 'run' : 'ghosted',
-      position: pos,
-      data: {
-        label: p.label, nodeType: p.nodeType, status: 'idle' as NodeStatus,
-        ...(isNote ? { noteText: 'Double-click to edit' } : {}),
-        ...(isGroup ? { groupColor: '#666' } : {}),
-        ...(isRun ? { onRun: runFromNode } : {}),
+    setNodes((ns) => [
+      ...ns,
+      {
+        id,
+        type: isNote ? 'note' : isGroup ? 'group' : isRun ? 'run' : 'ghosted',
+        position: pos,
+        data: {
+          label: p.label,
+          nodeType: p.nodeType,
+          status: 'idle' as NodeStatus,
+          ...(isNote ? { noteText: 'Double-click to edit' } : {}),
+          ...(isGroup ? { groupColor: '#666' } : {}),
+          ...(isRun ? { onRun: runFromNode } : {}),
+        },
+        ...(isGroup
+          ? {
+              style: { width: 340, height: 400, padding: 0, borderRadius: 8, overflow: 'hidden' },
+              zIndex: -1,
+            }
+          : {}),
       },
-      ...(isGroup ? { style: { width: 340, height: 400, padding: 0, borderRadius: 8, overflow: 'hidden' }, zIndex: -1 } : {}),
-    }])
+    ])
     setMenu(null)
   }
 
   // ── Shake detection — track drag movement for direction reversals ─────
   const shakeHistory = useRef<{ id: string; xs: number[]; ts: number[] }>({ id: '', xs: [], ts: [] })
 
-  const onNodeDrag = useCallback((_e: MouseEvent | TouchEvent, draggedNode: Node) => {
-    const now = Date.now()
-    const h = shakeHistory.current
+  const onNodeDrag = useCallback(
+    (_e: MouseEvent | TouchEvent, draggedNode: Node) => {
+      const now = Date.now()
+      const h = shakeHistory.current
 
-    // Reset if different node
-    if (h.id !== draggedNode.id) {
-      h.id = draggedNode.id
-      h.xs = []
-      h.ts = []
-    }
+      // Reset if different node
+      if (h.id !== draggedNode.id) {
+        h.id = draggedNode.id
+        h.xs = []
+        h.ts = []
+      }
 
-    h.xs.push(draggedNode.position.x)
-    h.ts.push(now)
+      h.xs.push(draggedNode.position.x)
+      h.ts.push(now)
 
-    // Keep only last 500ms of history
-    while (h.ts.length > 0 && now - h.ts[0] > 500) {
-      h.ts.shift()
-      h.xs.shift()
-    }
+      // Keep only last 500ms of history
+      while (h.ts.length > 0 && now - h.ts[0] > 500) {
+        h.ts.shift()
+        h.xs.shift()
+      }
 
-    // Count direction reversals in x
-    if (h.xs.length < 5) return
-    let reversals = 0
-    for (let i = 2; i < h.xs.length; i++) {
-      const d1 = h.xs[i - 1] - h.xs[i - 2]
-      const d2 = h.xs[i] - h.xs[i - 1]
-      if ((d1 > 2 && d2 < -2) || (d1 < -2 && d2 > 2)) reversals++
-    }
+      // Count direction reversals in x
+      if (h.xs.length < 5) return
+      let reversals = 0
+      for (let i = 2; i < h.xs.length; i++) {
+        const d1 = h.xs[i - 1] - h.xs[i - 2]
+        const d2 = h.xs[i] - h.xs[i - 1]
+        if ((d1 > 2 && d2 < -2) || (d1 < -2 && d2 > 2)) reversals++
+      }
 
-    // 3+ reversals in 500ms = shake
-    if (reversals >= 3) {
-      h.xs = []
-      h.ts = []
-      // Disconnect node and heal chains: reconnect sources to targets
-      setEdges(es => {
-        const incoming = es.filter(e => e.target === draggedNode.id)
-        const outgoing = es.filter(e => e.source === draggedNode.id)
-        const without = es.filter(e => e.source !== draggedNode.id && e.target !== draggedNode.id)
+      // 3+ reversals in 500ms = shake
+      if (reversals >= 3) {
+        h.xs = []
+        h.ts = []
+        // Disconnect node and heal chains: reconnect sources to targets
+        setEdges((es) => {
+          const incoming = es.filter((e) => e.target === draggedNode.id)
+          const outgoing = es.filter((e) => e.source === draggedNode.id)
+          const without = es.filter((e) => e.source !== draggedNode.id && e.target !== draggedNode.id)
 
-        // For each incoming→outgoing pair, create a bridge edge
-        const bridges: Edge[] = []
-        for (const inc of incoming) {
-          for (const out of outgoing) {
-            // Don't create duplicate edges
-            const exists = without.some(e => e.source === inc.source && e.target === out.target)
-            if (!exists) {
-              bridges.push({
-                id: `e-${inc.source}-${out.target}`,
-                source: inc.source, target: out.target, animated: true,
-                style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
-                markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
-              })
+          // For each incoming→outgoing pair, create a bridge edge
+          const bridges: Edge[] = []
+          for (const inc of incoming) {
+            for (const out of outgoing) {
+              // Don't create duplicate edges
+              const exists = without.some((e) => e.source === inc.source && e.target === out.target)
+              if (!exists) {
+                bridges.push({
+                  id: `e-${inc.source}-${out.target}`,
+                  source: inc.source,
+                  target: out.target,
+                  animated: true,
+                  style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
+                  markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
+                })
+              }
             }
           }
-        }
-        return [...without, ...bridges]
-      })
-    }
-  }, [setEdges])
+          return [...without, ...bridges]
+        })
+      }
+    },
+    [setEdges],
+  )
 
   // ── Drop node onto edge — splice into chain ────────────────────────────
   const getAbsolutePos = useCallback((node: Node, allNodes: Node[]): XYPosition => {
     let x = node.position.x
     let y = node.position.y
     if (node.parentId) {
-      const parent = allNodes.find(n => n.id === node.parentId)
-      if (parent) { x += parent.position.x; y += parent.position.y }
+      const parent = allNodes.find((n) => n.id === node.parentId)
+      if (parent) {
+        x += parent.position.x
+        y += parent.position.y
+      }
     }
     return { x, y }
   }, [])
 
-  const spliceNodeOntoEdge = useCallback((draggedNode: Node) => {
-    const nodeId = draggedNode.id
-    const d = draggedNode.data as GhostedNodeData
-    if (d.nodeType === 'group' || d.nodeType === 'note') return
+  const spliceNodeOntoEdge = useCallback(
+    (draggedNode: Node) => {
+      const nodeId = draggedNode.id
+      const d = draggedNode.data as GhostedNodeData
+      if (d.nodeType === 'group' || d.nodeType === 'note') return
 
-    const allNodes = nodesRef.current
-    const allEdges = edgesRef.current
+      const allNodes = nodesRef.current
+      const allEdges = edgesRef.current
 
-    // Skip if node already has connections
-    const hasEdges = allEdges.some(e => e.source === nodeId || e.target === nodeId)
-    if (hasEdges) return
+      // Skip if node already has connections
+      const hasEdges = allEdges.some((e) => e.source === nodeId || e.target === nodeId)
+      if (hasEdges) return
 
-    // Get absolute center of dragged node
-    const absPos = getAbsolutePos(draggedNode, allNodes)
-    const nw = (draggedNode.measured?.width ?? 150) / 2
-    const nh = (draggedNode.measured?.height ?? 40) / 2
-    const cx = absPos.x + nw
-    const cy = absPos.y + nh
+      // Get absolute center of dragged node
+      const absPos = getAbsolutePos(draggedNode, allNodes)
+      const nw = (draggedNode.measured?.width ?? 150) / 2
+      const nh = (draggedNode.measured?.height ?? 40) / 2
+      const cx = absPos.x + nw
+      const cy = absPos.y + nh
 
-    // Find closest edge within threshold
-    const THRESHOLD = 40
-    let bestEdge: Edge | null = null
-    let bestDist = THRESHOLD
+      // Find closest edge within threshold
+      const THRESHOLD = 40
+      let bestEdge: Edge | null = null
+      let bestDist = THRESHOLD
 
-    for (const edge of allEdges) {
-      const src = allNodes.find(n => n.id === edge.source)
-      const tgt = allNodes.find(n => n.id === edge.target)
-      if (!src || !tgt) continue
+      for (const edge of allEdges) {
+        const src = allNodes.find((n) => n.id === edge.source)
+        const tgt = allNodes.find((n) => n.id === edge.target)
+        if (!src || !tgt) continue
 
-      const srcAbs = getAbsolutePos(src, allNodes)
-      const tgtAbs = getAbsolutePos(tgt, allNodes)
+        const srcAbs = getAbsolutePos(src, allNodes)
+        const tgtAbs = getAbsolutePos(tgt, allNodes)
 
-      // Edge line: source center → target center
-      const sx = srcAbs.x + (src.measured?.width ?? 150) / 2
-      const sy = srcAbs.y + (src.measured?.height ?? 40) / 2
-      const tx = tgtAbs.x + (tgt.measured?.width ?? 150) / 2
-      const ty = tgtAbs.y + (tgt.measured?.height ?? 40) / 2
+        // Edge line: source center → target center
+        const sx = srcAbs.x + (src.measured?.width ?? 150) / 2
+        const sy = srcAbs.y + (src.measured?.height ?? 40) / 2
+        const tx = tgtAbs.x + (tgt.measured?.width ?? 150) / 2
+        const ty = tgtAbs.y + (tgt.measured?.height ?? 40) / 2
 
-      // Point-to-segment distance
-      const dx = tx - sx, dy = ty - sy
-      const len2 = dx * dx + dy * dy
-      if (len2 === 0) continue
-      const t = Math.max(0, Math.min(1, ((cx - sx) * dx + (cy - sy) * dy) / len2))
-      const px = sx + t * dx, py = sy + t * dy
-      const dist = Math.sqrt((cx - px) * (cx - px) + (cy - py) * (cy - py))
+        // Point-to-segment distance
+        const dx = tx - sx,
+          dy = ty - sy
+        const len2 = dx * dx + dy * dy
+        if (len2 === 0) continue
+        const t = Math.max(0, Math.min(1, ((cx - sx) * dx + (cy - sy) * dy) / len2))
+        const px = sx + t * dx,
+          py = sy + t * dy
+        const dist = Math.sqrt((cx - px) * (cx - px) + (cy - py) * (cy - py))
 
-      if (dist < bestDist) {
-        bestDist = dist
-        bestEdge = edge
+        if (dist < bestDist) {
+          bestDist = dist
+          bestEdge = edge
+        }
       }
-    }
 
-    if (!bestEdge) return
+      if (!bestEdge) return
 
-    // Splice: remove old edge, add two new edges
-    const oldSource = bestEdge.source
-    const oldTarget = bestEdge.target
-    setEdges(es => [
-      ...es.filter(e => e.id !== bestEdge!.id),
-      {
-        id: `e-${oldSource}-${nodeId}`, source: oldSource, target: nodeId, animated: true,
-        style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
-      },
-      {
-        id: `e-${nodeId}-${oldTarget}`, source: nodeId, target: oldTarget, animated: true,
-        style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
-      },
-    ])
-  }, [setEdges, getAbsolutePos])
+      // Splice: remove old edge, add two new edges
+      const oldSource = bestEdge.source
+      const oldTarget = bestEdge.target
+      setEdges((es) => [
+        ...es.filter((e) => e.id !== bestEdge?.id),
+        {
+          id: `e-${oldSource}-${nodeId}`,
+          source: oldSource,
+          target: nodeId,
+          animated: true,
+          style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
+        },
+        {
+          id: `e-${nodeId}-${oldTarget}`,
+          source: nodeId,
+          target: oldTarget,
+          animated: true,
+          style: { stroke: '#8b7cf8', strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#8b7cf8' },
+        },
+      ])
+    },
+    [setEdges, getAbsolutePos],
+  )
 
   // ── Group reparenting on drag stop ──────────────────────────────────────
-  const onNodeDragStop = useCallback((_e: MouseEvent | TouchEvent, draggedNode: Node) => {
-    const d = draggedNode.data as GhostedNodeData
-    if (d.nodeType === 'group') return
+  const onNodeDragStop = useCallback(
+    (_e: MouseEvent | TouchEvent, draggedNode: Node) => {
+      const d = draggedNode.data as GhostedNodeData
+      if (d.nodeType === 'group') return
 
-    // draggedNode.position from the callback is:
-    //   - absolute if node has no parent
-    //   - relative to parent if node has a parent
-    const hadParent = !!draggedNode.parentId
+      // draggedNode.position from the callback is:
+      //   - absolute if node has no parent
+      //   - relative to parent if node has a parent
+      const hadParent = !!draggedNode.parentId
 
-    // We need to read groups from the latest nodes ref (not stale closure)
-    const allNodes = nodesRef.current
-    const groups = allNodes.filter(n => (n.data as GhostedNodeData).nodeType === 'group' && n.id !== draggedNode.id)
+      // We need to read groups from the latest nodes ref (not stale closure)
+      const allNodes = nodesRef.current
+      const groups = allNodes.filter(
+        (n) => (n.data as GhostedNodeData).nodeType === 'group' && n.id !== draggedNode.id,
+      )
 
-    // Compute absolute position of dragged node
-    let absX = draggedNode.position.x
-    let absY = draggedNode.position.y
-    if (hadParent) {
-      const oldParent = allNodes.find(n => n.id === draggedNode.parentId)
-      if (oldParent) {
-        absX += oldParent.position.x
-        absY += oldParent.position.y
-      }
-    }
-
-    // Find which group (if any) the node landed in
-    let newParent: Node | null = null
-    for (const g of groups) {
-      const gw = (g.style?.width as number) ?? (g.measured?.width ?? 340)
-      const gh = (g.style?.height as number) ?? (g.measured?.height ?? 400)
-      if (absX >= g.position.x && absX <= g.position.x + gw &&
-          absY >= g.position.y && absY <= g.position.y + gh) {
-        newParent = g
-        break
-      }
-    }
-
-    const newParentId = newParent?.id ?? null
-    const oldParentId = draggedNode.parentId ?? null
-
-    // No change needed
-    if (oldParentId === newParentId) return
-
-    setNodes(ns => ns.map(n => {
-      if (n.id !== draggedNode.id) return n
-      if (newParentId && newParent) {
-        // Moving into a group — set relative position
-        return {
-          ...n,
-          parentId: newParentId,
-          position: { x: absX - newParent.position.x, y: absY - newParent.position.y },
+      // Compute absolute position of dragged node
+      let absX = draggedNode.position.x
+      let absY = draggedNode.position.y
+      if (hadParent) {
+        const oldParent = allNodes.find((n) => n.id === draggedNode.parentId)
+        if (oldParent) {
+          absX += oldParent.position.x
+          absY += oldParent.position.y
         }
-      } else {
-        // Moving out of a group — set absolute position
-        const { parentId, extent, ...rest } = n as any
-        return { ...rest, position: { x: absX, y: absY } }
       }
-    }))
 
-    // Also check if node was dropped onto an edge to splice in
-    spliceNodeOntoEdge(draggedNode)
-  }, [setNodes, spliceNodeOntoEdge])
+      // Find which group (if any) the node landed in
+      let newParent: Node | null = null
+      for (const g of groups) {
+        const gw = (g.style?.width as number) ?? g.measured?.width ?? 340
+        const gh = (g.style?.height as number) ?? g.measured?.height ?? 400
+        if (
+          absX >= g.position.x &&
+          absX <= g.position.x + gw &&
+          absY >= g.position.y &&
+          absY <= g.position.y + gh
+        ) {
+          newParent = g
+          break
+        }
+      }
+
+      const newParentId = newParent?.id ?? null
+      const oldParentId = draggedNode.parentId ?? null
+
+      // No change needed
+      if (oldParentId === newParentId) return
+
+      setNodes((ns) =>
+        ns.map((n) => {
+          if (n.id !== draggedNode.id) return n
+          if (newParentId && newParent) {
+            // Moving into a group — set relative position
+            return {
+              ...n,
+              parentId: newParentId,
+              position: { x: absX - newParent.position.x, y: absY - newParent.position.y },
+            }
+          } else {
+            // Moving out of a group — set absolute position
+            const { parentId, extent, ...rest } = n as any
+            return { ...rest, position: { x: absX, y: absY } }
+          }
+        }),
+      )
+
+      // Also check if node was dropped onto an edge to splice in
+      spliceNodeOntoEdge(draggedNode)
+    },
+    [setNodes, spliceNodeOntoEdge],
+  )
 
   const onPaneClick = useCallback(() => {
     setMenu(null)
@@ -1183,17 +1425,26 @@ function CanvasInner({ filePath }: { filePath?: string }) {
   return (
     <div
       ref={wrapperRef}
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative',
-        cursor: cutKeyActive ? 'crosshair' : undefined }}
-      onMouseUp={() => { if (cutting) finishCut() }}
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        cursor: cutKeyActive ? 'crosshair' : undefined,
+      }}
+      onMouseUp={() => {
+        if (cutting) finishCut()
+      }}
     >
-
       {/* Canvas */}
       <div style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
-          nodes={nodes} edges={edges}
-          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-          onConnect={onConnect} fitView
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          fitView
           nodeTypes={nodeTypes}
           onPaneClick={onPaneClick}
           onNodeDrag={onNodeDrag}
@@ -1215,22 +1466,50 @@ function CanvasInner({ filePath }: { filePath?: string }) {
 
         {/* Context menu */}
         {menu && (
-          <div data-canvas-menu onMouseDown={e => e.stopPropagation()} style={{
-            position: 'absolute', left: menu.x, top: menu.y, zIndex: 100,
-            background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
-            padding: 4, minWidth: 160,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <div
+            data-canvas-menu
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              left: menu.x,
+              top: menu.y,
+              zIndex: 100,
+              background: 'var(--bg-elevated)',
+              borderRadius: 'var(--radius-md)',
+              padding: 4,
+              minWidth: 160,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div
+              style={{
+                padding: '4px 8px',
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+              }}
+            >
               Add Node
             </div>
-            {PALETTE.map(p => (
-              <button key={p.nodeType} onClick={() => addNode(p, menu.flowPos)} style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
-                padding: '5px 8px', fontSize: 12, borderRadius: 3, background: 'transparent',
-              }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            {PALETTE.map((p) => (
+              <button
+                type="button"
+                key={p.nodeType}
+                onClick={() => addNode(p, menu.flowPos)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '5px 8px',
+                  fontSize: 12,
+                  borderRadius: 3,
+                  background: 'transparent',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <span style={{ width: 7, height: 7, borderRadius: 2, background: p.color, flexShrink: 0 }} />
                 <span style={{ color: p.color, fontWeight: 600 }}>{p.label}</span>
@@ -1243,26 +1522,46 @@ function CanvasInner({ filePath }: { filePath?: string }) {
 
       {/* Run log */}
       {runLog.length > 0 && (
-        <div style={{
-          height: 120, overflow: 'auto', padding: '6px 10px',
-          borderTop: '1px solid var(--border)', background: '#0a0a12',
-          fontFamily: 'monospace', fontSize: 11, color: '#8b8baa', flexShrink: 0,
-        }}>
-          {runLog.map((l, i) => <div key={i}>{l}</div>)}
+        <div
+          style={{
+            height: 120,
+            overflow: 'auto',
+            padding: '6px 10px',
+            borderTop: '1px solid var(--border)',
+            background: '#0a0a12',
+            fontFamily: 'monospace',
+            fontSize: 11,
+            color: '#8b8baa',
+            flexShrink: 0,
+          }}
+        >
+          {runLog.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: append-only run log
+            <div key={i}>{l}</div>
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-export default function CanvasPane({ leafId, filePath }: { leafId?: string; filePath?: string }) {
+export default function CanvasPane({ filePath }: { leafId?: string; filePath?: string }) {
   if (!filePath) {
     return (
-      <div style={{
-        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column', gap: 12, color: 'var(--text-muted)', fontSize: 13,
-        fontFamily: 'var(--font-mono)', background: 'var(--bg-surface)',
-      }}>
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 12,
+          color: 'var(--text-muted)',
+          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          background: 'var(--bg-surface)',
+        }}
+      >
         <span>no .canvas file open</span>
         <span style={{ fontSize: 11, color: 'var(--text-ghost)' }}>
           create a .canvas file in your workspace or right-click in the file tree

@@ -1,6 +1,5 @@
-import React from 'react'
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
-import { LayoutNode, SplitNode } from '@/store/layout'
+import type { LayoutNode, SplitNode } from '@/store/layout'
 import LeafView from './LeafView'
 
 function SplitView({ node }: { node: SplitNode }) {
@@ -11,7 +10,12 @@ function SplitView({ node }: { node: SplitNode }) {
   })
 
   return (
-    <Group orientation={orientation} defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged} style={{ height: '100%' }}>
+    <Group
+      orientation={orientation}
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+      style={{ height: '100%' }}
+    >
       <Panel id={`${node.id}-a`} defaultSize={node.sizes[0]} minSize={10}>
         <LayoutRenderer node={node.children[0]} />
       </Panel>

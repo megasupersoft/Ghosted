@@ -1,5 +1,3 @@
-export {}
-
 // GhostedDB types (mirror of electron/ghostdb.ts)
 export interface GhostedFile {
   path: string
@@ -15,36 +13,36 @@ export interface GhostedFile {
 }
 
 export type QueryOp =
-  | { field: string; op: 'eq';       value: unknown }
-  | { field: string; op: 'neq';      value: unknown }
-  | { field: string; op: 'exists'                   }
-  | { field: string; op: 'contains'; value: string  }
-  | { field: string; op: 'gt';       value: number  }
-  | { field: string; op: 'lt';       value: number  }
+  | { field: string; op: 'eq'; value: unknown }
+  | { field: string; op: 'neq'; value: unknown }
+  | { field: string; op: 'exists' }
+  | { field: string; op: 'contains'; value: string }
+  | { field: string; op: 'gt'; value: number }
+  | { field: string; op: 'lt'; value: number }
 
 export interface GhostedQuery {
-  where?:      QueryOp[]
-  ext?:        string | string[]
-  linkedTo?:   string
+  where?: QueryOp[]
+  ext?: string | string[]
+  linkedTo?: string
   linkedFrom?: string
-  contains?:   string
-  limit?:      number
-  offset?:     number
-  orderBy?:    string
-  orderDir?:   'asc' | 'desc'
+  contains?: string
+  limit?: number
+  offset?: number
+  orderBy?: string
+  orderDir?: 'asc' | 'desc'
 }
 
 export interface GhostedQueryResult {
   files: GhostedFile[]
   total: number
-  took:  number
+  took: number
 }
 
 export interface DBStats {
-  total:           number
-  byExt:           Record<string, number>
+  total: number
+  byExt: Record<string, number>
   withFrontmatter: number
-  workspace:       string
+  workspace: string
 }
 
 declare global {
@@ -61,14 +59,21 @@ declare global {
         delete: (path: string) => Promise<boolean>
         copy: (src: string, dest: string) => Promise<boolean>
         exists: (path: string) => Promise<boolean>
-        stat: (path: string) => Promise<{ isDirectory: boolean; isFile: boolean; size: number; mtime: number } | null>
+        stat: (
+          path: string,
+        ) => Promise<{ isDirectory: boolean; isFile: boolean; size: number; mtime: number } | null>
         watch: (path: string) => Promise<boolean>
         unwatch: (path: string) => Promise<boolean>
         onChanged: (cb: (event: { dir: string; eventType: string; filename: string }) => void) => any
         offChanged: (handler?: any) => void
       }
       pty: {
-        create: (id: string, cwd: string, cols?: number, rows?: number) => Promise<{ ok: boolean; error?: string } | boolean>
+        create: (
+          id: string,
+          cwd: string,
+          cols?: number,
+          rows?: number,
+        ) => Promise<{ ok: boolean; error?: string } | boolean>
         write: (id: string, data: string) => Promise<void>
         resize: (id: string, cols: number, rows: number) => Promise<void>
         kill: (id: string) => Promise<void>
@@ -90,12 +95,12 @@ declare global {
         getPath: (file: File) => Promise<string | null>
       }
       db: {
-        index:     (workspacePath: string) => Promise<DBStats>
-        query:     (q: GhostedQuery)       => Promise<GhostedQueryResult>
-        get:       (filePath: string)       => Promise<GhostedFile | null>
-        stats:     ()                       => Promise<DBStats>
-        onChange:  (cb: (stats: DBStats) => void) => void
-        offChange: ()                       => void
+        index: (workspacePath: string) => Promise<DBStats>
+        query: (q: GhostedQuery) => Promise<GhostedQueryResult>
+        get: (filePath: string) => Promise<GhostedFile | null>
+        stats: () => Promise<DBStats>
+        onChange: (cb: (stats: DBStats) => void) => void
+        offChange: () => void
       }
       pi: {
         create: (sessionId: string, cwd?: string) => Promise<{ ok: boolean; error?: string }>
@@ -108,7 +113,21 @@ declare global {
         offAction: () => void
       }
       git: {
-        log: (cwd: string, count?: number) => Promise<{ hash: string; shortHash: string; author: string; email: string; date: string; subject: string; refs: string; parents: string[] }[]>
+        log: (
+          cwd: string,
+          count?: number,
+        ) => Promise<
+          {
+            hash: string
+            shortHash: string
+            author: string
+            email: string
+            date: string
+            subject: string
+            refs: string
+            parents: string[]
+          }[]
+        >
         diffSummary: (cwd: string) => Promise<{ diff: string; untracked: string }>
         status: (cwd: string) => Promise<{ x: string; y: string; path: string }[]>
         branch: (cwd: string) => Promise<string>

@@ -3,7 +3,7 @@ project: Ghosted
 type: software
 status: active
 version: 0.1.0
-stack: Electron 29, Vite 5, React 18, TypeScript, Zustand, Monaco, xterm.js, node-pty, reagraph, xyflow, dnd-kit
+stack: Electron 43, Vite 8, React 19, TypeScript, Zustand 5, Monaco (bundled), @xterm/xterm 6, node-pty, force-graph, xyflow, dnd-kit, Biome, Vitest, Playwright
 company: Megasupersoft Ltd
 github_org: megasupersoft
 github_project: 5
@@ -41,7 +41,8 @@ github_project: 5
 - Touching IPC? → Update `electron/main.ts` AND `electron/preload.ts` AND `src/types/electron.d.ts` together
 - New terminal instance? → Must have cleanup in useEffect return — node-pty leaks are real
 - New native dependency? → `npm rebuild` required, update BUILDING.md
-- Touching reagraph or xyflow? → Fetch docs first, these APIs change constantly
+- Touching force-graph or xyflow? → Fetch docs first, these APIs change constantly
+- All fs/git IPC paths are confined to granted workspace roots (electron/main.ts `assertAllowed`) — new fs handlers MUST validate paths the same way
 
 ---
 
@@ -51,10 +52,10 @@ github_project: 5
 Six panes, always mounted, shown/hidden via CSS (not unmounted). This preserves terminal state and graph positions.
 - `editor` — Monaco multi-tab + TerminalPane split (default view)
 - `terminal` — standalone TerminalPane
-- `graph` — reagraph WebGL knowledge graph, scans [[wikilinks]]
+- `graph` — force-graph canvas knowledge graph, scans [[wikilinks]]
 - `canvas` — @xyflow/react agent workflow editor
 - `kanban` — dnd-kit + GitHub Projects v2 GraphQL
-- `filetree` — react-arborist, Electron IPC fs
+- `filetree` — custom tree component (src/panes/FileTree.tsx), Electron IPC fs
 
 Active pane stored in Zustand + localStorage. Never unmount panes — use `display:none` / `visibility:hidden` pattern.
 
@@ -87,19 +88,21 @@ All filesystem and PTY operations go through IPC. Renderer never touches Node AP
 ### Key libraries and gotchas
 - **Monaco** (`@monaco-editor/react`) — loads async, wrap in Suspense, language detection by file extension
 - **xterm.js + node-pty** — PTY lives in main process, xterm in renderer, connected via IPC. Always call `pty:kill` in useEffect cleanup. FitAddon must be called after container is visible.
-- **reagraph** — WebGL, needs container dimensions set before mount. `[[wikilink]]` scanning is file-content-based.
+- **force-graph** — canvas-based, needs container dimensions set before mount. `[[wikilink]]` scanning is file-content-based. Typed via local shim in src/types/force-graph.d.ts (uses private `_destructor()`).
 - **@xyflow/react v12** — ReactFlowProvider required at root. Node/edge state managed outside ReactFlow (in Zustand or local state).
 - **dnd-kit** — DndContext at pane root. SortableContext per column.
-- **react-arborist** — file tree, lazy loads children on expand. Uses `react-window` internally.
+- **Monaco** is bundled locally (src/lib/monacoSetup.ts) — never reintroduce the CDN loader; the CSP allows no remote origins.
 
 ## Commands
 ```bash
-npm install          # install deps
-npm rebuild          # REQUIRED after install — compiles node-pty native module
+npm install          # install deps (postinstall rebuilds node-pty automatically)
 npm run dev          # Vite dev server (renderer only — Electron not launched)
 npm run preview      # Launch Electron with built dist
-npm run build        # Full build (tsc + vite)
-npm run lint         # ESLint
+npm run build        # typecheck (both tsconfigs) + vite build
+npm run typecheck    # tsc renderer + electron, no emit
+npm run lint         # Biome (biome.json) — lint:fix to auto-fix + format
+npm test             # Vitest unit tests
+npm run test:e2e     # Playwright Electron smoke test (needs npm run build first)
 ```
 
 ## Site (docs + landing page)

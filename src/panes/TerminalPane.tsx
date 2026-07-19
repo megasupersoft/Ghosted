@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { useStore } from '@/store'
 import { useSettings } from '@/store/settings'
@@ -8,14 +8,16 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
   const xtermRef = useRef<any>(null)
   const fitRef = useRef<any>(null)
   const ptyId = `term-${leafId ?? 'default'}`
-  const workspacePath = useStore(s => s.workspacePath)
-  const [ready, setReady] = useState(false)
+  const workspacePath = useStore((s) => s.workspacePath)
+  const [_ready, setReady] = useState(false)
   const [err, setErr] = useState('')
   const mounted = useRef(true)
 
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false }
+    return () => {
+      mounted.current = false
+    }
   }, [])
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         let waitAttempts = 0
         while (el.offsetWidth < 50 || el.offsetHeight < 50) {
           if (disposed || !mounted.current || waitAttempts > 50) return
-          await new Promise(r => requestAnimationFrame(r))
+          await new Promise((r) => requestAnimationFrame(r))
           waitAttempts++
         }
 
@@ -88,15 +90,18 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         fitRef.current = fit
 
         // Wait a frame for the DOM to settle, then fit
-        await new Promise(r => requestAnimationFrame(r))
-        await new Promise(r => requestAnimationFrame(r))
+        await new Promise((r) => requestAnimationFrame(r))
+        await new Promise((r) => requestAnimationFrame(r))
 
-        if (!mounted.current || disposed) { term.dispose(); return }
+        if (!mounted.current || disposed) {
+          term.dispose()
+          return
+        }
 
         fit.fit()
         const cols = term.cols || 80
         const rows = term.rows || 24
-        const cwd = workspacePath || await window.electron.fs.homedir()
+        const cwd = workspacePath || (await window.electron.fs.homedir())
 
         // Connect PTY
         window.electron.pty.onData(ptyId, (d: string) => term.write(d))
@@ -105,12 +110,15 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
         // Retry PTY creation up to 3 times (handles race conditions on reload)
         let ok = false
         for (let attempt = 0; attempt < 3 && !ok && !disposed; attempt++) {
-          if (attempt > 0) await new Promise(r => setTimeout(r, 500))
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 500))
           const result = await window.electron.pty.create(ptyId, cwd, cols, rows)
           ok = typeof result === 'object' ? result?.ok : !!result
         }
 
-        if (disposed) { term.dispose(); return }
+        if (disposed) {
+          term.dispose()
+          return
+        }
         if (!ok) {
           if (mounted.current) setErr('node-pty unavailable')
           term.write('\x1b[31m[node-pty unavailable — restart app]\x1b[0m\r\n')
@@ -132,12 +140,13 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
           clearTimeout(timer)
           timer = setTimeout(() => {
             if (el.offsetWidth > 50 && el.offsetHeight > 50) {
-              try { fit.fit() } catch {}
+              try {
+                fit.fit()
+              } catch {}
             }
           }, 60)
         })
         ro.observe(el)
-
       } catch (e: any) {
         if (mounted.current) setErr(e.message)
       }
@@ -156,10 +165,10 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
       xtermRef.current = null
       fitRef.current = null
     }
-  }, [ptyId])
+  }, [ptyId, workspacePath])
 
   // Re-focus terminal when pane becomes visible
-  const focusedLeafId = useStore(s => s.focusedLeafId)
+  const focusedLeafId = useStore((s) => s.focusedLeafId)
   useEffect(() => {
     if (focusedLeafId === leafId && xtermRef.current) {
       // Small delay to ensure the pane is visible (display:none → flex)
@@ -168,11 +177,11 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
   }, [focusedLeafId, leafId])
 
   // Sync settings
-  const fontSize = useSettings(s => s.terminalFontSize)
-  const fontFamily = useSettings(s => s.terminalFontFamily)
-  const lineHeight = useSettings(s => s.terminalLineHeight)
-  const cursorBlink = useSettings(s => s.terminalCursorBlink)
-  const cursorStyle = useSettings(s => s.terminalCursorStyle)
+  const fontSize = useSettings((s) => s.terminalFontSize)
+  const fontFamily = useSettings((s) => s.terminalFontFamily)
+  const lineHeight = useSettings((s) => s.terminalLineHeight)
+  const cursorBlink = useSettings((s) => s.terminalCursorBlink)
+  const cursorStyle = useSettings((s) => s.terminalCursorStyle)
 
   useEffect(() => {
     const t = xtermRef.current
@@ -183,16 +192,20 @@ export default function TerminalPane({ leafId }: { leafId?: string }) {
     t.options.lineHeight = lineHeight
     t.options.cursorBlink = cursorBlink
     t.options.cursorStyle = cursorStyle
-    try { f.fit() } catch {}
+    try {
+      f.fit()
+    } catch {}
   }, [fontSize, fontFamily, lineHeight, cursorBlink, cursorStyle])
 
   return (
     <div
       onMouseDown={() => requestAnimationFrame(() => xtermRef.current?.focus())}
       style={{
-        width: '100%', height: '100%',
+        width: '100%',
+        height: '100%',
         background: 'var(--bg-surface)',
-        display: 'flex', flexDirection: 'column',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {err && (

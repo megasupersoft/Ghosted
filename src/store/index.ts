@@ -1,25 +1,27 @@
 import { create } from 'zustand'
 import type { DBStats } from '@/types/electron'
 import {
-  LayoutNode, LeafNode, PaneId, DEFAULT_LAYOUT, DropZone, TabEntry,
-  splitLeaf as splitLeafFn,
-  closeLeaf as closeLeafFn,
-  splitLeafAtPosition as splitLeafAtPositionFn,
-  splitLeafWithTab as splitLeafWithTabFn,
   addTabToLeaf as addTabFn,
-  removeTabFromLeaf as removeTabFn,
-  setActiveTabInLeaf as setActiveTabFn,
-  reorderTabInLeaf as reorderTabFn,
-  getSiblingLeafId,
+  closeLeaf as closeLeafFn,
+  DEFAULT_LAYOUT,
+  type DropZone,
+  findFirstLeafByPane,
   findLeaf,
   findLeafByTabId,
-  findFirstLeafByPane,
   findTabByFilePath,
-  updateTab,
   getActiveTab,
+  getSiblingLeafId,
+  type LayoutNode,
+  type LeafNode,
   migrateLayout,
-  mkLeaf,
   mkTab,
+  type PaneId,
+  removeTabFromLeaf as removeTabFn,
+  reorderTabInLeaf as reorderTabFn,
+  setActiveTabInLeaf as setActiveTabFn,
+  splitLeaf as splitLeafFn,
+  splitLeafWithTab as splitLeafWithTabFn,
+  updateTab,
 } from './layout'
 
 export type { PaneId } from './layout'
@@ -44,7 +46,11 @@ function saveLayout(layout: LayoutNode, nextNodeId: number) {
 export type FileType = 'text' | 'image' | 'video' | 'canvas'
 
 export interface OpenFile {
-  path: string; name: string; content: string; isDirty: boolean; fileType: FileType
+  path: string
+  name: string
+  content: string
+  isDirty: boolean
+  fileType: FileType
 }
 
 interface GhostedState {
@@ -99,7 +105,9 @@ const initial = loadLayout()
 function loadWorkspacePath(): string | null {
   try {
     return localStorage.getItem('ghosted:workspacePath')
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 function loadOpenFiles(): OpenFile[] {
@@ -116,9 +124,9 @@ function loadOpenFiles(): OpenFile[] {
 function saveOpenFiles(files: OpenFile[]) {
   // Save file metadata + content for text files (skip large files >1MB)
   const toSave = files
-    .filter(f => f.fileType === 'text' || f.fileType === 'canvas')
-    .filter(f => f.content.length < 1_000_000)
-    .map(f => ({ path: f.path, name: f.name, content: f.content, isDirty: false, fileType: f.fileType }))
+    .filter((f) => f.fileType === 'text' || f.fileType === 'canvas')
+    .filter((f) => f.content.length < 1_000_000)
+    .map((f) => ({ path: f.path, name: f.name, content: f.content, isDirty: false, fileType: f.fileType }))
   localStorage.setItem('ghosted:openFiles', JSON.stringify(toSave))
 }
 
@@ -144,7 +152,7 @@ export const useStore = create<GhostedState>((set, get) => ({
 
     // Ensure file is in the content pool
     let files = openFiles
-    if (!openFiles.find(f => f.path === path)) {
+    if (!openFiles.find((f) => f.path === path)) {
       files = [...openFiles, { path, name, content, isDirty: false, fileType: fileType ?? 'text' }]
     }
 
@@ -186,8 +194,10 @@ export const useStore = create<GhostedState>((set, get) => ({
     set({ openFiles: files, activeFilePath: path, layout: newLayout, nextNodeId: nextNodeId + 1 })
   },
 
-  updateFileContent: (path, content) => set({ openFiles: get().openFiles.map(f => f.path === path ? { ...f, content } : f) }),
-  markFileDirty: (path, dirty) => set({ openFiles: get().openFiles.map(f => f.path === path ? { ...f, isDirty: dirty } : f) }),
+  updateFileContent: (path, content) =>
+    set({ openFiles: get().openFiles.map((f) => (f.path === path ? { ...f, content } : f)) }),
+  markFileDirty: (path, dirty) =>
+    set({ openFiles: get().openFiles.map((f) => (f.path === path ? { ...f, isDirty: dirty } : f)) }),
 
   githubToken: null,
   setGithubToken: (t) => set({ githubToken: t }),
@@ -256,7 +266,7 @@ export const useStore = create<GhostedState>((set, get) => ({
       get().closeLeaf(leafId)
       return
     }
-    const tab = leaf.tabs.find(t => t.id === tabId)
+    const tab = leaf.tabs.find((t) => t.id === tabId)
     const newLayout = removeTabFn(layout, leafId, tabId)
     saveLayout(newLayout, nextNodeId)
     // Clean up file from pool if no other tab references it
@@ -264,7 +274,7 @@ export const useStore = create<GhostedState>((set, get) => ({
     if (tab?.filePath) {
       const stillReferenced = findTabByFilePath(newLayout, tab.filePath)
       if (!stillReferenced) {
-        files = openFiles.filter(f => f.path !== tab.filePath)
+        files = openFiles.filter((f) => f.path !== tab.filePath)
       }
     }
     set({ layout: newLayout, openFiles: files })
@@ -276,7 +286,7 @@ export const useStore = create<GhostedState>((set, get) => ({
     saveLayout(newLayout, nextNodeId)
     // Update activeFilePath to match the switched tab
     const leaf = findLeaf(newLayout, leafId)
-    const tab = leaf?.tabs.find(t => t.id === tabId)
+    const tab = leaf?.tabs.find((t) => t.id === tabId)
     set({ layout: newLayout, activeFilePath: tab?.filePath ?? get().activeFilePath })
   },
 
@@ -291,7 +301,7 @@ export const useStore = create<GhostedState>((set, get) => ({
     const { layout, nextNodeId } = get()
     const leaf = findLeafByTabId(layout, tabId)
     if (!leaf) return
-    const tab = leaf.tabs.find(t => t.id === tabId)
+    const tab = leaf.tabs.find((t) => t.id === tabId)
     if (!tab) return
     const newLayout = updateTab(layout, tabId, { pinned: !tab.pinned })
     saveLayout(newLayout, nextNodeId)
@@ -325,13 +335,19 @@ export const useStore = create<GhostedState>((set, get) => ({
       const allSourceTabs = [...sourceLeaf.tabs]
       newLayout = closeLeafFn(layout, sourceLeafId)
       const direction: 'horizontal' | 'vertical' =
-        (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical'
+        zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical'
       const insertBefore = zone === 'left' || zone === 'top'
       const newSplitId = `split-${newNextId}`
       newNextId++
       // Use splitLeafWithTab to preserve the active tab's original ID
       newLayout = splitLeafWithTabFn(
-        newLayout, targetLeafId, direction, sourceLeafId, newSplitId, activeSourceTab, insertBefore
+        newLayout,
+        targetLeafId,
+        direction,
+        sourceLeafId,
+        newSplitId,
+        activeSourceTab,
+        insertBefore,
       )
       // Re-add remaining tabs (their IDs are already preserved)
       for (const t of allSourceTabs) {
@@ -349,7 +365,7 @@ export const useStore = create<GhostedState>((set, get) => ({
     const { layout, nextNodeId } = get()
     const sourceLeaf = findLeaf(layout, sourceLeafId)
     if (!sourceLeaf) return
-    const tab = sourceLeaf.tabs.find(t => t.id === tabId)
+    const tab = sourceLeaf.tabs.find((t) => t.id === tabId)
     if (!tab) return
 
     let newLayout: LayoutNode
@@ -369,7 +385,7 @@ export const useStore = create<GhostedState>((set, get) => ({
       const newSplitId = `split-${newNextId + 1}`
       newNextId += 2
       const direction: 'horizontal' | 'vertical' =
-        (zone === 'left' || zone === 'right') ? 'horizontal' : 'vertical'
+        zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical'
       const insertBefore = zone === 'left' || zone === 'top'
 
       if (sourceLeaf.tabs.length <= 1) {
@@ -379,7 +395,13 @@ export const useStore = create<GhostedState>((set, get) => ({
       }
       // Use splitLeafWithTab to preserve the original tab (and its ID)
       newLayout = splitLeafWithTabFn(
-        newLayout, targetLeafId, direction, newLeafId, newSplitId, tab, insertBefore
+        newLayout,
+        targetLeafId,
+        direction,
+        newLeafId,
+        newSplitId,
+        tab,
+        insertBefore,
       )
       newFocusId = newLeafId
     }
@@ -404,7 +426,7 @@ export function getEditorLeafId(): string | null {
   const check = (tree: LayoutNode): LeafNode | null => {
     if (tree.type === 'leaf') {
       if (tree.id !== focusedLeafId) return null
-      return tree.tabs.some(t => t.paneType === 'editor') ? tree : null
+      return tree.tabs.some((t) => t.paneType === 'editor') ? tree : null
     }
     return check(tree.children[0]) ?? check(tree.children[1])
   }

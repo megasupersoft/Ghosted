@@ -1,19 +1,47 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useStore, getEditorLeafId } from '@/store'
-import { findFirstLeafByPane } from '@/store/layout'
-import { useSettings } from '@/store/settings'
 import {
-  Folder, FolderOpen, ChevronRight, ChevronDown,
-  FileCode, FileText, File, FileImage,
-  FileType, Braces, Settings, Hash, Globe,
-  FolderSearch, Workflow, FilePlus, FolderPlus,
-  Trash2, Pencil, Copy, FolderOpen as RevealIcon,
-  FileJson, FileVideo, FileAudio, FileArchive,
-  Lock, Database, Terminal, Shield, Cog,
-  FileCheck, Package, Scroll, Image, Music, Undo2,
+  Braces,
+  ChevronDown,
+  ChevronRight,
+  Cog,
+  Copy,
+  Database,
+  File,
+  FileArchive,
+  FileCheck,
+  FileCode,
+  FilePlus,
+  FileText,
+  FileVideo,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  FolderSearch,
+  Globe,
+  Hash,
+  Image,
+  Lock,
+  Music,
+  Package,
+  Pencil,
+  FolderOpen as RevealIcon,
+  Scroll,
+  Settings,
+  Shield,
+  Terminal,
+  Trash2,
+  Undo2,
+  Workflow,
 } from 'lucide-react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useStore } from '@/store'
+import { useSettings } from '@/store/settings'
 
-interface FileNode { id: string; name: string; path: string; isDirectory: boolean }
+interface FileNode {
+  id: string
+  name: string
+  path: string
+  isDirectory: boolean
+}
 
 const ICON_SIZE = 20
 
@@ -26,11 +54,16 @@ function FileIcon({ name }: { name: string }) {
   // Special filenames
   const lower = name.toLowerCase()
   if (lower === 'package.json') return <Package size={ICON_SIZE} color="var(--green)" style={s} />
-  if (lower === 'tsconfig.json' || lower.startsWith('tsconfig.')) return <Cog size={ICON_SIZE} color="var(--accent)" style={s} />
-  if (lower === '.gitignore' || lower === '.gitattributes') return <FileCheck size={ICON_SIZE} color="var(--orange)" style={s} />
-  if (lower === 'dockerfile' || lower === 'docker-compose.yml') return <Package size={ICON_SIZE} color="var(--sky)" style={s} />
-  if (lower === 'license' || lower === 'license.md') return <Scroll size={ICON_SIZE} color="var(--amber)" style={s} />
-  if (lower === '.env' || lower.startsWith('.env.')) return <Lock size={ICON_SIZE} color="var(--amber)" style={s} />
+  if (lower === 'tsconfig.json' || lower.startsWith('tsconfig.'))
+    return <Cog size={ICON_SIZE} color="var(--accent)" style={s} />
+  if (lower === '.gitignore' || lower === '.gitattributes')
+    return <FileCheck size={ICON_SIZE} color="var(--orange)" style={s} />
+  if (lower === 'dockerfile' || lower === 'docker-compose.yml')
+    return <Package size={ICON_SIZE} color="var(--sky)" style={s} />
+  if (lower === 'license' || lower === 'license.md')
+    return <Scroll size={ICON_SIZE} color="var(--amber)" style={s} />
+  if (lower === '.env' || lower.startsWith('.env.'))
+    return <Lock size={ICON_SIZE} color="var(--amber)" style={s} />
 
   switch (ext) {
     // TypeScript
@@ -44,11 +77,13 @@ function FileIcon({ name }: { name: string }) {
       return <FileCode size={ICON_SIZE} color="var(--amber)" style={s} />
     case 'jsx':
       return <FileCode size={ICON_SIZE} color="var(--orange)" style={s} />
-    case 'mjs': case 'cjs':
+    case 'mjs':
+    case 'cjs':
       return <FileCode size={ICON_SIZE} color="var(--amber)" style={s} />
 
     // Python
-    case 'py': case 'pyw':
+    case 'py':
+    case 'pyw':
       return <FileCode size={ICON_SIZE} color="var(--teal)" style={s} />
     case 'ipynb':
       return <FileCode size={ICON_SIZE} color="var(--orange)" style={s} />
@@ -58,13 +93,18 @@ function FileIcon({ name }: { name: string }) {
       return <FileCode size={ICON_SIZE} color="var(--orange)" style={s} />
     case 'go':
       return <FileCode size={ICON_SIZE} color="var(--cyan)" style={s} />
-    case 'c': case 'h':
+    case 'c':
+    case 'h':
       return <FileCode size={ICON_SIZE} color="var(--blue)" style={s} />
-    case 'cpp': case 'cc': case 'cxx': case 'hpp':
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+    case 'hpp':
       return <FileCode size={ICON_SIZE} color="var(--blue)" style={s} />
     case 'java':
       return <FileCode size={ICON_SIZE} color="var(--red)" style={s} />
-    case 'kt': case 'kts':
+    case 'kt':
+    case 'kts':
       return <FileCode size={ICON_SIZE} color="var(--purple)" style={s} />
     case 'swift':
       return <FileCode size={ICON_SIZE} color="var(--orange)" style={s} />
@@ -72,11 +112,13 @@ function FileIcon({ name }: { name: string }) {
       return <FileCode size={ICON_SIZE} color="var(--green)" style={s} />
 
     // Web languages
-    case 'html': case 'htm':
+    case 'html':
+    case 'htm':
       return <Globe size={ICON_SIZE} color="var(--orange)" style={s} />
     case 'css':
       return <Hash size={ICON_SIZE} color="var(--sky)" style={s} />
-    case 'scss': case 'sass':
+    case 'scss':
+    case 'sass':
       return <Hash size={ICON_SIZE} color="var(--pink)" style={s} />
     case 'less':
       return <Hash size={ICON_SIZE} color="var(--blue)" style={s} />
@@ -92,27 +134,40 @@ function FileIcon({ name }: { name: string }) {
       return <FileCode size={ICON_SIZE} color="var(--purple)" style={s} />
     case 'lua':
       return <FileCode size={ICON_SIZE} color="var(--blue)" style={s} />
-    case 'sh': case 'bash': case 'zsh': case 'fish':
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'fish':
       return <Terminal size={ICON_SIZE} color="var(--green)" style={s} />
-    case 'ps1': case 'bat': case 'cmd':
+    case 'ps1':
+    case 'bat':
+    case 'cmd':
       return <Terminal size={ICON_SIZE} color="var(--sky)" style={s} />
 
     // Data / config
-    case 'json': case 'jsonc': case 'json5':
+    case 'json':
+    case 'jsonc':
+    case 'json5':
       return <Braces size={ICON_SIZE} color="var(--amber)" style={s} />
-    case 'yaml': case 'yml':
+    case 'yaml':
+    case 'yml':
       return <Settings size={ICON_SIZE} color="var(--rose)" style={s} />
     case 'toml':
       return <Settings size={ICON_SIZE} color="var(--orange)" style={s} />
-    case 'ini': case 'cfg': case 'conf':
+    case 'ini':
+    case 'cfg':
+    case 'conf':
       return <Settings size={ICON_SIZE} color="var(--text-secondary)" style={s} />
-    case 'xml': case 'plist':
+    case 'xml':
+    case 'plist':
       return <FileCode size={ICON_SIZE} color="var(--teal)" style={s} />
-    case 'csv': case 'tsv':
+    case 'csv':
+    case 'tsv':
       return <Database size={ICON_SIZE} color="var(--green)" style={s} />
     case 'sql':
       return <Database size={ICON_SIZE} color="var(--sky)" style={s} />
-    case 'graphql': case 'gql':
+    case 'graphql':
+    case 'gql':
       return <FileCode size={ICON_SIZE} color="var(--pink)" style={s} />
     case 'prisma':
       return <Database size={ICON_SIZE} color="var(--purple)" style={s} />
@@ -120,13 +175,16 @@ function FileIcon({ name }: { name: string }) {
       return <Lock size={ICON_SIZE} color="var(--amber)" style={s} />
 
     // Markdown / docs
-    case 'md': case 'mdx':
+    case 'md':
+    case 'mdx':
       return <FileText size={ICON_SIZE} color="var(--sky)" style={s} />
-    case 'txt': case 'log':
+    case 'txt':
+    case 'log':
       return <FileText size={ICON_SIZE} color="var(--text-secondary)" style={s} />
     case 'pdf':
       return <FileText size={ICON_SIZE} color="var(--red)" style={s} />
-    case 'doc': case 'docx':
+    case 'doc':
+    case 'docx':
       return <FileText size={ICON_SIZE} color="var(--blue)" style={s} />
 
     // Canvas / workflow
@@ -134,21 +192,43 @@ function FileIcon({ name }: { name: string }) {
       return <Workflow size={ICON_SIZE} color="var(--accent)" style={s} />
 
     // Images
-    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': case 'avif': case 'bmp': case 'ico':
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'webp':
+    case 'avif':
+    case 'bmp':
+    case 'ico':
       return <Image size={ICON_SIZE} color="var(--purple)" style={s} />
     case 'svg':
       return <Image size={ICON_SIZE} color="var(--amber)" style={s} />
 
     // Video
-    case 'mp4': case 'webm': case 'mov': case 'avi': case 'mkv': case 'ogg':
+    case 'mp4':
+    case 'webm':
+    case 'mov':
+    case 'avi':
+    case 'mkv':
+    case 'ogg':
       return <FileVideo size={ICON_SIZE} color="var(--pink)" style={s} />
 
     // Audio
-    case 'mp3': case 'wav': case 'flac': case 'aac': case 'm4a':
+    case 'mp3':
+    case 'wav':
+    case 'flac':
+    case 'aac':
+    case 'm4a':
       return <Music size={ICON_SIZE} color="var(--teal)" style={s} />
 
     // Archives
-    case 'zip': case 'tar': case 'gz': case 'bz2': case '7z': case 'rar': case 'xz':
+    case 'zip':
+    case 'tar':
+    case 'gz':
+    case 'bz2':
+    case '7z':
+    case 'rar':
+    case 'xz':
       return <FileArchive size={ICON_SIZE} color="var(--orange)" style={s} />
 
     // Lock files
@@ -156,13 +236,19 @@ function FileIcon({ name }: { name: string }) {
       return <Lock size={ICON_SIZE} color="var(--text-muted)" style={s} />
 
     // Security / certs
-    case 'pem': case 'key': case 'crt': case 'cer':
+    case 'pem':
+    case 'key':
+    case 'crt':
+    case 'cer':
       return <Shield size={ICON_SIZE} color="var(--red)" style={s} />
 
     // Binary / compiled
     case 'wasm':
       return <FileCode size={ICON_SIZE} color="var(--purple)" style={s} />
-    case 'node': case 'so': case 'dylib': case 'dll':
+    case 'node':
+    case 'so':
+    case 'dylib':
+    case 'dll':
       return <Package size={ICON_SIZE} color="var(--text-muted)" style={s} />
 
     default:
@@ -172,17 +258,24 @@ function FileIcon({ name }: { name: string }) {
 
 // ─── Sort helper ──────────────────────────────────────────────────────────────
 
-function sortEntries(entries: { name: string; path: string; isDirectory: boolean }[], showHidden: boolean): FileNode[] {
+function sortEntries(
+  entries: { name: string; path: string; isDirectory: boolean }[],
+  showHidden: boolean,
+): FileNode[] {
   return entries
-    .filter(e => showHidden || !e.name.startsWith('.'))
+    .filter((e) => showHidden || !e.name.startsWith('.'))
     .sort((a, b) => (b.isDirectory ? 1 : 0) - (a.isDirectory ? 1 : 0) || a.name.localeCompare(b.name))
-    .map(e => ({ id: e.path, name: e.name, path: e.path, isDirectory: e.isDirectory }))
+    .map((e) => ({ id: e.path, name: e.name, path: e.path, isDirectory: e.isDirectory }))
 }
 
 // ─── Inline input (for new file/folder and rename) ───────────────────────────
 
 function InlineInput({
-  defaultValue, icon, depth, onSubmit, onCancel,
+  defaultValue,
+  icon,
+  depth,
+  onSubmit,
+  onCancel,
 }: {
   defaultValue: string
   icon: React.ReactNode
@@ -203,7 +296,7 @@ function InlineInput({
     } else {
       input.select()
     }
-  }, [])
+  }, [defaultValue.lastIndexOf])
 
   const submit = () => {
     const val = ref.current?.value.trim()
@@ -218,14 +311,15 @@ function InlineInput({
       <input
         ref={ref}
         defaultValue={defaultValue}
-        onKeyDown={e => {
+        onKeyDown={(e) => {
           if (e.key === 'Enter') submit()
           if (e.key === 'Escape') onCancel()
           e.stopPropagation()
         }}
         onBlur={submit}
         style={{
-          flex: 1, minWidth: 0,
+          flex: 1,
+          minWidth: 0,
           background: 'var(--bg-elevated)',
           border: '1px solid var(--accent)',
           borderRadius: 3,
@@ -243,8 +337,9 @@ function InlineInput({
 // ─── Context menu ─────────────────────────────────────────────────────────────
 
 interface ContextMenuProps {
-  x: number; y: number
-  node: FileNode | null  // null = root-level context
+  x: number
+  y: number
+  node: FileNode | null // null = root-level context
   onNewFile: () => void
   onNewFolder: () => void
   onRename: () => void
@@ -257,14 +352,30 @@ interface ContextMenuProps {
   onClose: () => void
 }
 
-function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, onUndo, canUndo, onCopyPath, onCopyRelativePath, onRevealInFileManager, onClose }: ContextMenuProps) {
+function ContextMenu({
+  x,
+  y,
+  node,
+  onNewFile,
+  onNewFolder,
+  onRename,
+  onDelete,
+  onUndo,
+  canUndo,
+  onCopyPath,
+  onCopyRelativePath,
+  onRevealInFileManager,
+  onClose,
+}: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as HTMLElement)) onClose()
     }
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
     document.addEventListener('mousedown', handleClick)
     document.addEventListener('keydown', handleKey)
     return () => {
@@ -275,9 +386,15 @@ function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, o
 
   // Clamp to viewport
   const menuStyle: React.CSSProperties = {
-    position: 'fixed', left: x, top: y, zIndex: 1000,
-    background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)',
-    borderRadius: 'var(--radius-md)', padding: 4, minWidth: 180,
+    position: 'fixed',
+    left: x,
+    top: y,
+    zIndex: 1000,
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border-mid)',
+    borderRadius: 'var(--radius-md)',
+    padding: 4,
+    minWidth: 180,
     boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
   }
 
@@ -285,16 +402,37 @@ function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, o
 
   return (
     <div ref={ref} style={menuStyle}>
-      <button className={itemClass} onClick={() => { onNewFile(); onClose() }}>
+      <button
+        type="button"
+        className={itemClass}
+        onClick={() => {
+          onNewFile()
+          onClose()
+        }}
+      >
         <FilePlus size={13} /> New File
       </button>
-      <button className={itemClass} onClick={() => { onNewFolder(); onClose() }}>
+      <button
+        type="button"
+        className={itemClass}
+        onClick={() => {
+          onNewFolder()
+          onClose()
+        }}
+      >
         <FolderPlus size={13} /> New Folder
       </button>
       {canUndo && (
         <>
           <div style={{ height: 1, background: 'var(--border)', margin: '3px 4px' }} />
-          <button className={itemClass} onClick={() => { onUndo(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              onUndo()
+              onClose()
+            }}
+          >
             <Undo2 size={13} /> Undo
           </button>
         </>
@@ -302,20 +440,56 @@ function ContextMenu({ x, y, node, onNewFile, onNewFolder, onRename, onDelete, o
       {node && (
         <>
           <div style={{ height: 1, background: 'var(--border)', margin: '3px 4px' }} />
-          <button className={itemClass} onClick={() => { onRename(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              onRename()
+              onClose()
+            }}
+          >
             <Pencil size={13} /> Rename
           </button>
-          <button className={itemClass} style={{ color: 'var(--red)' }} onClick={() => { onDelete(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            style={{ color: 'var(--red)' }}
+            onClick={() => {
+              onDelete()
+              onClose()
+            }}
+          >
             <Trash2 size={13} /> Delete
           </button>
           <div style={{ height: 1, background: 'var(--border)', margin: '3px 4px' }} />
-          <button className={itemClass} onClick={() => { onCopyPath(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              onCopyPath()
+              onClose()
+            }}
+          >
             <Copy size={13} /> Copy Path
           </button>
-          <button className={itemClass} onClick={() => { onCopyRelativePath(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              onCopyRelativePath()
+              onClose()
+            }}
+          >
             <Copy size={13} /> Copy Relative Path
           </button>
-          <button className={itemClass} onClick={() => { onRevealInFileManager(); onClose() }}>
+          <button
+            type="button"
+            className={itemClass}
+            onClick={() => {
+              onRevealInFileManager()
+              onClose()
+            }}
+          >
             <RevealIcon size={13} /> Reveal in File Manager
           </button>
         </>
@@ -349,15 +523,30 @@ interface FileRowProps {
 }
 
 function FileRow({
-  node, depth, onOpen, onContextMenu, selectedPath, onSelect,
-  renamingPath, onRenameSubmit, onRenameCancel, onStartRename, onMoveFile, onExternalDrop,
-  creatingIn, creatingType, onCreateSubmit, onCreateCancel,
-  refreshKey, ancestorPaths = [], activeAtDepth = [],
+  node,
+  depth,
+  onOpen,
+  onContextMenu,
+  selectedPath,
+  onSelect,
+  renamingPath,
+  onRenameSubmit,
+  onRenameCancel,
+  onStartRename,
+  onMoveFile,
+  onExternalDrop,
+  creatingIn,
+  creatingType,
+  onCreateSubmit,
+  onCreateCancel,
+  refreshKey,
+  ancestorPaths = [],
+  activeAtDepth = [],
 }: FileRowProps) {
   const [open, setOpen] = useState(false)
   const [children, setChildren] = useState<FileNode[]>([])
   const [dropOver, setDropOver] = useState(false)
-  const showHidden = useSettings(s => s.showHiddenFiles)
+  const showHidden = useSettings((s) => s.showHiddenFiles)
 
   const loadChildren = useCallback(async () => {
     if (!node.isDirectory) return
@@ -370,16 +559,22 @@ function FileRow({
   // Refresh children when refreshKey changes (file watcher triggered)
   useEffect(() => {
     if (open && node.isDirectory) loadChildren()
-  }, [refreshKey, open, loadChildren])
+  }, [open, loadChildren, node.isDirectory])
 
   const toggle = async () => {
-    if (!node.isDirectory) { onOpen(node); return }
+    if (!node.isDirectory) {
+      onOpen(node)
+      return
+    }
     if (!open) await loadChildren()
-    setOpen(o => !o)
+    setOpen((o) => !o)
   }
 
   const isSelected = selectedPath === node.path
-  const isOnSelectedPath = !!(selectedPath && (selectedPath === node.path || selectedPath.startsWith(node.path + '/')))
+  const isOnSelectedPath = !!(
+    selectedPath &&
+    (selectedPath === node.path || selectedPath.startsWith(`${node.path}/`))
+  )
   const isRenaming = renamingPath === node.path
   const isCreatingHere = creatingIn === node.path && node.isDirectory
 
@@ -388,15 +583,18 @@ function FileRow({
     if (isCreatingHere && !open) {
       loadChildren().then(() => setOpen(true))
     }
-  }, [isCreatingHere])
+  }, [isCreatingHere, open, loadChildren])
 
   if (isRenaming) {
     return (
       <InlineInput
         defaultValue={node.name}
-        icon={node.isDirectory
-          ? <FolderOpen size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
-          : <FileIcon name={node.name} />
+        icon={
+          node.isDirectory ? (
+            <FolderOpen size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
+          ) : (
+            <FileIcon name={node.name} />
+          )
         }
         depth={depth}
         onSubmit={(newName) => onRenameSubmit(node.path, newName)}
@@ -408,19 +606,33 @@ function FileRow({
   return (
     <>
       <div
-        onClick={() => { onSelect(node.path); toggle() }}
-        onDoubleClick={e => { e.stopPropagation(); onStartRename(node.path) }}
-        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onSelect(node.path); onContextMenu(e, node) }}
+        onClick={() => {
+          onSelect(node.path)
+          toggle()
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation()
+          onStartRename(node.path)
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          onSelect(node.path)
+          onContextMenu(e, node)
+        }}
         draggable
-        onDragStart={e => {
+        onDragStart={(e) => {
           e.dataTransfer.effectAllowed = 'copyMove'
-          e.dataTransfer.setData('application/ghosted-file', JSON.stringify({ path: node.path, name: node.name }))
+          e.dataTransfer.setData(
+            'application/ghosted-file',
+            JSON.stringify({ path: node.path, name: node.name }),
+          )
           e.dataTransfer.setData('application/ghosted-explorer-move', node.path)
           // Allow dragging to external apps (Finder, etc.)
           e.dataTransfer.setData('text/uri-list', `file://${encodeURI(node.path)}`)
           e.dataTransfer.setData('text/plain', node.path)
         }}
-        onDragOver={e => {
+        onDragOver={(e) => {
           if (!node.isDirectory) return
           // Accept internal explorer moves
           if (e.dataTransfer.types.includes('application/ghosted-explorer-move')) {
@@ -437,14 +649,14 @@ function FileRow({
           }
         }}
         onDragLeave={() => setDropOver(false)}
-        onDrop={e => {
+        onDrop={(e) => {
           setDropOver(false)
           if (!node.isDirectory) return
 
           // Internal explorer move
           const srcPath = e.dataTransfer.getData('application/ghosted-explorer-move')
           if (srcPath) {
-            if (srcPath === node.path || srcPath.startsWith(node.path + '/')) return
+            if (srcPath === node.path || srcPath.startsWith(`${node.path}/`)) return
             e.preventDefault()
             e.stopPropagation()
             onMoveFile(srcPath, node.path)
@@ -466,81 +678,121 @@ function FileRow({
         }}
       >
         {/* Tree guide lines */}
-        {depth > 0 && (() => {
-          const guideX = (i: number) => 6 + i * 28 + 25
-          return (
-            <>
-              {ancestorPaths.map((_, i) => {
-                const active = activeAtDepth[i] ?? false
-                // Truncate bright line at midpoint if this guide terminates here
-                const terminatesHere = active && i === depth - 1 && isOnSelectedPath
-                return (
-                  <React.Fragment key={i}>
-                    {/* Dim structural line — always full height */}
-                    <span style={{
-                      position: 'absolute', left: guideX(i), top: 0, bottom: 0, width: 2,
-                      background: 'var(--accent)', opacity: 0.08,
-                      pointerEvents: 'none',
-                    }} />
-                    {/* Bright overlay — truncated if terminating here */}
-                    {active && (
-                      <span style={{
-                        position: 'absolute', left: guideX(i), top: 0, bottom: terminatesHere ? '50%' : 0, width: 2,
-                        background: 'var(--accent)', opacity: 0.2,
+        {depth > 0 &&
+          (() => {
+            const guideX = (i: number) => 6 + i * 28 + 25
+            return (
+              <>
+                {ancestorPaths.map((_, i) => {
+                  const active = activeAtDepth[i] ?? false
+                  // Truncate bright line at midpoint if this guide terminates here
+                  const terminatesHere = active && i === depth - 1 && isOnSelectedPath
+                  return (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: fixed-depth structural lines
+                    <React.Fragment key={i}>
+                      {/* Dim structural line — always full height */}
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: guideX(i),
+                          top: 0,
+                          bottom: 0,
+                          width: 2,
+                          background: 'var(--accent)',
+                          opacity: 0.08,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                      {/* Bright overlay — truncated if terminating here */}
+                      {active && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            left: guideX(i),
+                            top: 0,
+                            bottom: terminatesHere ? '50%' : 0,
+                            width: 2,
+                            background: 'var(--accent)',
+                            opacity: 0.2,
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  )
+                })}
+                {/* Bright line at current depth — only for the selected item, stops at midpoint */}
+                {isSelected && (
+                  <>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: guideX(depth - 1),
+                        top: 0,
+                        bottom: '50%',
+                        width: 2,
+                        background: 'var(--accent)',
+                        opacity: 0.2,
                         pointerEvents: 'none',
-                      }} />
-                    )}
-                  </React.Fragment>
-                )
-              })}
-              {/* Bright line at current depth — only for the selected item, stops at midpoint */}
-              {isSelected && (
-                <>
-                  <span style={{
-                    position: 'absolute', left: guideX(depth - 1), top: 0, bottom: '50%', width: 2,
-                    background: 'var(--accent)', opacity: 0.2, pointerEvents: 'none',
-                  }} />
-                  {/* Horizontal connector to the selected item */}
-                  <span style={{
-                    position: 'absolute',
-                    left: guideX(depth - 1),
-                    top: '50%',
-                    width: 10,
-                    height: 2,
-                    background: 'var(--accent)', opacity: 0.2, pointerEvents: 'none',
-                  }} />
-                </>
-              )}
-              {/* Horizontal connector: on ancestor directories, bridges parent's ending line to child's line */}
-              {isOnSelectedPath && !isSelected && depth >= 1 && (
-                <span style={{
-                  position: 'absolute',
-                  left: guideX(depth - 1),
-                  top: '50%',
-                  width: 10,
-                  height: 2,
-                  background: 'var(--accent)', opacity: 0.2, pointerEvents: 'none',
-                }} />
-              )}
-            </>
-          )
-        })()}
-        <span className="filetree-content" style={{ background: isSelected ? 'var(--bg-selection)' : undefined }}>
+                      }}
+                    />
+                    {/* Horizontal connector to the selected item */}
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: guideX(depth - 1),
+                        top: '50%',
+                        width: 10,
+                        height: 2,
+                        background: 'var(--accent)',
+                        opacity: 0.2,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </>
+                )}
+                {/* Horizontal connector: on ancestor directories, bridges parent's ending line to child's line */}
+                {isOnSelectedPath && !isSelected && depth >= 1 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: guideX(depth - 1),
+                      top: '50%',
+                      width: 10,
+                      height: 2,
+                      background: 'var(--accent)',
+                      opacity: 0.2,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                )}
+              </>
+            )
+          })()}
+        <span
+          className="filetree-content"
+          style={{ background: isSelected ? 'var(--bg-selection)' : undefined }}
+        >
           {node.isDirectory ? (
             <>
-              {open
-                ? <ChevronDown size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
-                : <ChevronRight size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
-              }
-              {open
-                ? <FolderOpen size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
-                : <Folder size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
-              }
+              {open ? (
+                <ChevronDown size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+              ) : (
+                <ChevronRight size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+              )}
+              {open ? (
+                <FolderOpen size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
+              ) : (
+                <Folder size={ICON_SIZE} color="var(--accent-bright)" style={{ flexShrink: 0 }} />
+              )}
             </>
           ) : (
             <FileIcon name={node.name} />
           )}
-          <span className="filetree-name" style={{ color: node.isDirectory ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+          <span
+            className="filetree-name"
+            style={{ color: node.isDirectory ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+          >
             {node.name}
           </span>
         </span>
@@ -550,9 +802,12 @@ function FileRow({
       {open && isCreatingHere && creatingType && (
         <InlineInput
           defaultValue=""
-          icon={creatingType === 'folder'
-            ? <Folder size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
-            : <File size={ICON_SIZE} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+          icon={
+            creatingType === 'folder' ? (
+              <Folder size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
+            ) : (
+              <File size={ICON_SIZE} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            )
           }
           depth={depth + 1}
           onSubmit={(name) => onCreateSubmit(node.path, name)}
@@ -560,37 +815,51 @@ function FileRow({
         />
       )}
 
-      {open && (() => {
-        const childAncestors = [...ancestorPaths, node.path]
-        // Find which child is on the path to the selected item
-        const selectedChildIdx = selectedPath
-          ? children.findIndex(c => selectedPath === c.path || (c.isDirectory && selectedPath.startsWith(c.path + '/')))
-          : -1
-        return children.map((c, idx) => {
-          // This child is at or above the selected-path sibling
-          const thisDepthActive = selectedChildIdx >= 0 && idx <= selectedChildIdx
-          // Ancestor depths: if this node is on the selected path (an ancestor dir),
-          // its parent's line already terminated with a horizontal connector on this row,
-          // so turn off the parent's depth inside this subtree
-          const childActive = [
-            ...activeAtDepth.map((a, i) => a && !(isOnSelectedPath && i === depth - 1)),
-            thisDepthActive,
-          ]
-          return (
-            <FileRow
-              key={c.id} node={c} depth={depth + 1} onOpen={onOpen}
-              onContextMenu={onContextMenu} selectedPath={selectedPath} onSelect={onSelect}
-              renamingPath={renamingPath} onRenameSubmit={onRenameSubmit} onRenameCancel={onRenameCancel} onStartRename={onStartRename}
-              onMoveFile={onMoveFile} onExternalDrop={onExternalDrop}
-              creatingIn={creatingIn} creatingType={creatingType}
-              onCreateSubmit={onCreateSubmit} onCreateCancel={onCreateCancel}
-              refreshKey={refreshKey}
-              ancestorPaths={childAncestors}
-              activeAtDepth={childActive}
-            />
-          )
-        })
-      })()}
+      {open &&
+        (() => {
+          const childAncestors = [...ancestorPaths, node.path]
+          // Find which child is on the path to the selected item
+          const selectedChildIdx = selectedPath
+            ? children.findIndex(
+                (c) => selectedPath === c.path || (c.isDirectory && selectedPath.startsWith(`${c.path}/`)),
+              )
+            : -1
+          return children.map((c, idx) => {
+            // This child is at or above the selected-path sibling
+            const thisDepthActive = selectedChildIdx >= 0 && idx <= selectedChildIdx
+            // Ancestor depths: if this node is on the selected path (an ancestor dir),
+            // its parent's line already terminated with a horizontal connector on this row,
+            // so turn off the parent's depth inside this subtree
+            const childActive = [
+              ...activeAtDepth.map((a, i) => a && !(isOnSelectedPath && i === depth - 1)),
+              thisDepthActive,
+            ]
+            return (
+              <FileRow
+                key={c.id}
+                node={c}
+                depth={depth + 1}
+                onOpen={onOpen}
+                onContextMenu={onContextMenu}
+                selectedPath={selectedPath}
+                onSelect={onSelect}
+                renamingPath={renamingPath}
+                onRenameSubmit={onRenameSubmit}
+                onRenameCancel={onRenameCancel}
+                onStartRename={onStartRename}
+                onMoveFile={onMoveFile}
+                onExternalDrop={onExternalDrop}
+                creatingIn={creatingIn}
+                creatingType={creatingType}
+                onCreateSubmit={onCreateSubmit}
+                onCreateCancel={onCreateCancel}
+                refreshKey={refreshKey}
+                ancestorPaths={childAncestors}
+                activeAtDepth={childActive}
+              />
+            )
+          })
+        })()}
     </>
   )
 }
@@ -598,8 +867,8 @@ function FileRow({
 // ─── Main FileTree ────────────────────────────────────────────────────────────
 
 export default function FileTree() {
-  const { workspacePath, setWorkspacePath, openFile, setFocusedLeaf, focusedLeafId } = useStore()
-  const showHidden = useSettings(s => s.showHiddenFiles)
+  const { workspacePath, setWorkspacePath, openFile } = useStore()
+  const showHidden = useSettings((s) => s.showHiddenFiles)
   const [roots, setRoots] = useState<FileNode[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -628,13 +897,15 @@ export default function FileTree() {
   // Rename state
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
 
-
-  const loadDir = useCallback(async (p: string) => {
-    try {
-      const entries = await window.electron.fs.readdir(p)
-      setRoots(sortEntries(entries, showHidden))
-    } catch {}
-  }, [showHidden])
+  const loadDir = useCallback(
+    async (p: string) => {
+      try {
+        const entries = await window.electron.fs.readdir(p)
+        setRoots(sortEntries(entries, showHidden))
+      } catch {}
+    },
+    [showHidden],
+  )
 
   const openWorkspace = async () => {
     const chosen = await window.electron.dialog.openFolder()
@@ -643,11 +914,13 @@ export default function FileTree() {
     loadDir(chosen)
   }
 
-  useEffect(() => { if (workspacePath) loadDir(workspacePath) }, [workspacePath, loadDir])
+  useEffect(() => {
+    if (workspacePath) loadDir(workspacePath)
+  }, [workspacePath, loadDir])
 
   const refresh = useCallback(() => {
     if (workspacePath) loadDir(workspacePath)
-    setRefreshKey(k => k + 1)
+    setRefreshKey((k) => k + 1)
   }, [workspacePath, loadDir])
 
   const handleUndo = useCallback(async () => {
@@ -683,7 +956,7 @@ export default function FileTree() {
       clearTimeout(debounce)
       debounce = setTimeout(() => {
         loadDir(workspacePath)
-        setRefreshKey(k => k + 1)
+        setRefreshKey((k) => k + 1)
       }, 200)
     })
 
@@ -694,29 +967,32 @@ export default function FileTree() {
   }, [workspacePath, loadDir])
 
   // ─── File open handler ──────────────────────────────────────────────────────
-  const handleOpen = useCallback(async (node: FileNode) => {
-    try {
-      const ext = node.name.split('.').pop()?.toLowerCase() ?? ''
-      const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']
-      const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']
+  const handleOpen = useCallback(
+    async (node: FileNode) => {
+      try {
+        const ext = node.name.split('.').pop()?.toLowerCase() ?? ''
+        const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']
+        const VIDEO_EXTS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg']
 
-      let content = ''
-      let fileType: 'text' | 'image' | 'video' | 'canvas' = 'text'
+        let content = ''
+        let fileType: 'text' | 'image' | 'video' | 'canvas' = 'text'
 
-      if (ext === 'canvas') {
-        content = await window.electron.fs.readfile(node.path).catch(() => '{}')
-        fileType = 'canvas'
-      } else if (IMAGE_EXTS.includes(ext)) {
-        fileType = 'image'
-      } else if (VIDEO_EXTS.includes(ext)) {
-        fileType = 'video'
-      } else {
-        content = await window.electron.fs.readfile(node.path)
-      }
+        if (ext === 'canvas') {
+          content = await window.electron.fs.readfile(node.path).catch(() => '{}')
+          fileType = 'canvas'
+        } else if (IMAGE_EXTS.includes(ext)) {
+          fileType = 'image'
+        } else if (VIDEO_EXTS.includes(ext)) {
+          fileType = 'video'
+        } else {
+          content = await window.electron.fs.readfile(node.path)
+        }
 
-      openFile(node.path, node.name, content, fileType)
-    } catch {}
-  }, [openFile])
+        openFile(node.path, node.name, content, fileType)
+      } catch {}
+    },
+    [openFile],
+  )
 
   // ─── CRUD operations ───────────────────────────────────────────────────────
 
@@ -724,30 +1000,53 @@ export default function FileTree() {
   const [clipboard, setClipboard] = useState<{ path: string; cut: boolean } | null>(null)
 
   // ── Move file (drag-drop or cut-paste) ────────────────────────────────────
-  const handleExternalDrop = useCallback(async (files: File[], destDir: string) => {
-    for (const file of files) {
-      const filePath = await window.electron.fileDrop.getPath(file)
-      if (!filePath) continue
-      const name = filePath.split('/').pop() ?? ''
-      const dest = `${destDir}/${name}`
-      try {
-        await window.electron.fs.copy(filePath, dest)
-        pushUndo({ type: 'create', path: dest, isDirectory: false })
-      } catch {}
-    }
-    refresh()
-  }, [refresh])
-
-  const handleMoveFile = useCallback(async (srcPath: string, destDir: string) => {
-    const name = srcPath.split('/').pop() ?? ''
-    const newPath = `${destDir}/${name}`
-    if (srcPath === newPath) return
-    try {
-      await window.electron.fs.rename(srcPath, newPath)
-      pushUndo({ type: 'rename', oldPath: srcPath, newPath })
+  const handleExternalDrop = useCallback(
+    async (files: File[], destDir: string) => {
+      for (const file of files) {
+        const filePath = await window.electron.fileDrop.getPath(file)
+        if (!filePath) continue
+        const name = filePath.split('/').pop() ?? ''
+        const dest = `${destDir}/${name}`
+        try {
+          await window.electron.fs.copy(filePath, dest)
+          pushUndo({ type: 'create', path: dest, isDirectory: false })
+        } catch {}
+      }
       refresh()
-    } catch {}
-  }, [refresh])
+    },
+    [refresh, pushUndo],
+  )
+
+  const handleMoveFile = useCallback(
+    async (srcPath: string, destDir: string) => {
+      const name = srcPath.split('/').pop() ?? ''
+      const newPath = `${destDir}/${name}`
+      if (srcPath === newPath) return
+      try {
+        await window.electron.fs.rename(srcPath, newPath)
+        pushUndo({ type: 'rename', oldPath: srcPath, newPath })
+        refresh()
+      } catch {}
+    },
+    [refresh, pushUndo],
+  )
+
+  const findNodeByPath = (nodes: FileNode[], targetPath: string): FileNode | null => {
+    for (const n of nodes) {
+      if (n.path === targetPath) return n
+    }
+    return null
+  }
+
+  const getParentDir = (nodePath: string | null): string => {
+    if (!nodePath) return workspacePath ?? ''
+    // Check if selected node is a directory
+    const node = findNodeByPath(roots, nodePath)
+    if (node?.isDirectory) return node.path
+    // Otherwise use parent directory
+    const lastSlash = nodePath.lastIndexOf('/')
+    return lastSlash > 0 ? nodePath.slice(0, lastSlash) : (workspacePath ?? '')
+  }
 
   const handlePaste = useCallback(async () => {
     if (!clipboard || !selectedPath) return
@@ -787,29 +1086,16 @@ export default function FileTree() {
         refresh()
       } catch {}
     }
-  }, [clipboard, selectedPath, refresh])
-
-  const getParentDir = (nodePath: string | null): string => {
-    if (!nodePath) return workspacePath ?? ''
-    // Check if selected node is a directory
-    const node = findNodeByPath(roots, nodePath)
-    if (node?.isDirectory) return node.path
-    // Otherwise use parent directory
-    const lastSlash = nodePath.lastIndexOf('/')
-    return lastSlash > 0 ? nodePath.slice(0, lastSlash) : workspacePath ?? ''
-  }
-
-  const findNodeByPath = (nodes: FileNode[], targetPath: string): FileNode | null => {
-    for (const n of nodes) {
-      if (n.path === targetPath) return n
-    }
-    return null
-  }
+  }, [clipboard, selectedPath, refresh, pushUndo, getParentDir])
 
   const startCreate = (type: 'file' | 'folder') => {
     const parentDir = ctxMenu?.node
-      ? (ctxMenu.node.isDirectory ? ctxMenu.node.path : ctxMenu.node.path.slice(0, ctxMenu.node.path.lastIndexOf('/')))
-      : (selectedPath ? getParentDir(selectedPath) : workspacePath)
+      ? ctxMenu.node.isDirectory
+        ? ctxMenu.node.path
+        : ctxMenu.node.path.slice(0, ctxMenu.node.path.lastIndexOf('/'))
+      : selectedPath
+        ? getParentDir(selectedPath)
+        : workspacePath
     setCreatingIn(parentDir ?? workspacePath)
     setCreatingType(type)
   }
@@ -841,27 +1127,35 @@ export default function FileTree() {
     setRenamingPath(null)
   }
 
-  const deleteNode = useCallback(async (node: FileNode) => {
-    try {
-      let content: string | undefined
-      if (!node.isDirectory) {
-        try { content = await window.electron.fs.readfile(node.path) } catch {}
-      }
-      await window.electron.fs.delete(node.path)
-      pushUndo({ type: 'delete', path: node.path, isDirectory: node.isDirectory, content })
-      refresh()
-    } catch {}
-  }, [refresh])
+  const deleteNode = useCallback(
+    async (node: FileNode) => {
+      try {
+        let content: string | undefined
+        if (!node.isDirectory) {
+          try {
+            content = await window.electron.fs.readfile(node.path)
+          } catch {}
+        }
+        await window.electron.fs.delete(node.path)
+        pushUndo({ type: 'delete', path: node.path, isDirectory: node.isDirectory, content })
+        refresh()
+      } catch {}
+    },
+    [refresh, pushUndo],
+  )
 
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     setCtxMenu({ x: e.clientX, y: e.clientY, node })
   }, [])
 
-  const handleRootContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!workspacePath) return
-    setCtxMenu({ x: e.clientX, y: e.clientY, node: null })
-  }, [workspacePath])
+  const handleRootContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      if (!workspacePath) return
+      setCtxMenu({ x: e.clientX, y: e.clientY, node: null })
+    },
+    [workspacePath],
+  )
 
   // ─── Keyboard shortcuts ──────────────────────────────────────────────────
   useEffect(() => {
@@ -921,44 +1215,107 @@ export default function FileTree() {
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [selectedPath, roots, handleUndo, handlePaste])
+  }, [selectedPath, roots, handleUndo, handlePaste, findNodeByPath, deleteNode])
 
   // ─── Root-level creating (when creatingIn = workspacePath) ────────────────
   const isCreatingAtRoot = creatingIn === workspacePath
 
   return (
     <div
-      style={{ width: '100%', height: '100%', background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        background: 'var(--bg-surface)',
+        borderRadius: 'var(--radius-lg)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
       onContextMenu={handleRootContextMenu}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', flexShrink: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 10px',
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <FolderSearch size={18} color="var(--text-muted)" />
-          <span style={{ color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Explorer</span>
+          <span
+            style={{
+              color: 'var(--text-muted)',
+              fontSize: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            Explorer
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {workspacePath && (
             <>
               <button
-                onClick={() => { setCreatingIn(workspacePath); setCreatingType('file') }}
+                type="button"
+                onClick={() => {
+                  setCreatingIn(workspacePath)
+                  setCreatingType('file')
+                }}
                 title="New File"
-                style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-muted)',
+                }}
                 className="filetree-header-btn"
               >
                 <FilePlus size={18} />
               </button>
               <button
-                onClick={() => { setCreatingIn(workspacePath); setCreatingType('folder') }}
+                type="button"
+                onClick={() => {
+                  setCreatingIn(workspacePath)
+                  setCreatingType('folder')
+                }}
                 title="New Folder"
-                style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-muted)',
+                }}
                 className="filetree-header-btn"
               >
                 <FolderPlus size={18} />
               </button>
             </>
           )}
-          <button onClick={openWorkspace} title="Open folder" className="filetree-header-btn" style={{ color: 'var(--text-muted)', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}>
+          <button
+            type="button"
+            onClick={openWorkspace}
+            title="Open folder"
+            className="filetree-header-btn"
+            style={{
+              color: 'var(--text-muted)',
+              width: 30,
+              height: 30,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-sm)',
+            }}
+          >
             <FolderOpen size={18} />
           </button>
         </div>
@@ -967,12 +1324,12 @@ export default function FileTree() {
       {/* File list */}
       <div
         style={{ overflowY: 'auto', flex: 1, padding: '4px' }}
-        onDragOver={e => {
+        onDragOver={(e) => {
           if (!workspacePath || !e.dataTransfer.types.includes('Files')) return
           e.preventDefault()
           e.dataTransfer.dropEffect = 'copy'
         }}
-        onDrop={e => {
+        onDrop={(e) => {
           if (!workspacePath || e.dataTransfer.files.length === 0) return
           // Only handle if not already caught by a folder row
           e.preventDefault()
@@ -980,8 +1337,17 @@ export default function FileTree() {
         }}
       >
         {roots.length === 0 && !isCreatingAtRoot ? (
-          <div style={{ color: 'var(--text-ghost)', padding: '24px 12px', fontSize: 13, textAlign: 'center', lineHeight: 1.8 }}>
-            No workspace open.<br />
+          <div
+            style={{
+              color: 'var(--text-ghost)',
+              padding: '24px 12px',
+              fontSize: 13,
+              textAlign: 'center',
+              lineHeight: 1.8,
+            }}
+          >
+            No workspace open.
+            <br />
             <span style={{ color: 'var(--text-muted)' }}>Click the folder icon to summon one.</span>
           </div>
         ) : (
@@ -990,26 +1356,43 @@ export default function FileTree() {
             {isCreatingAtRoot && creatingType && (
               <InlineInput
                 defaultValue=""
-                icon={creatingType === 'folder'
-                  ? <Folder size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
-                  : <File size={ICON_SIZE} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                icon={
+                  creatingType === 'folder' ? (
+                    <Folder size={ICON_SIZE} color="var(--accent)" style={{ flexShrink: 0 }} />
+                  ) : (
+                    <File size={ICON_SIZE} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                  )
                 }
                 depth={0}
                 onSubmit={(name) => handleCreateSubmit(workspacePath!, name)}
-                onCancel={() => { setCreatingIn(null); setCreatingType(null) }}
+                onCancel={() => {
+                  setCreatingIn(null)
+                  setCreatingType(null)
+                }}
               />
             )}
             {roots.map((n) => (
               <FileRow
-                key={n.id} node={n} depth={0} onOpen={handleOpen}
+                key={n.id}
+                node={n}
+                depth={0}
+                onOpen={handleOpen}
                 onContextMenu={handleContextMenu}
-                selectedPath={selectedPath} onSelect={setSelectedPath}
+                selectedPath={selectedPath}
+                onSelect={setSelectedPath}
                 renamingPath={renamingPath}
-                onRenameSubmit={handleRenameSubmit} onRenameCancel={() => setRenamingPath(null)} onStartRename={setRenamingPath}
-                onMoveFile={handleMoveFile} onExternalDrop={handleExternalDrop}
-                creatingIn={creatingIn} creatingType={creatingType}
+                onRenameSubmit={handleRenameSubmit}
+                onRenameCancel={() => setRenamingPath(null)}
+                onStartRename={setRenamingPath}
+                onMoveFile={handleMoveFile}
+                onExternalDrop={handleExternalDrop}
+                creatingIn={creatingIn}
+                creatingType={creatingType}
                 onCreateSubmit={handleCreateSubmit}
-                onCreateCancel={() => { setCreatingIn(null); setCreatingType(null) }}
+                onCreateCancel={() => {
+                  setCreatingIn(null)
+                  setCreatingType(null)
+                }}
                 refreshKey={refreshKey}
                 ancestorPaths={[]}
                 activeAtDepth={[]}
@@ -1022,7 +1405,9 @@ export default function FileTree() {
       {/* Context menu */}
       {ctxMenu && (
         <ContextMenu
-          x={ctxMenu.x} y={ctxMenu.y} node={ctxMenu.node}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          node={ctxMenu.node}
           onNewFile={() => startCreate('file')}
           onNewFolder={() => startCreate('folder')}
           onRename={() => ctxMenu.node && setRenamingPath(ctxMenu.node.path)}
@@ -1038,11 +1423,12 @@ export default function FileTree() {
               navigator.clipboard.writeText(rel)
             }
           }}
-          onRevealInFileManager={() => ctxMenu.node && window.electron.shell.showItemInFolder(ctxMenu.node.path)}
+          onRevealInFileManager={() =>
+            ctxMenu.node && window.electron.shell.showItemInFolder(ctxMenu.node.path)
+          }
           onClose={() => setCtxMenu(null)}
         />
       )}
-
     </div>
   )
 }

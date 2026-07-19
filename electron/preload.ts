@@ -26,7 +26,8 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
   pty: {
-    create: (id: string, cwd: string, cols?: number, rows?: number) => ipcRenderer.invoke('pty:create', id, cwd, cols, rows),
+    create: (id: string, cwd: string, cols?: number, rows?: number) =>
+      ipcRenderer.invoke('pty:create', id, cwd, cols, rows),
     write: (id: string, data: string) => ipcRenderer.invoke('pty:write', id, data),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke('pty:resize', id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke('pty:kill', id),
@@ -68,10 +69,10 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
   db: {
-    index:   (workspacePath: string) => ipcRenderer.invoke('db:index', workspacePath),
-    query:   (q: unknown)            => ipcRenderer.invoke('db:query', q),
-    get:     (filePath: string)      => ipcRenderer.invoke('db:get', filePath),
-    stats:   ()                      => ipcRenderer.invoke('db:stats'),
+    index: (workspacePath: string) => ipcRenderer.invoke('db:index', workspacePath),
+    query: (q: unknown) => ipcRenderer.invoke('db:query', q),
+    get: (filePath: string) => ipcRenderer.invoke('db:get', filePath),
+    stats: () => ipcRenderer.invoke('db:stats'),
     onChange: (cb: (stats: unknown) => void) => {
       ipcRenderer.removeAllListeners('db:changed')
       ipcRenderer.on('db:changed', (_e, stats) => cb(stats))

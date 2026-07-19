@@ -13,7 +13,7 @@ import React, { useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useStoreWithEqualityFn } from 'zustand/traditional'
 import { useStore } from '@/store'
-import { getAllTabs, PaneId } from '@/store/layout'
+import { getAllTabs, type PaneId } from '@/store/layout'
 
 // ─── Lazy pane components ──────────────────────────────────────────────────
 
@@ -26,11 +26,23 @@ const AiPane = React.lazy(() => import('@/panes/AiPane'))
 
 function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: string; filePath?: string }) {
   return (
-    <React.Suspense fallback={
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-ghost)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
-        loading...
-      </div>
-    }>
+    <React.Suspense
+      fallback={
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: 'var(--text-ghost)',
+            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          loading...
+        </div>
+      }
+    >
       {paneType === 'editor' && <EditorPane leafId={tabId} filePath={filePath} />}
       {paneType === 'terminal' && <TerminalPane leafId={tabId} />}
       {paneType === 'graph' && <GraphPane leafId={tabId} />}
@@ -71,12 +83,14 @@ export default function PanePool() {
   const tabs = useStoreWithEqualityFn(
     useStore,
     useCallback((s: ReturnType<typeof useStore.getState>) => getAllTabs(s.layout), []),
-    (a, b) => a.length === b.length && a.every((t, i) => t.id === b[i].id && t.paneType === b[i].paneType && t.filePath === b[i].filePath)
+    (a, b) =>
+      a.length === b.length &&
+      a.every((t, i) => t.id === b[i].id && t.paneType === b[i].paneType && t.filePath === b[i].filePath),
   )
 
   // Clean up containers for tabs that no longer exist
   useEffect(() => {
-    const activeIds = new Set(tabs.map(t => t.id))
+    const activeIds = new Set(tabs.map((t) => t.id))
     for (const id of paneContainers.keys()) {
       if (!activeIds.has(id)) removePaneContainer(id)
     }
@@ -84,12 +98,12 @@ export default function PanePool() {
 
   return (
     <>
-      {tabs.map(tab => {
+      {tabs.map((tab) => {
         const container = getPaneContainer(tab.id)
         return createPortal(
           <PaneContent paneType={tab.paneType} tabId={tab.id} filePath={tab.filePath} />,
           container,
-          tab.id
+          tab.id,
         )
       })}
     </>

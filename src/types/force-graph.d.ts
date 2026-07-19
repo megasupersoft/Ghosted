@@ -6,7 +6,9 @@ declare module 'force-graph' {
     nodeRelSize(size: number): ForceGraphInstance
     nodeLabel(fn: (node: any) => string): ForceGraphInstance
     nodeCanvasObjectMode(fn: () => string): ForceGraphInstance
-    nodeCanvasObject(fn: (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => void): ForceGraphInstance
+    nodeCanvasObject(
+      fn: (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => void,
+    ): ForceGraphInstance
     linkColor(fn: () => string): ForceGraphInstance
     linkWidth(width: number): ForceGraphInstance
     linkDirectionalParticles(n: number): ForceGraphInstance

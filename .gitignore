@@ -9,3 +9,17 @@ release/
 site/node_modules/
 site/.vitepress/dist/
 site/.vitepress/cache/
+
+# Local tool state
+.pi/
+.serena/
+
+# Workspace scratch (Ghosted running on its own repo)
+/default.canvas
+/workspace.canvas
+/Tux_bw.svg
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/

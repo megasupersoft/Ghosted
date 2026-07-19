@@ -1,10 +1,10 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, protocol, net } from 'electron'
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { registerGhostedDB } from './ghostdb'
-import { execSync, execFileSync } from 'child_process'
-import path from 'path'
-import os from 'os'
-import fs from 'fs'
-import { pathToFileURL } from 'url'
 
 const isDev = !app.isPackaged
 const VITE_DEV_SERVER = 'http://localhost:5173'
@@ -21,8 +21,10 @@ app.setName('Ghosted')
 const STATE_FILE = path.join(app.getPath('userData'), 'window-state.json')
 
 interface WindowState {
-  x?: number; y?: number
-  width: number; height: number
+  x?: number
+  y?: number
+  width: number
+  height: number
   isMaximized?: boolean
 }
 
@@ -45,7 +47,9 @@ function saveWindowState(win: BrowserWindow) {
     const prev = loadWindowState()
     state = { width: prev.width, height: prev.height, x: prev.x, y: prev.y, isMaximized: true }
   }
-  try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)) } catch {}
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state))
+  } catch {}
 }
 
 function getAppIcon(): Electron.NativeImage | undefined {
@@ -105,13 +109,16 @@ function createWindow() {
 
   if (isDev) {
     // Check if Vite dev server is running before trying to connect
-    import('http').then(http => {
+    import('node:http').then((http) => {
       const req = http.get(VITE_DEV_SERVER, () => {
         req.destroy()
         win.loadURL(VITE_DEV_SERVER)
       })
       req.on('error', () => loadBuilt())
-      req.setTimeout(1000, () => { req.destroy(); loadBuilt() })
+      req.setTimeout(1000, () => {
+        req.destroy()
+        loadBuilt()
+      })
     })
   } else {
     loadBuilt()
@@ -131,13 +138,15 @@ function loadGrantedRoots(): string[] {
   } catch {}
   return []
 }
-let grantedRoots: string[] = loadGrantedRoots()
+const grantedRoots: string[] = loadGrantedRoots()
 
 function grantRoot(dir: string) {
   const resolved = path.resolve(dir)
   if (!grantedRoots.includes(resolved)) {
     grantedRoots.push(resolved)
-    try { fs.writeFileSync(ROOTS_FILE, JSON.stringify(grantedRoots)) } catch {}
+    try {
+      fs.writeFileSync(ROOTS_FILE, JSON.stringify(grantedRoots))
+    } catch {}
   }
 }
 
@@ -149,7 +158,7 @@ const droppedGrants = new Set<string>()
 function isAllowedPath(p: string): boolean {
   if (typeof p !== 'string' || p.length === 0) return false
   const resolved = path.resolve(p)
-  if (grantedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))) return true
+  if (grantedRoots.some((root) => resolved === root || resolved.startsWith(root + path.sep))) return true
   for (const g of droppedGrants) {
     if (resolved === g || resolved.startsWith(g + path.sep)) return true
   }
@@ -193,13 +202,15 @@ ipcMain.handle('workspace:restore', (_e, dir: string) => {
 ipcMain.handle('fs:readdir', async (_e, dirPath: string) => {
   const dir = assertAllowed(dirPath)
   const entries = fs.readdirSync(dir, { withFileTypes: true })
-  return entries.map(e => ({
+  return entries.map((e) => ({
     name: e.name,
     path: path.join(dir, e.name),
     isDirectory: e.isDirectory(),
   }))
 })
-ipcMain.handle('fs:readfile', async (_e, filePath: string) => fs.readFileSync(assertAllowed(filePath), 'utf-8'))
+ipcMain.handle('fs:readfile', async (_e, filePath: string) =>
+  fs.readFileSync(assertAllowed(filePath), 'utf-8'),
+)
 ipcMain.handle('fs:writefile', async (_e, filePath: string, content: string) => {
   fs.writeFileSync(assertAllowed(filePath), content, 'utf-8')
   return true
@@ -231,12 +242,17 @@ ipcMain.handle('fs:copy', async (_e, srcPath: string, destPath: string) => {
   fs.cpSync(assertAllowed(srcPath), assertAllowed(destPath), { recursive: true })
   return true
 })
-ipcMain.handle('fs:exists', async (_e, targetPath: string) => isAllowedPath(targetPath) && fs.existsSync(path.resolve(targetPath)))
+ipcMain.handle(
+  'fs:exists',
+  async (_e, targetPath: string) => isAllowedPath(targetPath) && fs.existsSync(path.resolve(targetPath)),
+)
 ipcMain.handle('fs:stat', async (_e, targetPath: string) => {
   try {
     const stat = fs.statSync(assertAllowed(targetPath))
     return { isDirectory: stat.isDirectory(), isFile: stat.isFile(), size: stat.size, mtime: stat.mtimeMs }
-  } catch { return null }
+  } catch {
+    return null
+  }
 })
 
 // ── File watcher IPC ──
@@ -254,12 +270,17 @@ ipcMain.handle('fs:watch', async (_e, dirPath: string) => {
     })
     watchers.set(dirPath, watcher)
     return true
-  } catch { return false }
+  } catch {
+    return false
+  }
 })
 
 ipcMain.handle('fs:unwatch', async (_e, dirPath: string) => {
   const w = watchers.get(dirPath)
-  if (w) { w.close(); watchers.delete(dirPath) }
+  if (w) {
+    w.close()
+    watchers.delete(dirPath)
+  }
   return true
 })
 
@@ -269,10 +290,14 @@ const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 ipcMain.handle('shell:openExternal', (_e, url: string) => {
   try {
     if (!SAFE_EXTERNAL_PROTOCOLS.has(new URL(url).protocol)) return
-  } catch { return }
+  } catch {
+    return
+  }
   return shell.openExternal(url)
 })
-ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) => shell.showItemInFolder(assertAllowed(fullPath)))
+ipcMain.handle('shell:showItemInFolder', (_e, fullPath: string) =>
+  shell.showItemInFolder(assertAllowed(fullPath)),
+)
 ipcMain.handle('dialog:openFolder', async () => {
   const win = BrowserWindow.getFocusedWindow()
   if (!win) return null
@@ -307,7 +332,7 @@ function loadPty() {
     path.join(ptyRoot, 'prebuilds', `${process.platform}-${process.arch}`, 'pty.node'),
   ]
 
-  const nativePath = candidates.find(p => fs.existsSync(p))
+  const nativePath = candidates.find((p) => fs.existsSync(p))
   const utilsPath = path.join(ptyRoot, 'lib', 'utils.js')
 
   if (nativePath && fs.existsSync(utilsPath)) {
@@ -333,7 +358,7 @@ function loadPty() {
     try {
       const utils = require(utilsPath)
       utils.loadNativeModule = () => ({
-        dir: nativeDir + '/',
+        dir: `${nativeDir}/`,
         module: require(nativePath),
       })
 
@@ -348,7 +373,7 @@ function loadPty() {
       // Remove the original helperPath assignment and all .replace() fixups
       patched = patched.replace(
         /var helperPath = .*?;\s*(?:helperPath = .*?;\s*)*/,
-        `var helperPath = ${JSON.stringify(correctHelperPath)};\n`
+        `var helperPath = ${JSON.stringify(correctHelperPath)};\n`,
       )
       if (patched !== utSrc) {
         fs.writeFileSync(utPath, patched, 'utf8')
@@ -378,19 +403,28 @@ const terminals = new Map<string, import('node-pty').IPty>()
 ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?: number) => {
   if (!pty) return { ok: false, error: 'node-pty not loaded' }
   // Kill existing if any (handles hot reloads)
-  if (terminals.has(id)) { terminals.get(id)?.kill(); terminals.delete(id) }
-  const sh = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash')
+  if (terminals.has(id)) {
+    terminals.get(id)?.kill()
+    terminals.delete(id)
+  }
+  const sh = process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || 'bash'
   try {
     const t = pty.spawn(sh, [], {
-      name: 'xterm-256color', cols: cols || 80, rows: rows || 24,
+      name: 'xterm-256color',
+      cols: cols || 80,
+      rows: rows || 24,
       cwd: cwd || os.homedir(),
       env: process.env as Record<string, string>,
     })
     terminals.set(id, t)
     const win = BrowserWindow.getAllWindows()[0]
     if (!win) return { ok: false, error: 'no BrowserWindow' }
-    t.onData(data => { if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data) })
-    t.onExit(() => { if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`) })
+    t.onData((data) => {
+      if (!win.isDestroyed()) win.webContents.send(`pty:data:${id}`, data)
+    })
+    t.onExit(() => {
+      if (!win.isDestroyed()) win.webContents.send(`pty:exit:${id}`)
+    })
     return { ok: true }
   } catch (e: any) {
     console.error('pty:create FAILED:', e.message, e.stack)
@@ -398,8 +432,13 @@ ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?:
   }
 })
 ipcMain.handle('pty:write', (_e, id: string, data: string) => terminals.get(id)?.write(data))
-ipcMain.handle('pty:resize', (_e, id: string, cols: number, rows: number) => terminals.get(id)?.resize(cols, rows))
-ipcMain.handle('pty:kill', (_e, id: string) => { terminals.get(id)?.kill(); terminals.delete(id) })
+ipcMain.handle('pty:resize', (_e, id: string, cols: number, rows: number) =>
+  terminals.get(id)?.resize(cols, rows),
+)
+ipcMain.handle('pty:kill', (_e, id: string) => {
+  terminals.get(id)?.kill()
+  terminals.delete(id)
+})
 
 // ── Git IPC ──
 // cwd is confined to granted workspace roots so the renderer can only run
@@ -413,9 +452,15 @@ ipcMain.handle('gh:run', async (_e, cwd: string, args: string) => {
     // Use execFileSync with shell:false to avoid $ being interpreted by the shell
     // Split args respecting quoted strings
     const parsed = parseArgs(args)
-    const result = execFileSync('gh', parsed, { cwd: assertAllowed(cwd), encoding: 'utf-8', timeout: 15000 }).trim()
+    const result = execFileSync('gh', parsed, {
+      cwd: assertAllowed(cwd),
+      encoding: 'utf-8',
+      timeout: 15000,
+    }).trim()
     return { ok: true, data: result }
-  } catch (err: any) { return { ok: false, error: err.message } }
+  } catch (err: any) {
+    return { ok: false, error: err.message }
+  }
 })
 
 function parseArgs(input: string): string[] {
@@ -425,10 +470,19 @@ function parseArgs(input: string): string[] {
   let inDouble = false
   for (let i = 0; i < input.length; i++) {
     const ch = input[i]
-    if (ch === "'" && !inDouble) { inSingle = !inSingle; continue }
-    if (ch === '"' && !inSingle) { inDouble = !inDouble; continue }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle
+      continue
+    }
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble
+      continue
+    }
     if (ch === ' ' && !inSingle && !inDouble) {
-      if (current) { args.push(current); current = '' }
+      if (current) {
+        args.push(current)
+        current = ''
+      }
       continue
     }
     current += ch
@@ -443,39 +497,68 @@ ipcMain.handle('git:log', async (_e, cwd: string, count: number = 50) => {
     const fmt = ['%H', '%h', '%an', '%ae', '%ar', '%s', '%D', '%P'].join(SEP)
     const raw = git(cwd, ['log', `--format=${fmt}`, '--all', '-n', String(count)])
     if (!raw) return []
-    return raw.split('\n').filter(Boolean).map(line => {
-      const [hash, shortHash, author, email, date, subject, refs, parents] = line.split(SEP)
-      return { hash, shortHash, author, email, date, subject, refs, parents: parents?.split(' ').filter(Boolean) ?? [] }
-    })
-  } catch { return [] }
+    return raw
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const [hash, shortHash, author, email, date, subject, refs, parents] = line.split(SEP)
+        return {
+          hash,
+          shortHash,
+          author,
+          email,
+          date,
+          subject,
+          refs,
+          parents: parents?.split(' ').filter(Boolean) ?? [],
+        }
+      })
+  } catch {
+    return []
+  }
 })
 
 ipcMain.handle('git:status', async (_e, cwd: string) => {
   try {
     const raw = git(cwd, ['status', '--porcelain=v1', '-uall'])
     if (!raw) return []
-    return raw.split('\n').map(line => {
+    return raw.split('\n').map((line) => {
       const x = line[0]
       const y = line[1]
       const filePath = line.slice(3)
       return { x, y, path: filePath }
     })
-  } catch { return [] }
+  } catch {
+    return []
+  }
 })
 
 ipcMain.handle('git:branch', async (_e, cwd: string) => {
-  try { return git(cwd, ['branch', '--show-current']) } catch { return '' }
+  try {
+    return git(cwd, ['branch', '--show-current'])
+  } catch {
+    return ''
+  }
 })
 
 ipcMain.handle('git:diffSummary', async (_e, cwd: string) => {
   try {
     let diff = ''
-    try { diff = git(cwd, ['diff', '--cached', '--stat']) } catch {}
-    if (!diff) try { diff = git(cwd, ['diff', '--stat']) } catch {}
+    try {
+      diff = git(cwd, ['diff', '--cached', '--stat'])
+    } catch {}
+    if (!diff)
+      try {
+        diff = git(cwd, ['diff', '--stat'])
+      } catch {}
     let untracked = ''
-    try { untracked = git(cwd, ['ls-files', '--others', '--exclude-standard']) } catch {}
+    try {
+      untracked = git(cwd, ['ls-files', '--others', '--exclude-standard'])
+    } catch {}
     return { diff, untracked }
-  } catch { return { diff: '', untracked: '' } }
+  } catch {
+    return { diff: '', untracked: '' }
+  }
 })
 
 ipcMain.handle('git:remote', async (_e, cwd: string) => {
@@ -484,7 +567,9 @@ ipcMain.handle('git:remote', async (_e, cwd: string) => {
     const ssh = url.match(/github\.com[:/]([^/]+)\/([^/.]+)/)
     if (ssh) return { owner: ssh[1], repo: ssh[2] }
     return null
-  } catch { return null }
+  } catch {
+    return null
+  }
 })
 
 ipcMain.handle('git:aheadBehind', async (_e, cwd: string) => {
@@ -492,25 +577,43 @@ ipcMain.handle('git:aheadBehind', async (_e, cwd: string) => {
     const raw = git(cwd, ['rev-list', '--left-right', '--count', 'HEAD...@{upstream}'])
     const [ahead, behind] = raw.split(/\s+/).map(Number)
     return { ahead: ahead || 0, behind: behind || 0 }
-  } catch { return { ahead: 0, behind: 0 } }
+  } catch {
+    return { ahead: 0, behind: 0 }
+  }
 })
 
 ipcMain.handle('git:stage', async (_e, cwd: string, filePath: string) => {
-  try { git(cwd, ['add', '--', filePath]); return true } catch { return false }
+  try {
+    git(cwd, ['add', '--', filePath])
+    return true
+  } catch {
+    return false
+  }
 })
 
 ipcMain.handle('git:unstage', async (_e, cwd: string, filePath: string) => {
-  try { git(cwd, ['reset', 'HEAD', '--', filePath]); return true } catch { return false }
+  try {
+    git(cwd, ['reset', 'HEAD', '--', filePath])
+    return true
+  } catch {
+    return false
+  }
 })
 
 ipcMain.handle('git:stageAll', async (_e, cwd: string) => {
-  try { git(cwd, ['add', '-A']); return { ok: true } }
-  catch (err: any) { return { ok: false, error: err.stderr || err.message } }
+  try {
+    git(cwd, ['add', '-A'])
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err.stderr || err.message }
+  }
 })
 
 ipcMain.handle('git:commit', async (_e, cwd: string, message: string) => {
-  try { git(cwd, ['commit', '-m', message]); return { ok: true } }
-  catch (err: any) {
+  try {
+    git(cwd, ['commit', '-m', message])
+    return { ok: true }
+  } catch (err: any) {
     const stderr = typeof err.stderr === 'string' ? err.stderr.trim() : ''
     const stdout = typeof err.stdout === 'string' ? err.stdout.trim() : ''
     return { ok: false, error: stderr || stdout || err.message }
@@ -518,17 +621,30 @@ ipcMain.handle('git:commit', async (_e, cwd: string, message: string) => {
 })
 
 ipcMain.handle('git:push', async (_e, cwd: string) => {
-  try { git(cwd, ['push']); return { ok: true } }
-  catch (err: any) { return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() } }
+  try {
+    git(cwd, ['push'])
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() }
+  }
 })
 
 ipcMain.handle('git:pull', async (_e, cwd: string) => {
-  try { git(cwd, ['pull']); return { ok: true } }
-  catch (err: any) { return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() } }
+  try {
+    git(cwd, ['pull'])
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: (err.stderr || err.stdout || err.message || '').toString().trim() }
+  }
 })
 
 ipcMain.handle('git:discard', async (_e, cwd: string, filePath: string) => {
-  try { git(cwd, ['checkout', '--', filePath]); return true } catch { return false }
+  try {
+    git(cwd, ['checkout', '--', filePath])
+    return true
+  } catch {
+    return false
+  }
 })
 
 // ── Pi SDK IPC ──
@@ -543,12 +659,13 @@ function buildGhostedTools() {
     {
       name: 'ghosted_open_file',
       label: 'Open File in Editor',
-      description: 'Open a file in the Ghosted editor pane. Use this when the user asks to open, show, or view a file.',
+      description:
+        'Open a file in the Ghosted editor pane. Use this when the user asks to open, show, or view a file.',
       promptSnippet: 'ghosted_open_file: Open a file in the Ghosted editor UI',
       parameters: Type.Object({
         path: Type.String({ description: 'Absolute path to the file to open' }),
       }),
-      async execute(toolCallId: string, params: { path: string }) {
+      async execute(_toolCallId: string, params: { path: string }) {
         const win = BrowserWindow.getAllWindows()[0]
         if (!win || win.isDestroyed()) {
           return { content: [{ type: 'text', text: 'No Ghosted window available' }], details: {} }
@@ -556,7 +673,9 @@ function buildGhostedTools() {
         const filePath = params.path
         const name = filePath.split('/').pop() ?? filePath
         let content = ''
-        try { content = fs.readFileSync(filePath, 'utf-8') } catch {}
+        try {
+          content = fs.readFileSync(filePath, 'utf-8')
+        } catch {}
         win.webContents.send('pi:action', { type: 'openFile', filePath, name, content })
         return { content: [{ type: 'text', text: `Opened ${name} in the editor.` }], details: {} }
       },
@@ -582,12 +701,19 @@ function buildGhostedTools() {
       description: 'Switch to a specific pane in Ghosted: editor, terminal, graph, canvas, kanban, or ai.',
       promptSnippet: 'ghosted_switch_pane: Switch to a named pane in Ghosted',
       parameters: Type.Object({
-        pane: Type.Union([
-          Type.Literal('editor'), Type.Literal('terminal'), Type.Literal('graph'),
-          Type.Literal('canvas'), Type.Literal('kanban'), Type.Literal('ai'),
-        ], { description: 'Pane to switch to' }),
+        pane: Type.Union(
+          [
+            Type.Literal('editor'),
+            Type.Literal('terminal'),
+            Type.Literal('graph'),
+            Type.Literal('canvas'),
+            Type.Literal('kanban'),
+            Type.Literal('ai'),
+          ],
+          { description: 'Pane to switch to' },
+        ),
       }),
-      async execute(toolCallId: string, params: { pane: string }) {
+      async execute(_toolCallId: string, params: { pane: string }) {
         const win = BrowserWindow.getAllWindows()[0]
         if (!win || win.isDestroyed()) {
           return { content: [{ type: 'text', text: 'No Ghosted window available' }], details: {} }
@@ -604,19 +730,23 @@ ipcMain.handle('pi:create', async (_e, sessionId: string, cwd?: string) => {
     // Kill existing session if any
     const existing = piSessions.get(sessionId)
     if (existing) {
-      try { existing.dispose() } catch {}
+      try {
+        existing.dispose()
+      } catch {}
       piSessions.delete(sessionId)
     }
 
-    const { createAgentSession, AuthStorage, ModelRegistry, SessionManager } =
-      // @ts-ignore — optional dependency, may not be installed
-      await import('@mariozechner/pi-coding-agent')
+    const { createAgentSession, AuthStorage, ModelRegistry, SessionManager } = await import(
+      '@mariozechner/pi-coding-agent'
+    )
 
     const authStorage = AuthStorage.create()
     const modelRegistry = new ModelRegistry(authStorage)
 
     let customTools: any[] = []
-    try { customTools = buildGhostedTools() } catch (e: any) {
+    try {
+      customTools = buildGhostedTools()
+    } catch (e: any) {
       console.warn('Failed to build Ghosted tools:', e.message)
     }
 
@@ -658,13 +788,17 @@ ipcMain.handle('pi:prompt', async (_e, sessionId: string, message: string) => {
 ipcMain.handle('pi:abort', async (_e, sessionId: string) => {
   const session = piSessions.get(sessionId)
   if (!session) return
-  try { await session.abort() } catch {}
+  try {
+    await session.abort()
+  } catch {}
 })
 
 ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
   const session = piSessions.get(sessionId)
   if (!session) return
-  try { session.dispose() } catch {}
+  try {
+    session.dispose()
+  } catch {}
   piSessions.delete(sessionId)
 })
 
@@ -672,7 +806,7 @@ ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
 // Reads are confined to granted workspace roots; the scheme is listed in the
 // CSP (img-src/media-src) instead of bypassing it.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'ghosted-file', privileges: { stream: true, supportFetchAPI: true } }
+  { scheme: 'ghosted-file', privileges: { stream: true, supportFetchAPI: true } },
 ])
 
 app.whenReady().then(() => {
@@ -684,5 +818,9 @@ app.whenReady().then(() => {
   })
   createWindow()
 })
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
+})

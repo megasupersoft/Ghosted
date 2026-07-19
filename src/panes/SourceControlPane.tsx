@@ -1,11 +1,21 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  File,
+  FileCode,
+  FileText,
+  GitBranch,
+  RefreshCw,
+  Sparkles,
+  Undo2,
+} from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '@/store'
 import { useSettings } from '@/store/settings'
-import {
-  GitBranch, GitCommitHorizontal, Undo2, Check,
-  ChevronDown, ChevronRight, FileCode, FileText,
-  File, RefreshCw, Sparkles, ArrowUp, ArrowDown, ArrowUpDown,
-} from 'lucide-react'
 
 interface GitFile {
   x: string
@@ -14,8 +24,14 @@ interface GitFile {
 }
 
 interface GitLogEntry {
-  hash: string; shortHash: string; author: string; email: string
-  date: string; subject: string; refs: string; parents: string[]
+  hash: string
+  shortHash: string
+  author: string
+  email: string
+  date: string
+  subject: string
+  refs: string
+  parents: string[]
 }
 
 type FileCategory = 'staged' | 'changed' | 'untracked'
@@ -42,11 +58,17 @@ function statusLabel(x: string, y: string, cat: FileCategory): string {
 
 function statusColor(label: string): string {
   switch (label) {
-    case 'M': return 'var(--amber)'
-    case 'A': case 'U': return 'var(--green)'
-    case 'D': return 'var(--red)'
-    case 'R': return 'var(--cyan)'
-    default: return 'var(--text-muted)'
+    case 'M':
+      return 'var(--amber)'
+    case 'A':
+    case 'U':
+      return 'var(--green)'
+    case 'D':
+      return 'var(--red)'
+    case 'R':
+      return 'var(--cyan)'
+    default:
+      return 'var(--text-muted)'
   }
 }
 
@@ -71,33 +93,45 @@ function ChangesList({ files, cwd, onRefresh }: { files: GitFile[]; cwd: string;
 
   return (
     <div>
-      <div onClick={() => setOpen(o => !o)} className="scm-group-header">
+      <div onClick={() => setOpen((o) => !o)} className="scm-group-header">
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <span className="scm-group-label">Changes</span>
         <span className="scm-group-count">{files.length}</span>
       </div>
-      {open && files.map(file => {
-        const name = file.path.split('/').pop() ?? file.path
-        const cat = categorize(file)
-        const sl = statusLabel(file.x, file.y, cat)
-        return (
-          <div key={file.path} className="scm-file-row">
-            <SmallFileIcon name={name} />
-            <span className="scm-file-name" title={file.path}>{name}</span>
-            <span className="scm-file-path" title={file.path}>
-              {file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : ''}
-            </span>
-            <span style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
-              {cat === 'changed' && (
-                <button className="scm-file-action" title="Discard changes" onClick={() => handleDiscard(file.path)}>
-                  <Undo2 size={13} />
-                </button>
-              )}
-              <span className="scm-file-status" style={{ color: statusColor(sl) }}>{sl}</span>
-            </span>
-          </div>
-        )
-      })}
+      {open &&
+        files.map((file) => {
+          const name = file.path.split('/').pop() ?? file.path
+          const cat = categorize(file)
+          const sl = statusLabel(file.x, file.y, cat)
+          return (
+            <div key={file.path} className="scm-file-row">
+              <SmallFileIcon name={name} />
+              <span className="scm-file-name" title={file.path}>
+                {name}
+              </span>
+              <span className="scm-file-path" title={file.path}>
+                {file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : ''}
+              </span>
+              <span
+                style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 2 }}
+              >
+                {cat === 'changed' && (
+                  <button
+                    type="button"
+                    className="scm-file-action"
+                    title="Discard changes"
+                    onClick={() => handleDiscard(file.path)}
+                  >
+                    <Undo2 size={13} />
+                  </button>
+                )}
+                <span className="scm-file-status" style={{ color: statusColor(sl) }}>
+                  {sl}
+                </span>
+              </span>
+            </div>
+          )
+        })}
     </div>
   )
 }
@@ -110,7 +144,7 @@ const ROW_H = 28
 const LANE_W = 16
 const DOT_R = 3
 
-function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentBranch: string }) {
+function GitGraph({ commits }: { commits: GitLogEntry[]; currentBranch?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [open, setOpen] = useState(true)
 
@@ -130,7 +164,10 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
     const getLane = (hash: string): number => {
       if (laneMap.has(hash)) return laneMap.get(hash)!
       let lane = activeLanes.indexOf(null)
-      if (lane === -1) { lane = activeLanes.length; activeLanes.push(null) }
+      if (lane === -1) {
+        lane = activeLanes.length
+        activeLanes.push(null)
+      }
       activeLanes[lane] = hash
       laneMap.set(hash, lane)
       return lane
@@ -176,11 +213,11 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
 
       // Draw lines to parents
       for (const parentHash of commit.parents) {
-        const parentIdx = commits.findIndex(c => c.hash === parentHash)
+        const parentIdx = commits.findIndex((c) => c.hash === parentHash)
         const parentLane = parentIdx !== -1 ? (laneMap.get(parentHash) ?? 0) : lane
         const px = parentLane * LANE_W + LANE_W / 2 + 4
         // If parent is beyond visible list, draw line to bottom of canvas
-        const py = parentIdx !== -1 ? (parentIdx * ROW_H + ROW_H / 2) : (commits.length * ROW_H)
+        const py = parentIdx !== -1 ? parentIdx * ROW_H + ROW_H / 2 : commits.length * ROW_H
         const pColor = LANE_COLORS[parentLane % LANE_COLORS.length]
 
         ctx.beginPath()
@@ -219,7 +256,7 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
 
   return (
     <div>
-      <div onClick={() => setOpen(o => !o)} className="scm-group-header">
+      <div onClick={() => setOpen((o) => !o)} className="scm-group-header">
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <span className="scm-group-label">Git Graph</span>
         <span className="scm-group-count">{commits.length}</span>
@@ -230,22 +267,40 @@ function GitGraph({ commits, currentBranch }: { commits: GitLogEntry[]; currentB
             ref={canvasRef}
             style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 0 }}
           />
-          {commits.map((c, i) => {
+          {commits.map((c, _i) => {
             const maxLane = lanes.current.size > 0 ? Math.max(...Array.from(lanes.current.values())) : 0
             const graphW = Math.min(6, maxLane + 1) * LANE_W + 8
-            const refs = c.refs ? c.refs.split(',').map(r => r.trim()).filter(Boolean) : []
+            const refs = c.refs
+              ? c.refs
+                  .split(',')
+                  .map((r) => r.trim())
+                  .filter(Boolean)
+              : []
             return (
-              <div key={c.hash} className="scm-graph-row" style={{ height: ROW_H, position: 'relative', zIndex: 1 }}>
+              <div
+                key={c.hash}
+                className="scm-graph-row"
+                style={{ height: ROW_H, position: 'relative', zIndex: 1 }}
+              >
                 <div style={{ width: graphW, flexShrink: 0 }} />
                 <div className="scm-graph-info">
-                  {refs.length > 0 && refs.map(r => (
-                    <span key={r} className="scm-graph-ref" style={{
-                      background: r.includes('HEAD') ? 'var(--accent-dim)' : 'var(--bg-elevated)',
-                      color: r.includes('HEAD') ? 'var(--accent-bright)' : 'var(--text-muted)',
-                    }}>{r.replace('HEAD -> ', '')}</span>
-                  ))}
+                  {refs.length > 0 &&
+                    refs.map((r) => (
+                      <span
+                        key={r}
+                        className="scm-graph-ref"
+                        style={{
+                          background: r.includes('HEAD') ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                          color: r.includes('HEAD') ? 'var(--accent-bright)' : 'var(--text-muted)',
+                        }}
+                      >
+                        {r.replace('HEAD -> ', '')}
+                      </span>
+                    ))}
                   <span className="scm-graph-subject">{c.subject}</span>
-                  <span className="scm-graph-meta">{c.shortHash} · {c.author} · {c.date}</span>
+                  <span className="scm-graph-meta">
+                    {c.shortHash} · {c.author} · {c.date}
+                  </span>
                 </div>
               </div>
             )
@@ -287,15 +342,16 @@ export default function SourceControlPane() {
     setLoading(false)
   }, [workspacePath])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
-  const gitInterval = useSettings(s => s.gitAutoRefreshInterval)
+  const gitInterval = useSettings((s) => s.gitAutoRefreshInterval)
   useEffect(() => {
     if (!workspacePath) return
     const id = setInterval(refresh, gitInterval * 1000)
     return () => clearInterval(id)
   }, [workspacePath, refresh, gitInterval])
-
 
   const handleCommit = async () => {
     if (!workspacePath || totalChanges === 0) return
@@ -374,13 +430,17 @@ export default function SourceControlPane() {
       const changedFiles: { name: string; added: number; removed: number }[] = []
       for (const line of lines) {
         const match = line.match(/^\s*(.+?)\s+\|\s+(\d+)\s+(\+*)(-*)/)
-        if (match) changedFiles.push({ name: match[1].trim(), added: match[3].length, removed: match[4].length })
+        if (match)
+          changedFiles.push({ name: match[1].trim(), added: match[3].length, removed: match[4].length })
       }
       const newFiles = untrackedFiles.split('\n').filter(Boolean)
 
       // Determine the type of change
-      const allFiles = [...changedFiles.map(f => f.name), ...newFiles]
-      if (allFiles.length === 0) { setGenerating(false); return '' }
+      const allFiles = [...changedFiles.map((f) => f.name), ...newFiles]
+      if (allFiles.length === 0) {
+        setGenerating(false)
+        return ''
+      }
 
       // Detect common patterns
       const totalAdded = changedFiles.reduce((s, f) => s + f.added, 0)
@@ -389,9 +449,9 @@ export default function SourceControlPane() {
       const hasModified = changedFiles.length > 0
 
       // Find common directory or file type
-      const extensions = allFiles.map(f => f.split('.').pop()?.toLowerCase()).filter(Boolean)
+      const extensions = allFiles.map((f) => f.split('.').pop()?.toLowerCase()).filter(Boolean)
       const uniqueExts = [...new Set(extensions)]
-      const dirs = allFiles.map(f => f.split('/')[0]).filter(Boolean)
+      const dirs = allFiles.map((f) => f.split('/')[0]).filter(Boolean)
       const uniqueDirs = [...new Set(dirs)]
 
       // Build a conventional commit message
@@ -399,8 +459,12 @@ export default function SourceControlPane() {
       if (hasNew && !hasModified) type = 'feat'
       else if (totalRemoved > totalAdded * 2) type = 'refactor'
       else if (uniqueExts.length === 1 && uniqueExts[0] === 'md') type = 'docs'
-      else if (uniqueExts.some(e => e === 'test' || e === 'spec') || allFiles.some(f => f.includes('test') || f.includes('spec'))) type = 'test'
-      else if (allFiles.some(f => f.includes('.css') || f.includes('style'))) type = 'style'
+      else if (
+        uniqueExts.some((e) => e === 'test' || e === 'spec') ||
+        allFiles.some((f) => f.includes('test') || f.includes('spec'))
+      )
+        type = 'test'
+      else if (allFiles.some((f) => f.includes('.css') || f.includes('style'))) type = 'style'
       else if (totalAdded > totalRemoved) type = 'feat'
       else type = 'fix'
 
@@ -445,15 +509,32 @@ export default function SourceControlPane() {
       <div className="scm-commit-area">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <GitBranch size={14} color="var(--accent)" />
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{branch || '...'}</span>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+            {branch || '...'}
+          </span>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-            <button onClick={handlePull} title="Pull" style={{ display: 'flex', color: 'var(--text-muted)' }}>
+            <button
+              type="button"
+              onClick={handlePull}
+              title="Pull"
+              style={{ display: 'flex', color: 'var(--text-muted)' }}
+            >
               <ArrowDown size={14} />
             </button>
-            <button onClick={handlePush} title="Push" style={{ display: 'flex', color: 'var(--text-muted)' }}>
+            <button
+              type="button"
+              onClick={handlePush}
+              title="Push"
+              style={{ display: 'flex', color: 'var(--text-muted)' }}
+            >
               <ArrowUp size={14} />
             </button>
-            <button onClick={refresh} title="Refresh" style={{ display: 'flex', color: 'var(--text-muted)' }}>
+            <button
+              type="button"
+              onClick={refresh}
+              title="Refresh"
+              style={{ display: 'flex', color: 'var(--text-muted)' }}
+            >
               <RefreshCw size={14} className={loading ? 'ghost-pulse' : ''} />
             </button>
           </span>
@@ -461,18 +542,27 @@ export default function SourceControlPane() {
         <div style={{ display: 'flex', gap: 4 }}>
           <input
             value={commitMsg}
-            onChange={e => setCommitMsg(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommit() } }}
+            onChange={(e) => setCommitMsg(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleCommit()
+              }
+            }}
             placeholder="Commit message"
             style={{ flex: 1 }}
           />
           <button
+            type="button"
             onClick={generateCommitMsg}
             disabled={totalChanges === 0 || generating}
             title="Auto-generate commit message"
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 28, borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 28,
+              borderRadius: 'var(--radius-sm)',
               color: generating ? 'var(--accent)' : 'var(--text-muted)',
               transition: 'color 0.15s',
             }}
@@ -480,12 +570,16 @@ export default function SourceControlPane() {
             <Sparkles size={14} className={generating ? 'ghost-pulse' : ''} />
           </button>
           <button
+            type="button"
             onClick={handleCommit}
             disabled={totalChanges === 0}
             title="Commit all changes"
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 28, borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 28,
+              borderRadius: 'var(--radius-sm)',
               background: commitMsg.trim() && totalChanges > 0 ? 'var(--accent)' : 'var(--bg-elevated)',
               color: commitMsg.trim() && totalChanges > 0 ? '#fff' : 'var(--text-muted)',
               transition: 'all 0.15s',
@@ -496,19 +590,29 @@ export default function SourceControlPane() {
         </div>
         {(ahead > 0 || behind > 0) && (
           <button
+            type="button"
             onClick={handleSync}
             disabled={syncing}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              width: '100%', marginTop: 6, padding: '5px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              width: '100%',
+              marginTop: 6,
+              padding: '5px 0',
               borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)', color: '#fff',
-              fontSize: 12, opacity: syncing ? 0.6 : 1,
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 12,
+              opacity: syncing ? 0.6 : 1,
               transition: 'opacity 0.15s',
             }}
           >
             <ArrowUpDown size={13} />
-            {syncing ? 'Syncing...' : `Sync Changes ${ahead > 0 ? `${ahead}\u2191` : ''}${behind > 0 ? `${behind}\u2193` : ''}`}
+            {syncing
+              ? 'Syncing...'
+              : `Sync Changes ${ahead > 0 ? `${ahead}\u2191` : ''}${behind > 0 ? `${behind}\u2193` : ''}`}
           </button>
         )}
       </div>
@@ -517,7 +621,9 @@ export default function SourceControlPane() {
       <div className="scm-file-list">
         <ChangesList files={files} cwd={workspacePath} onRefresh={refresh} />
         {files.length === 0 && !loading && commits.length === 0 && (
-          <div style={{ padding: '20px 12px', color: 'var(--text-ghost)', fontSize: 13, textAlign: 'center' }}>
+          <div
+            style={{ padding: '20px 12px', color: 'var(--text-ghost)', fontSize: 13, textAlign: 'center' }}
+          >
             No changes detected.
           </div>
         )}
