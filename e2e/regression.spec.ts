@@ -143,14 +143,66 @@ test('canvas pane mounts xyflow for a .canvas file', async () => {
   await shot('06-canvas')
 })
 
-test('kanban pane mounts without crashing', async () => {
-  const { window } = ctx
+test('kanban local board: create, keyboard select and move, persist', async () => {
+  const { window, workspace } = ctx
   await runPaletteCommand(window, 'Open Kanban Pane')
   await expect(window.locator('.leaf-pane-tab', { hasText: 'Kanban' })).toBeVisible({
     timeout: 10000,
   })
-  await window.waitForTimeout(800)
+  // Temp workspace has no git remote → local board mode
+  await expect(window.locator('.kb-mode')).toHaveText('Local', { timeout: 15000 })
+
+  const board = window.locator('.kb-wrap')
+  await board.click()
+
+  // C → create a card in the first column
+  await window.keyboard.press('c')
+  await window.locator('.kb-new-card').fill('Ship the roadmap')
+  await window.keyboard.press('Enter')
+  await window.keyboard.press('Escape')
+  const card = window.locator('.kb-card', { hasText: 'Ship the roadmap' })
+  await expect(card).toBeVisible()
   await shot('07-kanban')
+
+  // Focus it (arrows), select (X), move via S → In Progress
+  await board.click()
+  await window.keyboard.press('ArrowRight')
+  await window.keyboard.press('ArrowLeft')
+  await expect(window.locator('.kb-card.focused')).toBeVisible()
+  await window.keyboard.press('x')
+  await expect(window.locator('.kb-card.selected')).toBeVisible()
+  await window.keyboard.press('s')
+  await window.locator('.kb-menu-item', { hasText: 'In Progress' }).click()
+  const ipColumn = window.locator('.kb-col', { has: window.locator('.kb-col-header', { hasText: 'In Progress' }) })
+  await expect(ipColumn.locator('.kb-card', { hasText: 'Ship the roadmap' })).toBeVisible()
+
+  // Persisted to the workspace file
+  await expect
+    .poll(async () => {
+      try {
+        return readFileSync(path.join(workspace, '.ghosted/kanban.json'), 'utf-8')
+      } catch {
+        return ''
+      }
+    })
+    .toContain('Ship the roadmap')
+})
+
+test('timeline pane: schedule an item and render its bar', async () => {
+  const { window } = ctx
+  await runPaletteCommand(window, 'Open Timeline Pane')
+  await expect(window.locator('.leaf-pane-tab', { hasText: 'Timeline' })).toBeVisible({
+    timeout: 10000,
+  })
+  await expect(window.locator('.tl-today')).toBeVisible()
+
+  // The kanban card is unscheduled — schedule it from the tray
+  const unscheduled = window.locator('.tl-unscheduled-item', { hasText: 'Ship the roadmap' })
+  await expect(unscheduled).toBeVisible()
+  await unscheduled.click()
+  await expect(window.locator('.tl-bar', { hasText: 'Ship the roadmap' })).toBeVisible()
+  await expect(window.locator('.tl-label', { hasText: 'Ship the roadmap' })).toBeVisible()
+  await shot('09-timeline')
 })
 
 test('sidebar panel resizes by dragging the separator', async () => {

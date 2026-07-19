@@ -156,7 +156,9 @@ export const usePmStore = create<PmState>((set, get) => ({
       void window.electron.pm.op(op)
     } else {
       const localItems = s.localItems.map((i) =>
-        i.itemId === item.itemId ? { ...i, status: option?.name ?? null, statusOptionId: option?.id ?? null } : i,
+        i.itemId === item.itemId
+          ? { ...i, status: option?.name ?? null, statusOptionId: option?.id ?? null }
+          : i,
       )
       set({ localItems })
       void saveLocal(localItems)

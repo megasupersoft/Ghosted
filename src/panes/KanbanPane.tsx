@@ -1,816 +1,663 @@
+/**
+ * Kanban pane — Linear-grade board over GitHub Projects v2 (or a local board
+ * when offline / no remote). Rendering reads the pm store snapshot; every
+ * mutation is optimistic via the main-process op queue.
+ *
+ * Keyboard contract (2026 de-facto standard):
+ *   arrows/J/K move focus · X select · Shift+X range-select · S move status
+ *   C new card · Enter details · O open on GitHub · / filter · ? help · Esc clear
+ */
+
 import {
-  closestCorners,
   DndContext,
   type DragEndEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Ghost, RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  CircleDot,
+  ExternalLink,
+  GitPullRequest,
+  HelpCircle,
+  Inbox,
+  RefreshCw,
+  StickyNote,
+  X,
+} from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@/store'
+import { usePmStore } from '@/store/pm'
+import type { PmFieldOption, PmItem } from '../../electron/pmShared'
 
-interface KanbanItem {
-  id: string
-  title: string
-  number?: number
-  labels?: string[]
-  assignee?: string
-  url?: string
-}
-interface KanbanColumn {
-  id: string
-  name: string
-  items: KanbanItem[]
+const TRIAGE: PmFieldOption = { id: '__triage', name: 'Triage' }
+
+interface BoardColumn {
+  option: PmFieldOption
+  items: PmItem[]
 }
 
-function Card({ item, isDragging }: { item: KanbanItem; isDragging?: boolean }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: isSorting,
-  } = useSortable({ id: item.id })
+function buildColumns(items: PmItem[], options: PmFieldOption[], filter: string): BoardColumn[] {
+  const q = filter.trim().toLowerCase()
+  const visible = q
+    ? items.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          String(i.number ?? '').includes(q) ||
+          i.labels.some((l) => l.name.toLowerCase().includes(q)) ||
+          i.assignees.some((a) => a.toLowerCase().includes(q)),
+      )
+    : items
+  const triage = visible.filter((i) => i.status === null)
+  const cols: BoardColumn[] = []
+  if (triage.length > 0) cols.push({ option: TRIAGE, items: triage })
+  for (const option of options) {
+    cols.push({
+      option,
+      items: visible.filter((i) => i.statusOptionId === option.id || i.status === option.name),
+    })
+  }
+  return cols
+}
+
+function relativeTime(ts: number | null): string {
+  if (!ts) return '—'
+  const s = Math.round((Date.now() - ts) / 1000)
+  if (s < 5) return 'just now'
+  if (s < 60) return `${s}s ago`
+  if (s < 3600) return `${Math.round(s / 60)}m ago`
+  return `${Math.round(s / 3600)}h ago`
+}
+
+const PRIORITY_COLOR: Record<string, string> = {
+  urgent: 'var(--red)',
+  p0: 'var(--red)',
+  high: 'var(--orange)',
+  p1: 'var(--orange)',
+  medium: 'var(--amber)',
+  p2: 'var(--amber)',
+  low: 'var(--sky)',
+  p3: 'var(--sky)',
+}
+
+const Card = memo(function Card({
+  item,
+  focused,
+  selected,
+  pending,
+  onClickCard,
+}: {
+  item: PmItem
+  focused: boolean
+  selected: boolean
+  pending: boolean
+  onClickCard: (item: PmItem, e: React.MouseEvent) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.itemId,
+  })
+  const prColor = item.priority ? (PRIORITY_COLOR[item.priority.toLowerCase()] ?? 'var(--text-muted)') : null
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isSorting ? 0.4 : 1 }}
+      data-item-id={item.itemId}
+      className={`kb-card ${focused ? 'focused' : ''} ${selected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      onClick={(e) => onClickCard(item, e)}
       {...attributes}
       {...listeners}
     >
-      <div
-        style={{
-          background: isDragging ? 'var(--bg-hover)' : 'var(--bg-elevated)',
-          borderRadius: 'var(--radius-md)',
-          padding: '8px 10px',
-          cursor: 'grab',
-          marginBottom: 6,
-          userSelect: 'none',
-          boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.5)' : undefined,
-        }}
-      >
-        <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 5 }}>
-          {item.url ? (
-            <span style={{ cursor: 'pointer' }} onClick={() => window.electron.shell.openExternal(item.url!)}>
-              {item.title}
-            </span>
-          ) : (
-            item.title
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          {item.number != null && (
-            <span style={{ color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-              #{item.number}
-            </span>
-          )}
-          {item.labels?.map((l) => (
-            <span
-              key={l}
-              style={{
-                fontSize: 11,
-                padding: '1px 6px',
-                borderRadius: 10,
-                background: 'var(--accent-dim)',
-                color: 'var(--accent-bright)',
-              }}
-            >
-              {l}
-            </span>
-          ))}
-          {item.assignee && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
-              @{item.assignee}
-            </span>
-          )}
-        </div>
+      <div className="kb-card-title">
+        {item.contentType === 'PullRequest' ? (
+          <GitPullRequest size={13} className="kb-card-type pr" />
+        ) : item.contentType === 'DraftIssue' ? (
+          <StickyNote size={13} className="kb-card-type draft" />
+        ) : (
+          <CircleDot size={13} className="kb-card-type" />
+        )}
+        <span>{item.title}</span>
+      </div>
+      <div className="kb-card-meta">
+        {item.number && <span className="kb-card-num">#{item.number}</span>}
+        {prColor && (
+          <span className="kb-card-priority" style={{ color: prColor, borderColor: prColor }}>
+            {item.priority}
+          </span>
+        )}
+        {item.labels.slice(0, 3).map((l) => (
+          <span
+            key={l.name}
+            className="kb-card-label"
+            style={{ background: `#${l.color}33`, color: `#${l.color}` }}
+          >
+            {l.name}
+          </span>
+        ))}
+        {item.assignees.length > 0 && <span className="kb-card-assignee">@{item.assignees[0]}</span>}
+        {pending && <span className="kb-card-pending" title="Syncing to GitHub…" />}
       </div>
     </div>
   )
-}
+})
 
-function Column({ col, onAdd }: { col: KanbanColumn; onAdd: (id: string, title: string) => void }) {
-  const [adding, setAdding] = useState(false)
-  const [draft, setDraft] = useState('')
-  const submit = () => {
-    if (draft.trim()) {
-      onAdd(col.id, draft.trim())
-      setDraft('')
-    }
-    setAdding(false)
-  }
+function Column({
+  column,
+  colIndex,
+  focus,
+  selected,
+  pendingIds,
+  creating,
+  onClickCard,
+  onCreate,
+  onCancelCreate,
+}: {
+  column: BoardColumn
+  colIndex: number
+  focus: { col: number; row: number } | null
+  selected: Set<string>
+  pendingIds: Set<string>
+  creating: boolean
+  onClickCard: (item: PmItem, e: React.MouseEvent) => void
+  onCreate: (title: string) => void
+  onCancelCreate: () => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.option.id })
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (creating) inputRef.current?.focus()
+  }, [creating])
 
   return (
-    <div
-      style={{
-        width: 258,
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--bg-base)',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '8px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 500 }}>{col.name}</span>
-        <span
-          style={{
-            fontSize: 11,
-            padding: '1px 6px',
-            borderRadius: 10,
-            background: 'var(--bg-elevated)',
-            color: 'var(--text-muted)',
-          }}
-        >
-          {col.items.length}
-        </span>
+    <div className={`kb-col ${isOver ? 'over' : ''}`}>
+      <div className="kb-col-header">
+        {column.option.id === TRIAGE.id && <Inbox size={13} />}
+        <span>{column.option.name}</span>
+        <span className="kb-col-count">{column.items.length}</span>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px 0' }}>
-        <SortableContext items={col.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          {col.items.map((item) => (
-            <Card key={item.id} item={item} />
-          ))}
-        </SortableContext>
-      </div>
-      <div style={{ padding: 8, flexShrink: 0 }}>
-        {adding ? (
-          <>
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  submit()
-                }
-                if (e.key === 'Escape') setAdding(false)
-              }}
-              placeholder="Card title..."
-              style={{
-                width: '100%',
-                resize: 'none',
-                height: 60,
-                fontSize: 13,
-                padding: 8,
-                borderRadius: 6,
-                background: 'var(--bg-elevated)',
-                border: 'none',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                marginBottom: 4,
-              }}
+      <SortableContext items={column.items.map((i) => i.itemId)} strategy={verticalListSortingStrategy}>
+        <div ref={setNodeRef} className="kb-col-body">
+          {column.items.map((item, row) => (
+            <Card
+              key={item.itemId}
+              item={item}
+              focused={focus?.col === colIndex && focus?.row === row}
+              selected={selected.has(item.itemId)}
+              pending={pendingIds.has(item.itemId)}
+              onClickCard={onClickCard}
             />
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                onClick={submit}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  borderRadius: 4,
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: 13,
-                }}
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                onClick={() => setAdding(false)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  fontSize: 13,
-                  color: 'var(--text-muted)',
-                  background: 'var(--bg-elevated)',
-                }}
-              >
-                x
-              </button>
-            </div>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            style={{
-              width: '100%',
-              padding: '5px 0',
-              borderRadius: 4,
-              fontSize: 13,
-              color: 'var(--text-muted)',
-              background: 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--accent)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-muted)'
-            }}
-          >
-            + Add card
-          </button>
-        )}
-      </div>
+          ))}
+          {creating && (
+            <input
+              ref={inputRef}
+              className="kb-new-card"
+              placeholder="Issue title — Enter to create"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  onCreate(e.currentTarget.value.trim())
+                  e.currentTarget.value = ''
+                } else if (e.key === 'Escape') {
+                  onCancelCreate()
+                }
+                e.stopPropagation()
+              }}
+              onBlur={onCancelCreate}
+            />
+          )}
+        </div>
+      </SortableContext>
     </div>
   )
-}
-
-// Parse gh project items JSON into columns
-function _parseProjectItems(json: string): KanbanColumn[] {
-  try {
-    const data = JSON.parse(json)
-    const items = data.items || data
-    const colMap = new Map<string, KanbanItem[]>()
-
-    for (const item of items) {
-      const status = item.status ?? item.Status ?? 'Backlog'
-      const title = item.title ?? item.Title ?? 'Untitled'
-      const number = item.number ?? item['issue number'] ?? item['pr number']
-      const labels = item.labels ? item.labels.split(', ').filter(Boolean) : []
-      const assignees = item.assignees ?? item.Assignees ?? ''
-      const url = item.url ?? item.URL ?? ''
-
-      if (!colMap.has(status)) colMap.set(status, [])
-      colMap.get(status)?.push({
-        id: `${item.id ?? Date.now()}-${Math.random()}`,
-        title,
-        number: number ? Number(number) : undefined,
-        labels: labels.length > 0 ? labels : undefined,
-        assignee: assignees.split(',')[0]?.trim() || undefined,
-        url: url || undefined,
-      })
-    }
-
-    return Array.from(colMap.entries()).map(([name, items]) => ({
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      items,
-    }))
-  } catch {
-    return []
-  }
 }
 
 export default function KanbanPane(_props: { leafId?: string }) {
-  const { workspacePath, addStatus } = useStore()
-  const [columns, setColumns] = useState<KanbanColumn[]>([])
-  const [active, setActive] = useState<KanbanItem | null>(null)
-  const [remote, setRemote] = useState<{ owner: string; repo: string } | null>(null)
-  const [projectName, setProjectName] = useState('')
-  const [projectNumber, setProjectNumber] = useState<number | null>(null)
-  const [projectId, setProjectId] = useState('')
-  const [statusFieldId, setStatusFieldId] = useState('')
-  const [statusOptionIds, setStatusOptionIds] = useState<Map<string, string>>(new Map())
-  const [status, setStatus] = useState<'idle' | 'loading' | 'connected' | 'no-gh' | 'no-project' | 'error'>(
-    'idle',
+  const workspacePath = useStore((s) => s.workspacePath)
+  const pm = usePmStore()
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const filterRef = useRef<HTMLInputElement>(null)
+
+  const [filter, setFilter] = useState('')
+  const [focus, setFocus] = useState<{ col: number; row: number } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [anchor, setAnchor] = useState<string | null>(null)
+  const [statusMenu, setStatusMenu] = useState(false)
+  const [creatingCol, setCreatingCol] = useState<number | null>(null)
+  const [detail, setDetail] = useState<PmItem | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
+  const [dragItem, setDragItem] = useState<PmItem | null>(null)
+  const [, forceTick] = useState(0)
+
+  const snapshot = pm.snapshot
+  const items = pm.mode === 'github' ? (snapshot?.items ?? []) : pm.localItems
+  const options = pm.columns()
+  const columns = useMemo(() => buildColumns(items, options, filter), [items, options, filter])
+  const pendingIds = useMemo(() => new Set(snapshot?.pendingItemIds ?? []), [snapshot?.pendingItemIds])
+
+  // Init + visibility + "last synced" ticker
+  useEffect(() => {
+    if (workspacePath && !pm.initialized) void pm.init(workspacePath)
+  }, [workspacePath, pm.initialized, pm.init])
+  useEffect(() => {
+    pm.setVisible(true)
+    const t = setInterval(() => forceTick((n) => n + 1), 30_000)
+    return () => {
+      pm.setVisible(false)
+      clearInterval(t)
+    }
+  }, [pm.setVisible])
+
+  const focusedItem = focus ? (columns[focus.col]?.items[focus.row] ?? null) : null
+  const targets =
+    selected.size > 0 ? items.filter((i) => selected.has(i.itemId)) : focusedItem ? [focusedItem] : []
+
+  const moveTargets = useCallback(
+    (option: PmFieldOption) => {
+      for (const t of targets) {
+        pm.setStatus(t, option.id === TRIAGE.id ? null : option)
+        // keyboard move → top of column (Linear convention)
+        pm.reorder({ ...t, statusOptionId: option.id, status: option.name }, null)
+      }
+      setStatusMenu(false)
+      setSelected(new Set())
+    },
+    [targets, pm.setStatus, pm.reorder],
   )
-  const [errorMsg, setErrorMsg] = useState('')
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  // Detect remote
-  useEffect(() => {
-    if (!workspacePath) {
-      setRemote(null)
-      return
-    }
-    window.electron.git.remote(workspacePath).then((r) => setRemote(r))
-  }, [workspacePath])
-
-  const fetchingRef = useRef(false)
-  const fetchProject = useCallback(async () => {
-    if (!workspacePath || !remote || fetchingRef.current) return
-    fetchingRef.current = true
-    setStatus('loading')
-    try {
-      // First check if gh CLI is available and authenticated
-      const authCheck = await window.electron.git.gh(workspacePath, 'auth status')
-      if (!authCheck.ok) {
-        setStatus('no-gh')
-        setErrorMsg('gh CLI not authenticated. Run `gh auth login` in terminal.')
-        return
+  // ── Keyboard contract ──────────────────────────────────────────────────────
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const cols = columns.length
+      const clampFocus = (c: number, r: number) => {
+        if (cols === 0) return null
+        const cc = Math.max(0, Math.min(cols - 1, c))
+        const rows = columns[cc].items.length
+        return { col: cc, row: Math.max(0, Math.min(rows - 1, r)) }
       }
-
-      // Use GraphQL via gh api — works for both users and orgs
-      // Try org first, fall back to user
-      const gqlProjects = `
-      query($login:String!) {
-        organization(login:$login) { projectsV2(first:10) { nodes { id number title } } }
-      }
-    `
-      const gqlProjectsUser = `
-      query($login:String!) {
-        user(login:$login) { projectsV2(first:10) { nodes { id number title } } }
-      }
-    `
-      let projects: any[] = []
-      let apiError = ''
-      const orgResult = await window.electron.git.gh(
-        workspacePath,
-        `api graphql -f query='${gqlProjects.replace(/\n/g, ' ')}' -f login='${remote.owner}'`,
-      )
-      if (orgResult.ok) {
-        try {
-          const d = JSON.parse(orgResult.data!)
-          if (d.errors?.[0]?.type === 'RATE_LIMIT')
-            apiError = 'GitHub API rate limit exceeded. Try again later.'
-          projects = d.data?.organization?.projectsV2?.nodes ?? []
-        } catch {}
-      } else {
-        if (orgResult.error?.includes('read:project') || orgResult.error?.includes('required scopes')) {
-          setStatus('error')
-          setErrorMsg('scope:project')
-          return
-        }
-        if (orgResult.error?.includes('rate limit'))
-          apiError = 'GitHub API rate limit exceeded. Try again later.'
-      }
-      if (projects.length === 0 && !apiError) {
-        const userResult = await window.electron.git.gh(
-          workspacePath,
-          `api graphql -f query='${gqlProjectsUser.replace(/\n/g, ' ')}' -f login='${remote.owner}'`,
-        )
-        if (userResult.ok) {
-          try {
-            const d = JSON.parse(userResult.data!)
-            if (d.errors?.[0]?.type === 'RATE_LIMIT')
-              apiError = 'GitHub API rate limit exceeded. Try again later.'
-            projects = d.data?.user?.projectsV2?.nodes ?? []
-          } catch {}
-        } else if (userResult.error?.includes('rate limit')) {
-          apiError = 'GitHub API rate limit exceeded. Try again later.'
-        }
-      }
-
-      if (apiError) {
-        setStatus('error')
-        setErrorMsg(apiError)
-        return
-      }
-
-      if (projects.length === 0) {
-        setStatus('no-project')
-        return
-      }
-
-      // Match project by repo name, otherwise first
-      const repoName = remote.repo.toLowerCase()
-      const project = projects.find((p: any) => p.title?.toLowerCase() === repoName) ?? projects[0]
-      setProjectId(project.id)
-
-      // Fetch fields + items in one GraphQL call
-      const gqlDetails = `
-      query($id:ID!) {
-        node(id:$id) {
-          ... on ProjectV2 {
-            fields(first:30) { nodes {
-              ... on ProjectV2SingleSelectField { id name options { id name } }
-            } }
-            items(first:100) { nodes {
-              id
-              fieldValues(first:10) { nodes {
-                ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } }
-              } }
-              content {
-                ... on Issue { title number url labels(first:5) { nodes { name } } assignees(first:1) { nodes { login } } }
-                ... on PullRequest { title number url labels(first:5) { nodes { name } } assignees(first:1) { nodes { login } } }
-                ... on DraftIssue { title }
-              }
-            } }
-          }
-        }
-      }
-    `
-      const detailsResult = await window.electron.git.gh(
-        workspacePath,
-        `api graphql -f query='${gqlDetails.replace(/\n/g, ' ')}' -f id='${project.id}'`,
-      )
-      if (!detailsResult.ok) {
-        setStatus('error')
-        setErrorMsg(detailsResult.error ?? 'Failed to fetch project details')
-        return
-      }
-
-      let statusOptions: string[] = []
-      let items: any[] = []
-      try {
-        const d = JSON.parse(detailsResult.data!)
-        const proj = d.data?.node
-        // Parse Status field
-        const sf = proj?.fields?.nodes?.find((f: any) => f.name === 'Status' && f.options)
-        if (sf) {
-          statusOptions = sf.options.map((o: any) => o.name)
-          setStatusFieldId(sf.id)
-          const optMap = new Map<string, string>()
-          for (const o of sf.options) optMap.set(o.name, o.id)
-          setStatusOptionIds(optMap)
-        }
-        items = proj?.items?.nodes ?? []
-      } catch {}
-      if (statusOptions.length === 0) statusOptions = ['Todo', 'In Progress', 'Done']
-
-      // Parse items into columns
-      const colMap = new Map<string, KanbanItem[]>()
-      for (const item of items) {
-        const statusVal =
-          item.fieldValues?.nodes?.find((f: any) => f.field?.name === 'Status')?.name ?? 'Backlog'
-        const c = item.content
-        if (!c?.title) continue
-        if (!colMap.has(statusVal)) colMap.set(statusVal, [])
-        colMap.get(statusVal)?.push({
-          id: item.id,
-          title: c.title,
-          number: c.number,
-          url: c.url,
-          labels: c.labels?.nodes?.map((l: any) => l.name),
-          assignee: c.assignees?.nodes?.[0]?.login,
-        })
-      }
-      const itemCols = Array.from(colMap.entries()).map(([name, items]) => ({
-        id: name.toLowerCase().replace(/\s+/g, '-'),
-        name,
-        items,
-      }))
-
-      // Build columns from Status field options, merging in any items
-      const itemMap = new Map(itemCols.map((c) => [c.name, c.items]))
-      const cols: KanbanColumn[] = statusOptions.map((name) => ({
-        id: name.toLowerCase().replace(/\s+/g, '-'),
-        name,
-        items: itemMap.get(name) ?? [],
-      }))
-      // Add any columns from items that aren't in the Status options (e.g. Backlog)
-      for (const ic of itemCols) {
-        if (!statusOptions.includes(ic.name)) cols.push(ic)
-      }
-      setColumns(cols)
-      setProjectName(project.title)
-      setProjectNumber(projectNumber)
-      setStatus('connected')
-      useStore
-        .getState()
-        .addStatus('info', `Synced project "${project.title}" from ${remote.owner}/${remote.repo}`)
-    } finally {
-      fetchingRef.current = false
-    }
-  }, [workspacePath, remote, projectNumber])
-
-  // Auto-fetch when remote is detected
-  useEffect(() => {
-    if (remote) fetchProject()
-  }, [remote, fetchProject])
-
-  const onDragStart = (e: DragStartEvent) =>
-    setActive(columns.flatMap((c) => c.items).find((i) => i.id === e.active.id) ?? null)
-
-  const onDragEnd = async (e: DragEndEvent) => {
-    setActive(null)
-    const { active: a, over } = e
-    if (!over) return
-    const src = columns.find((c) => c.items.some((i) => i.id === a.id))
-    const dst = columns.find((c) => c.items.some((i) => i.id === over.id) || c.id === over.id)
-    if (!src || !dst || src.id === dst.id) return
-    const item = src.items.find((i) => i.id === a.id)!
-
-    // Update local state immediately
-    setColumns((cols) =>
-      cols.map((c) => {
-        if (c.id === src.id) return { ...c, items: c.items.filter((i) => i.id !== a.id) }
-        if (c.id === dst.id) return { ...c, items: [...c.items, item] }
-        return c
-      }),
-    )
-
-    // Sync status change to GitHub via GraphQL
-    if (
-      workspacePath &&
-      projectId &&
-      statusFieldId &&
-      !item.id.startsWith('temp-') &&
-      !item.id.startsWith('local-')
-    ) {
-      const optionId = statusOptionIds.get(dst.name)
-      if (optionId) {
-        const mutation = `mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionId:String!) { updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{singleSelectOptionId:$optionId}}) { projectV2Item { id } } }`
-        const result = await window.electron.git.gh(
-          workspacePath,
-          `api graphql -f query='${mutation}' -f projectId='${projectId}' -f itemId='${item.id}' -f fieldId='${statusFieldId}' -f optionId='${optionId}'`,
-        )
-        if (result.ok) {
-          addStatus('info', `Moved "${item.title}" to ${dst.name}`)
-        } else {
-          addStatus('error', `Failed to move "${item.title}": ${result.error}`)
-          fetchProject()
-        }
-      }
-    }
-  }
-
-  const addCard = async (colId: string, title: string) => {
-    if (!workspacePath || !remote || !projectNumber) {
-      // Fallback to local-only if not connected
-      setColumns((cols) =>
-        cols.map((c) =>
-          c.id === colId ? { ...c, items: [...c.items, { id: `local-${Date.now()}`, title }] } : c,
-        ),
-      )
-      return
-    }
-
-    // Add local card immediately for responsiveness
-    const tempId = `temp-${Date.now()}`
-    setColumns((cols) =>
-      cols.map((c) => (c.id === colId ? { ...c, items: [...c.items, { id: tempId, title }] } : c)),
-    )
-
-    // Create issue via gh CLI
-    const safeTitle = title.replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$')
-    const createResult = await window.electron.git.gh(
-      workspacePath,
-      `issue create --repo ${remote.owner}/${remote.repo} --title "${safeTitle}" --body ""`,
-    )
-
-    if (createResult.ok && createResult.data) {
-      const match = createResult.data.match(/\/issues\/(\d+)/)
-      const issueNumber = match ? Number(match[1]) : null
-
-      if (issueNumber && projectId) {
-        // Get the issue's node ID via GraphQL
-        const issueQuery = `query($owner:String!,$repo:String!,$num:Int!) { repository(owner:$owner,name:$repo) { issue(number:$num) { id } } }`
-        const issueResult = await window.electron.git.gh(
-          workspacePath,
-          `api graphql -f query='${issueQuery}' -f owner='${remote.owner}' -f repo='${remote.repo}' -F num=${issueNumber}`,
-        )
-
-        let contentId = ''
-        try {
-          contentId = JSON.parse(issueResult.data!).data.repository.issue.id
-        } catch {}
-
-        if (contentId) {
-          // Add to project
-          const addMutation = `mutation($projectId:ID!,$contentId:ID!) { addProjectV2ItemById(input:{projectId:$projectId,contentId:$contentId}) { item { id } } }`
-          const addResult = await window.electron.git.gh(
-            workspacePath,
-            `api graphql -f query='${addMutation}' -f projectId='${projectId}' -f contentId='${contentId}'`,
-          )
-
-          // Set status to the target column
-          if (addResult.ok && statusFieldId) {
-            const col = columns.find((c) => c.id === colId)
-            const optionId = col ? statusOptionIds.get(col.name) : null
-            if (optionId) {
-              try {
-                const itemId = JSON.parse(addResult.data!).data.addProjectV2ItemById.item.id
-                const setMutation = `mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionId:String!) { updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{singleSelectOptionId:$optionId}}) { projectV2Item { id } } }`
-                await window.electron.git.gh(
-                  workspacePath,
-                  `api graphql -f query='${setMutation}' -f projectId='${projectId}' -f itemId='${itemId}' -f fieldId='${statusFieldId}' -f optionId='${optionId}'`,
-                )
-              } catch {}
+      switch (e.key) {
+        case 'ArrowLeft':
+          setFocus((f) => clampFocus((f?.col ?? 0) - (f ? 1 : 0), f?.row ?? 0))
+          break
+        case 'ArrowRight':
+          setFocus((f) => clampFocus((f?.col ?? 0) + (f ? 1 : 0), f?.row ?? 0))
+          break
+        case 'ArrowUp':
+        case 'k':
+          setFocus((f) => clampFocus(f?.col ?? 0, (f?.row ?? 0) - (f ? 1 : 0)))
+          break
+        case 'ArrowDown':
+        case 'j':
+          setFocus((f) => clampFocus(f?.col ?? 0, (f?.row ?? 0) + (f ? 1 : 0)))
+          break
+        case 'x':
+        case 'X': {
+          if (!focusedItem || !focus) break
+          if (e.shiftKey && anchor) {
+            const colItems = columns[focus.col].items
+            const a = colItems.findIndex((i) => i.itemId === anchor)
+            if (a >= 0) {
+              const [lo, hi] = [Math.min(a, focus.row), Math.max(a, focus.row)]
+              setSelected((sel) => {
+                const next = new Set(sel)
+                for (let r = lo; r <= hi; r++) next.add(colItems[r].itemId)
+                return next
+              })
+              break
             }
           }
+          setSelected((sel) => {
+            const next = new Set(sel)
+            if (next.has(focusedItem.itemId)) next.delete(focusedItem.itemId)
+            else next.add(focusedItem.itemId)
+            return next
+          })
+          setAnchor(focusedItem.itemId)
+          break
         }
-        addStatus('info', `Created issue #${issueNumber}: ${title}`)
+        case 's':
+        case 'S':
+          if (targets.length > 0) setStatusMenu(true)
+          break
+        case 'c':
+        case 'C':
+          setCreatingCol(focus?.col ?? 0)
+          break
+        case 'Enter':
+          if (focusedItem) setDetail(focusedItem)
+          break
+        case 'o':
+        case 'O':
+          if (focusedItem?.url) void window.electron.shell.openExternal(focusedItem.url)
+          break
+        case '/':
+          e.preventDefault()
+          filterRef.current?.focus()
+          break
+        case '?':
+          setShowHelp((h) => !h)
+          break
+        case 'Escape':
+          setSelected(new Set())
+          setStatusMenu(false)
+          setDetail(null)
+          setShowHelp(false)
+          break
+        default:
+          return
       }
-      fetchProject()
-    } else {
-      addStatus('error', `Failed to create issue: ${createResult.error ?? 'unknown error'}`)
+      e.preventDefault()
+    },
+    [columns, focus, focusedItem, anchor, targets],
+  )
+
+  // ── Drag and drop ──────────────────────────────────────────────────────────
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const onDragStart = (e: DragStartEvent) => {
+    setDragItem(items.find((i) => i.itemId === e.active.id) ?? null)
+  }
+
+  const onDragEnd = (e: DragEndEvent) => {
+    setDragItem(null)
+    const { active, over } = e
+    if (!over) return
+    const item = items.find((i) => i.itemId === active.id)
+    if (!item) return
+
+    const destCol =
+      columns.find((c) => c.option.id === over.id) ??
+      columns.find((c) => c.items.some((i) => i.itemId === over.id))
+    if (!destCol) return
+
+    const overIndex = destCol.items.findIndex((i) => i.itemId === over.id)
+    const dropIndex = overIndex === -1 ? destCol.items.length : overIndex
+    const afterItemId = dropIndex === 0 ? null : (destCol.items[dropIndex - 1]?.itemId ?? null)
+
+    const sameColumn = destCol.items.some((i) => i.itemId === item.itemId)
+    if (!sameColumn) {
+      pm.setStatus(item, destCol.option.id === TRIAGE.id ? null : destCol.option)
     }
+    if (afterItemId !== item.itemId) pm.reorder(item, afterItemId)
   }
 
-  // Empty states
+  const onClickCard = useCallback(
+    (item: PmItem, e: React.MouseEvent) => {
+      const pos = (() => {
+        for (let c = 0; c < columns.length; c++) {
+          const r = columns[c].items.findIndex((i) => i.itemId === item.itemId)
+          if (r >= 0) return { col: c, row: r }
+        }
+        return null
+      })()
+      setFocus(pos)
+      if (e.metaKey || e.ctrlKey) {
+        setSelected((sel) => {
+          const next = new Set(sel)
+          if (next.has(item.itemId)) next.delete(item.itemId)
+          else next.add(item.itemId)
+          return next
+        })
+      } else if (e.detail === 2) {
+        setDetail(item)
+      }
+    },
+    [columns],
+  )
+
+  // ── Empty / status states ──────────────────────────────────────────────────
   if (!workspacePath) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: 'var(--text-ghost)' }}>
-          <Ghost size={32} color="var(--accent)" style={{ opacity: 0.15, marginBottom: 8 }} />
-          <div style={{ fontSize: 13 }}>Open a workspace to see its project board.</div>
-        </div>
-      </div>
-    )
+    return <div className="kb-empty">open a workspace to see the board</div>
   }
 
-  if (!remote) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: 'var(--text-ghost)', fontSize: 13 }}>
-          No GitHub remote detected.
-        </div>
-      </div>
-    )
-  }
-
-  if (status === 'no-gh') {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div
-          style={{
-            textAlign: 'center',
-            color: 'var(--text-muted)',
-            fontSize: 13,
-            maxWidth: 280,
-            lineHeight: 1.6,
-          }}
-        >
-          <div style={{ marginBottom: 8 }}>gh CLI not authenticated.</div>
-          <div style={{ fontSize: 12, color: 'var(--text-ghost)' }}>
-            Run <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>gh auth login</code>{' '}
-            in the terminal to connect.
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (status === 'no-project') {
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center', color: 'var(--text-ghost)', fontSize: 13 }}>
-          No GitHub Project found for {remote.owner}/{remote.repo}.
-        </div>
-      </div>
-    )
-  }
-
-  if (status === 'error') {
-    const isScopeError = errorMsg === 'scope:project'
-    return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center', maxWidth: 340 }}>
-          {isScopeError ? (
-            <>
-              <div style={{ color: 'var(--amber)', fontSize: 13, marginBottom: 8 }}>
-                Missing GitHub Project scope
-              </div>
-              <div style={{ color: 'var(--text-ghost)', fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>
-                Your token needs the{' '}
-                <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>read:project</code>{' '}
-                scope to access GitHub Projects.
-              </div>
-              <button
-                type="button"
-                onClick={() => window.electron.shell.openExternal('https://github.com/settings/tokens')}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                }}
-              >
-                Open Token Settings
-              </button>
-              <div style={{ color: 'var(--text-ghost)', fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
-                Add{' '}
-                <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>read:project</code>{' '}
-                and <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>project</code>{' '}
-                scopes to your token
-              </div>
-              <button
-                type="button"
-                onClick={fetchProject}
-                style={{
-                  marginTop: 10,
-                  padding: '4px 12px',
-                  borderRadius: 4,
-                  background: 'var(--bg-elevated)',
-                  color: 'var(--text-muted)',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                Retry
-              </button>
-            </>
-          ) : (
-            <>
-              <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>Failed to sync</div>
-              <div style={{ color: 'var(--text-ghost)', fontSize: 12 }}>{errorMsg}</div>
-              <button
-                type="button"
-                onClick={fetchProject}
-                style={{
-                  marginTop: 12,
-                  padding: '4px 12px',
-                  borderRadius: 4,
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: 13,
-                }}
-              >
-                Retry
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    )
-  }
+  const mode = pm.mode
+  const statusLine =
+    mode === 'github'
+      ? `${snapshot?.selectedProject?.title ?? ''} · synced ${relativeTime(snapshot?.lastSyncedAt ?? null)}`
+      : mode === 'local'
+        ? 'local board (.ghosted/kanban.json)'
+        : 'connecting…'
 
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}
-    >
-      <div style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          {projectName || `${remote.owner}/${remote.repo}`}
-        </span>
-        {status === 'loading' && <RefreshCw size={12} color="var(--text-muted)" className="ghost-pulse" />}
-        {status === 'connected' && <span style={{ color: 'var(--green)', fontSize: 11 }}>synced</span>}
-        <span style={{ flex: 1 }} />
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: pane-level keyboard model (roving focus)
+    <div ref={wrapRef} className="kb-wrap" tabIndex={0} onKeyDown={onKeyDown} role="application">
+      <div className="kb-header">
+        {mode === 'github' && (snapshot?.projects.length ?? 0) > 1 ? (
+          <select
+            className="kb-project-select"
+            value={snapshot?.selectedProject?.number ?? ''}
+            onChange={(e) => pm.selectProject(Number(e.target.value))}
+          >
+            {snapshot?.projects.map((p) => (
+              <option key={p.id} value={p.number}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className={`kb-mode ${mode}`}>{mode === 'github' ? 'GitHub' : 'Local'}</span>
+        )}
+        <span className="kb-status-line">{statusLine}</span>
+        {(snapshot?.pendingOps ?? 0) > 0 && (
+          <span className="kb-pending-badge">{snapshot?.pendingOps} syncing</span>
+        )}
+        {(snapshot?.failedOps ?? 0) > 0 && (
+          <span className="kb-failed-badge">{snapshot?.failedOps} failed</span>
+        )}
+        {snapshot?.rateLimit && snapshot.rateLimit.remaining < 500 && (
+          <span className="kb-failed-badge">rate limit low ({snapshot.rateLimit.remaining})</span>
+        )}
+        {snapshot?.error && mode === 'github' && (
+          <span className="kb-failed-badge" title={snapshot.error}>
+            sync error
+          </span>
+        )}
+        <div style={{ flex: 1 }} />
+        <input
+          ref={filterRef}
+          className="kb-filter"
+          placeholder="filter…  ( / )"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setFilter('')
+              ;(e.target as HTMLInputElement).blur()
+            }
+            e.stopPropagation()
+          }}
+        />
+        {mode === 'github' && (
+          <button type="button" className="kb-icon-btn" title="Refresh now" onClick={() => pm.refresh()}>
+            <RefreshCw size={13} />
+          </button>
+        )}
         <button
           type="button"
-          onClick={fetchProject}
-          title="Refresh"
-          style={{ display: 'flex', color: 'var(--text-muted)' }}
+          className="kb-icon-btn"
+          title="Keyboard shortcuts (?)"
+          onClick={() => setShowHelp(true)}
         >
-          <RefreshCw size={13} />
+          <HelpCircle size={13} />
         </button>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-        >
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            {columns.map((col) => (
-              <Column key={col.id} col={col} onAdd={addCard} />
+
+      {mode === 'connecting' && <div className="kb-empty">connecting to GitHub Projects…</div>}
+      {snapshot?.status === 'no-gh' && mode === 'local' && (
+        <div className="kb-note">
+          gh CLI not authenticated — local board mode. Run `gh auth login` and reopen.
+        </div>
+      )}
+
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <div className="kb-board">
+          {columns.map((col, ci) => (
+            <Column
+              key={col.option.id}
+              column={col}
+              colIndex={ci}
+              focus={focus}
+              selected={selected}
+              pendingIds={pendingIds}
+              creating={creatingCol === ci}
+              onClickCard={onClickCard}
+              onCreate={(title) => {
+                pm.createItem(title, col.option.id === TRIAGE.id ? null : col.option)
+                setCreatingCol(null)
+              }}
+              onCancelCreate={() => setCreatingCol(null)}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {dragItem && (
+            <div className="kb-card dragging-overlay">
+              <div className="kb-card-title">
+                <span>{dragItem.title}</span>
+              </div>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Status move menu (S) */}
+      {statusMenu && targets.length > 0 && (
+        <div className="kb-modal-backdrop" onClick={() => setStatusMenu(false)}>
+          <div className="kb-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="kb-menu-title">
+              Move {targets.length} {targets.length === 1 ? 'item' : 'items'} to…
+            </div>
+            {options.map((o) => (
+              <button key={o.id} type="button" className="kb-menu-item" onClick={() => moveTargets(o)}>
+                {o.name}
+              </button>
             ))}
           </div>
-          <DragOverlay>{active && <Card item={active} isDragging />}</DragOverlay>
-        </DndContext>
-      </div>
+        </div>
+      )}
+
+      {/* Detail */}
+      {detail && (
+        <div className="kb-modal-backdrop" onClick={() => setDetail(null)}>
+          <div className="kb-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="kb-detail-head">
+              <span className="kb-detail-title">{detail.title}</span>
+              <button type="button" className="kb-icon-btn" onClick={() => setDetail(null)}>
+                <X size={14} />
+              </button>
+            </div>
+            <div className="kb-detail-sub">
+              {detail.repo && (
+                <span>
+                  {detail.repo}
+                  {detail.number ? ` #${detail.number}` : ''}
+                </span>
+              )}
+              {detail.url && (
+                <button
+                  type="button"
+                  className="kb-link"
+                  onClick={() => detail.url && window.electron.shell.openExternal(detail.url)}
+                >
+                  <ExternalLink size={12} /> open on GitHub
+                </button>
+              )}
+            </div>
+            <div className="kb-detail-grid">
+              <label>
+                status
+                <select
+                  value={detail.statusOptionId ?? ''}
+                  onChange={(e) => {
+                    const opt = options.find((o) => o.id === e.target.value) ?? null
+                    pm.setStatus(detail, opt)
+                    setDetail({ ...detail, statusOptionId: opt?.id ?? null, status: opt?.name ?? null })
+                  }}
+                >
+                  <option value="">—</option>
+                  {options
+                    .filter((o) => o.id !== TRIAGE.id)
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                start
+                <input
+                  type="date"
+                  value={detail.startDate ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value || null
+                    pm.setDates(detail, v, detail.targetDate)
+                    setDetail({ ...detail, startDate: v })
+                  }}
+                />
+              </label>
+              <label>
+                target
+                <input
+                  type="date"
+                  value={detail.targetDate ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value || null
+                    pm.setDates(detail, detail.startDate, v)
+                    setDetail({ ...detail, targetDate: v })
+                  }}
+                />
+              </label>
+            </div>
+            {(detail.assignees.length > 0 || detail.labels.length > 0) && (
+              <div className="kb-detail-meta">
+                {detail.assignees.map((a) => (
+                  <span key={a} className="kb-card-assignee">
+                    @{a}
+                  </span>
+                ))}
+                {detail.labels.map((l) => (
+                  <span
+                    key={l.name}
+                    className="kb-card-label"
+                    style={{ background: `#${l.color}33`, color: `#${l.color}` }}
+                  >
+                    {l.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shortcut help */}
+      {showHelp && (
+        <div className="kb-modal-backdrop" onClick={() => setShowHelp(false)}>
+          <div className="kb-menu kb-help" onClick={(e) => e.stopPropagation()}>
+            <div className="kb-menu-title">Board shortcuts</div>
+            {[
+              ['←→↑↓ / J K', 'move focus'],
+              ['X · Shift+X', 'select · range select'],
+              ['S', 'move to status (bulk with selection)'],
+              ['C', 'new issue in column'],
+              ['Enter', 'open details'],
+              ['O', 'open on GitHub'],
+              ['/', 'filter'],
+              ['Esc', 'clear'],
+            ].map(([k, d]) => (
+              <div key={k} className="kb-help-row">
+                <kbd>{k}</kbd>
+                <span>{d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

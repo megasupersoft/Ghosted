@@ -189,7 +189,7 @@ export function fromJsonCanvas(doc: JsonCanvasDoc, makeId: () => string): Import
           data: {
             label: jn.label ?? 'Group',
             nodeType: 'group',
-            groupColor: jn.color && jn.color.startsWith('#') ? jn.color : '#666',
+            groupColor: jn.color?.startsWith('#') ? jn.color : '#666',
             status: 'idle',
           },
           style: { width: jn.width, height: jn.height, padding: 0, borderRadius: 8, overflow: 'hidden' },

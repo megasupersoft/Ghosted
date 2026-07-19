@@ -98,9 +98,10 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [x] node-pty spawn-helper asar path fix for packaged builds
 
 ## Next block: project management features
-- [ ] GitHub Projects two-way sync (currently read-only kanban via gh CLI)
-- [ ] Kanban upgrades — local columns, drag persistence, issue create/edit
-- [ ] Gantt chart pane — timeline view over issues/milestones
+- [x] GitHub Projects two-way sync — main-process sync engine: raw GraphQL, optimistic persistent op queue, adaptive polling with change probe, rate-limit metering
+- [x] Kanban 2026 — Linear keyboard contract, Triage column, sync badges/last-synced, filter, detail modal, local offline board (.ghosted/kanban.json)
+- [x] Timeline (roadmap) pane — Month/Quarter/Year zoom, today line, drag/resize bars writing Start/Target dates, unscheduled tray
+- [ ] Agent-assignable issues (issue → local pi/Claude session via RPC socket) — the differentiator, next
 
 ## In Flight
 - [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible

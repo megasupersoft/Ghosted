@@ -112,6 +112,7 @@ export interface PmSnapshot {
   fields: PmFields | null
   items: PmItem[]
   pendingOps: number
+  pendingItemIds: string[]
   failedOps: number
   lastSyncedAt: number | null
   rateLimit: { remaining: number; resetAt: string } | null
@@ -306,7 +307,8 @@ export function parseItem(node: any): PmItem | null {
   const item: PmItem = {
     itemId: node.id,
     contentId: content.id ?? null,
-    contentType: node.type === 'PULL_REQUEST' ? 'PullRequest' : node.type === 'DRAFT_ISSUE' ? 'DraftIssue' : 'Issue',
+    contentType:
+      node.type === 'PULL_REQUEST' ? 'PullRequest' : node.type === 'DRAFT_ISSUE' ? 'DraftIssue' : 'Issue',
     number: content.number ?? null,
     title: content.title ?? '(untitled)',
     url: content.url ?? null,

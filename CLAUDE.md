@@ -60,12 +60,13 @@ github_project: 5
 ## Architecture
 
 ### Pane model
-Six panes, always mounted, shown/hidden via CSS (not unmounted). This preserves terminal state and graph positions.
+Seven panes, always mounted, shown/hidden via CSS (not unmounted). This preserves terminal state and graph positions.
 - `editor` — Monaco multi-tab + TerminalPane split (default view)
 - `terminal` — standalone TerminalPane
 - `graph` — force-graph canvas knowledge graph, scans [[wikilinks]]
 - `canvas` — @xyflow/react agent workflow editor
-- `kanban` — dnd-kit + GitHub Projects v2 GraphQL
+- `kanban` — Linear-style board on the PM sync engine (electron/projectSync.ts): GitHub Projects v2 two-way sync or local .ghosted/kanban.json; keyboard contract (X/S/C/Enter//)
+- `timeline` — roadmap view over Start/Target fields, drag-to-reschedule through the same op queue
 - `filetree` — custom tree component (src/panes/FileTree.tsx), Electron IPC fs
 
 Active pane stored in Zustand + localStorage. Never unmount panes — use `display:none` / `visibility:hidden` pattern.

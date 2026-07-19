@@ -3,11 +3,11 @@ import {
   applyOps,
   backoffMs,
   buildMutation,
-  parseFields,
-  parseItem,
   type PmFields,
   type PmItem,
   type PmOp,
+  parseFields,
+  parseItem,
 } from './pmShared'
 
 const baseItem = (id: string, over: Partial<PmItem> = {}): PmItem => ({
@@ -63,7 +63,15 @@ describe('applyOps (rebase local ops onto server truth)', () => {
         prevDisplay: 'Backlog',
         attempts: 0,
       },
-      { opId: '2', kind: 'setDate', itemId: 'b', field: 'target', date: '2026-08-01', prevDate: null, attempts: 0 },
+      {
+        opId: '2',
+        kind: 'setDate',
+        itemId: 'b',
+        field: 'target',
+        date: '2026-08-01',
+        prevDate: null,
+        attempts: 0,
+      },
     ]
     const out = applyOps(server, ops)
     expect(out.find((i) => i.itemId === 'a')?.status).toBe('Done')
@@ -75,9 +83,13 @@ describe('applyOps (rebase local ops onto server truth)', () => {
 
   it('reorders relative to afterItemId and to top for null', () => {
     const server = [baseItem('a'), baseItem('b'), baseItem('c')]
-    const toTop = applyOps(server, [{ opId: '1', kind: 'reorder', itemId: 'c', afterItemId: null, attempts: 0 }])
+    const toTop = applyOps(server, [
+      { opId: '1', kind: 'reorder', itemId: 'c', afterItemId: null, attempts: 0 },
+    ])
     expect(toTop.map((i) => i.itemId)).toEqual(['c', 'a', 'b'])
-    const afterB = applyOps(server, [{ opId: '2', kind: 'reorder', itemId: 'a', afterItemId: 'b', attempts: 0 }])
+    const afterB = applyOps(server, [
+      { opId: '2', kind: 'reorder', itemId: 'a', afterItemId: 'b', attempts: 0 },
+    ])
     expect(afterB.map((i) => i.itemId)).toEqual(['b', 'a', 'c'])
   })
 
@@ -143,12 +155,25 @@ describe('buildMutation', () => {
       fields,
     )
     expect(doc?.query).toContain('updateProjectV2ItemFieldValue')
-    expect(doc?.variables).toMatchObject({ projectId: 'P1', itemId: 'i1', fieldId: 'F-status', optionId: 'opt-done' })
+    expect(doc?.variables).toMatchObject({
+      projectId: 'P1',
+      itemId: 'i1',
+      fieldId: 'F-status',
+      optionId: 'opt-done',
+    })
   })
 
   it('builds clear mutation for null values', () => {
     const doc = buildMutation(
-      { opId: '1', kind: 'setDate', itemId: 'i1', field: 'start', date: null, prevDate: '2026-01-01', attempts: 0 },
+      {
+        opId: '1',
+        kind: 'setDate',
+        itemId: 'i1',
+        field: 'start',
+        date: null,
+        prevDate: '2026-01-01',
+        attempts: 0,
+      },
       'P1',
       fields,
     )
@@ -157,24 +182,48 @@ describe('buildMutation', () => {
   })
 
   it('builds position update for reorder (top vs after)', () => {
-    const top = buildMutation({ opId: '1', kind: 'reorder', itemId: 'i1', afterItemId: null, attempts: 0 }, 'P1', fields)
+    const top = buildMutation(
+      { opId: '1', kind: 'reorder', itemId: 'i1', afterItemId: null, attempts: 0 },
+      'P1',
+      fields,
+    )
     expect(top?.query).toContain('updateProjectV2ItemPosition')
     expect(top?.variables).not.toHaveProperty('afterId')
-    const after = buildMutation({ opId: '2', kind: 'reorder', itemId: 'i1', afterItemId: 'i9', attempts: 0 }, 'P1', fields)
+    const after = buildMutation(
+      { opId: '2', kind: 'reorder', itemId: 'i1', afterItemId: 'i9', attempts: 0 },
+      'P1',
+      fields,
+    )
     expect(after?.variables).toMatchObject({ afterId: 'i9' })
   })
 
   it('returns null for create (multi-step flow) and missing fields', () => {
     expect(
       buildMutation(
-        { opId: '1', kind: 'create', itemId: 't', title: 'x', statusOptionId: null, statusDisplay: null, attempts: 0 },
+        {
+          opId: '1',
+          kind: 'create',
+          itemId: 't',
+          title: 'x',
+          statusOptionId: null,
+          statusDisplay: null,
+          attempts: 0,
+        },
         'P1',
         fields,
       ),
     ).toBeNull()
     expect(
       buildMutation(
-        { opId: '2', kind: 'setDate', itemId: 'i', field: 'start', date: '2026-01-01', prevDate: null, attempts: 0 },
+        {
+          opId: '2',
+          kind: 'setDate',
+          itemId: 'i',
+          field: 'start',
+          date: '2026-01-01',
+          prevDate: null,
+          attempts: 0,
+        },
         'P1',
         { ...fields, startFieldId: null },
       ),
@@ -194,7 +243,9 @@ describe('parseFields', () => {
         id: 'f6',
         name: 'Sprint',
         dataType: 'ITERATION',
-        configuration: { iterations: [{ id: 'it1', title: 'Sprint 1', startDate: '2026-07-01', duration: 14 }] },
+        configuration: {
+          iterations: [{ id: 'it1', title: 'Sprint 1', startDate: '2026-07-01', duration: 14 }],
+        },
       },
       { id: 'f7', name: 'Title', dataType: 'TITLE' },
     ])

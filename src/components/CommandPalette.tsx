@@ -1,5 +1,6 @@
 import { Command } from 'cmdk'
 import {
+  CalendarRange,
   FilePlus,
   FileText,
   FolderOpen,
@@ -24,6 +25,7 @@ const PANES: { id: PaneId; label: string; icon: React.ReactNode }[] = [
   { id: 'graph', label: 'Knowledge Graph', icon: <Network size={16} /> },
   { id: 'canvas', label: 'Canvas', icon: <LayoutGrid size={16} /> },
   { id: 'kanban', label: 'Kanban', icon: <Kanban size={16} /> },
+  { id: 'timeline', label: 'Timeline', icon: <CalendarRange size={16} /> },
   { id: 'ai', label: 'AI', icon: <Sparkles size={16} /> },
 ]
 

@@ -16,12 +16,12 @@ import {
   backoffMs,
   buildMutation,
   MAX_OP_ATTEMPTS,
-  parseFields,
-  parseItem,
   type PmFields,
   type PmItem,
   type PmOp,
   type PmSnapshot,
+  parseFields,
+  parseItem,
 } from './pmShared'
 
 const GQL_ENDPOINT = 'https://api.github.com/graphql'
@@ -38,7 +38,6 @@ interface ServiceDeps {
 export class ProjectSyncService {
   private deps: ServiceDeps
   private token: string | null = null
-  private cwd: string | null = null
   private repo: { owner: string; name: string } | null = null
   private repositoryId: string | null = null
   private projects: { id: string; number: number; title: string }[] = []
@@ -96,6 +95,7 @@ export class ProjectSyncService {
       fields: this.fields,
       items: applyOps(this.serverItems, this.ops),
       pendingOps: this.ops.length,
+      pendingItemIds: [...new Set(this.ops.map((o) => o.itemId))],
       failedOps: this.failedOps,
       lastSyncedAt: this.lastSyncedAt,
       rateLimit: this.rateLimit,
@@ -159,7 +159,6 @@ export class ProjectSyncService {
   // ─── Connect / discover ───────────────────────────────────────────────────
 
   async connect(cwd: string): Promise<PmSnapshot> {
-    this.cwd = cwd
     this.status = 'connecting'
     this.error = null
     this.notify()
