@@ -99,7 +99,7 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 
 ## In Flight
 - [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible
-- [ ] Graph search + depth control
+- [x] Graph search + depth control — live match highlighting, focus root via click/Enter, BFS depth 1/2/3/all local view
 - [ ] pi.dev RPC integration in terminal pane
 - [x] `ghosted .` CLI launcher — bin/ghosted script, single-instance lock with workspace handoff, palette installer
 - [ ] BruceOS AppImage packaging

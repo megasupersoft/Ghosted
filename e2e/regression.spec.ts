@@ -113,6 +113,27 @@ test('graph pane renders the wikilink graph', async () => {
   await shot('05-graph')
 })
 
+test('graph search focuses a node and depth limits the view', async () => {
+  const { window } = ctx
+  const search = window.locator('.graph-search')
+  await expect(search).toBeVisible()
+  const count = window.locator('.graph-count')
+  await expect(count).toContainText('nodes')
+
+  // Focus "notes" (linked to ideas; hello.ts and flow.canvas are unlinked)
+  await search.fill('notes')
+  await search.press('Enter')
+  await window.locator('.graph-depth').selectOption('1')
+  await expect(window.locator('.graph-root-chip')).toBeVisible()
+  await expect(count).toContainText('2 /', { timeout: 5000 })
+  await shot('05b-graph-depth')
+
+  // Clearing the focus restores the full graph
+  await window.locator('.graph-root-chip').click()
+  await expect(count).not.toContainText('/', { timeout: 5000 })
+  await search.fill('')
+})
+
 test('canvas pane mounts xyflow for a .canvas file', async () => {
   const { window } = ctx
   await window.locator('.filetree-row', { hasText: 'flow.canvas' }).click()

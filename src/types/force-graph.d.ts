@@ -14,6 +14,11 @@ declare module 'force-graph' {
     linkDirectionalParticles(n: number): ForceGraphInstance
     linkDirectionalParticleWidth(w: number): ForceGraphInstance
     linkDirectionalParticleColor(fn: () => string): ForceGraphInstance
+    onNodeClick(fn: (node: any) => void): ForceGraphInstance
+    onBackgroundClick(fn: () => void): ForceGraphInstance
+    centerAt(x: number, y: number, ms?: number): ForceGraphInstance
+    zoom(k: number, ms?: number): ForceGraphInstance
+    autoPauseRedraw(enabled: boolean): ForceGraphInstance
     warmupTicks(ticks: number): ForceGraphInstance
     cooldownTime(ms: number): ForceGraphInstance
     width(w: number): ForceGraphInstance

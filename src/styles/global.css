@@ -256,6 +256,48 @@ textarea:focus {
   background: var(--accent);
 }
 
+/* ===== Graph search + depth controls ===== */
+.graph-controls {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.graph-search {
+  width: 180px;
+  font-size: 12px;
+  padding: 4px 9px;
+  background: var(--bg-elevated);
+}
+.graph-depth {
+  font-size: 12px;
+  padding: 4px 6px;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.graph-root-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  color: var(--amber);
+  background: var(--bg-elevated);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-sm);
+}
+.graph-count {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
 /* ===== Canvas export/import buttons ===== */
 .canvas-io-btn {
   display: flex;

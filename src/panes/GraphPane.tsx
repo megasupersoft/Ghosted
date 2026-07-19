@@ -1,6 +1,7 @@
 import ForceGraph2D from 'force-graph'
-import { Ghost, RefreshCw } from 'lucide-react'
+import { Ghost, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { filterGraph, type GraphDepth, matchNodes } from '@/lib/graphFilter'
 import { useStore } from '@/store'
 
 interface GNode {
@@ -117,6 +118,56 @@ export default function GraphPane(_props: { leafId?: string }) {
   const graphElRef = useRef<HTMLDivElement | null>(null)
   const graphRef = useRef<any>(null)
 
+  // Search + depth-limited local view
+  const [query, setQuery] = useState('')
+  const [depth, setDepth] = useState<GraphDepth>('all')
+  const [root, setRoot] = useState<{ id: string; label: string } | null>(null)
+  const [visibleCount, setVisibleCount] = useState<{ shown: number; total: number }>({
+    shown: 0,
+    total: 0,
+  })
+  // Full graph kept as canonical data: node objects are reused across filter
+  // passes so force-graph preserves their simulated positions.
+  const fullRef = useRef<{ nodes: any[]; links: GEdge[] }>({ nodes: [], links: [] })
+  const matchesRef = useRef<Set<string>>(new Set())
+  const rootRef = useRef<string | null>(null)
+  // Read by stable callbacks so depth changes never recreate refresh()
+  const depthRef = useRef<GraphDepth>('all')
+
+  const applyView = useCallback((rootId: string | null, d: GraphDepth) => {
+    const graph = graphRef.current
+    if (!graph) return
+    const { nodes, links } = fullRef.current
+    const filtered = filterGraph(nodes, links, rootId, d)
+    graph.graphData({
+      nodes: filtered.nodes,
+      // Fresh link objects each pass — force-graph mutates source/target into
+      // node references, so the canonical string-based list must stay clean.
+      links: filtered.links.map((l) => ({ source: l.source, target: l.target })),
+    })
+    setVisibleCount({ shown: filtered.nodes.length, total: nodes.length })
+  }, [])
+
+  const focusNode = useCallback(
+    (node: { id: string; label: string }) => {
+      rootRef.current = node.id
+      setRoot(node)
+      applyView(node.id, depthRef.current)
+      const live = fullRef.current.nodes.find((n) => n.id === node.id)
+      if (live && typeof live.x === 'number') {
+        graphRef.current?.centerAt(live.x, live.y, 500)
+        graphRef.current?.zoom(3, 500)
+      }
+    },
+    [applyView],
+  )
+
+  const clearRoot = useCallback(() => {
+    rootRef.current = null
+    setRoot(null)
+    applyView(null, depthRef.current)
+  }, [applyView])
+
   // Create a dedicated DOM element for force-graph
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -145,6 +196,11 @@ export default function GraphPane(_props: { leafId?: string }) {
     }
     if (graphElRef.current) graphElRef.current.innerHTML = ''
 
+    fullRef.current = { nodes: nodes as any[], links: edges }
+    rootRef.current = null
+    setRoot(null)
+    setVisibleCount({ shown: nodes.length, total: nodes.length })
+
     if (nodes.length === 0) {
       setLoading(false)
       return
@@ -157,15 +213,25 @@ export default function GraphPane(_props: { leafId?: string }) {
       .width(width)
       .height(height)
       .backgroundColor('#252532')
-      .nodeColor(() => '#8b7cf8')
+      .autoPauseRedraw(false)
+      .nodeColor((n: any) => {
+        if (rootRef.current === n.id) return '#fbbf24'
+        if (matchesRef.current.has(n.id)) return '#c8c2f5'
+        return matchesRef.current.size > 0 ? 'rgba(139,124,248,0.25)' : '#8b7cf8'
+      })
       .nodeRelSize(4)
       .nodeLabel((n: any) => n.label)
       .nodeCanvasObjectMode(() => 'after')
       .nodeCanvasObject((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const label = node.label
+        const highlighted = matchesRef.current.has(node.id) || rootRef.current === node.id
         const fontSize = Math.max(10 / globalScale, 2)
         ctx.font = `${fontSize}px monospace`
-        ctx.fillStyle = 'rgba(172,186,199,0.7)'
+        ctx.fillStyle = highlighted
+          ? 'rgba(240,240,245,0.95)'
+          : matchesRef.current.size > 0
+            ? 'rgba(172,186,199,0.25)'
+            : 'rgba(172,186,199,0.7)'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
         ctx.fillText(label, node.x, node.y + 5)
@@ -175,12 +241,30 @@ export default function GraphPane(_props: { leafId?: string }) {
       .linkDirectionalParticles(1)
       .linkDirectionalParticleWidth(2)
       .linkDirectionalParticleColor(() => '#8b7cf8')
+      .onNodeClick((n: any) => focusNode({ id: n.id, label: n.label }))
+      .onBackgroundClick(() => clearRoot())
       .warmupTicks(50)
       .cooldownTime(3000)
 
     graphRef.current = graph
     setLoading(false)
-  }, [workspacePath])
+  }, [workspacePath, focusNode, clearRoot])
+
+  // Search highlights live; depth changes re-filter around the current root
+  useEffect(() => {
+    matchesRef.current = matchNodes(fullRef.current.nodes, query)
+  }, [query])
+
+  useEffect(() => {
+    depthRef.current = depth
+    applyView(rootRef.current, depth)
+  }, [depth, applyView])
+
+  const onSearchEnter = useCallback(() => {
+    const matches = matchNodes(fullRef.current.nodes, query)
+    const first = fullRef.current.nodes.find((n) => matches.has(n.id))
+    if (first) focusNode({ id: first.id, label: first.label })
+  }, [query, focusNode])
 
   useEffect(() => {
     refresh()
@@ -249,6 +333,46 @@ export default function GraphPane(_props: { leafId?: string }) {
             <span style={{ fontSize: 13 }}>open a workspace to see the graph</span>
           </div>
         )}
+        {/* Search + depth controls */}
+        <div className="graph-controls">
+          <input
+            className="graph-search"
+            placeholder="search nodes…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSearchEnter()
+              if (e.key === 'Escape') {
+                setQuery('')
+                clearRoot()
+              }
+            }}
+          />
+          <select
+            className="graph-depth"
+            value={String(depth)}
+            onChange={(e) =>
+              setDepth(e.target.value === 'all' ? 'all' : (Number(e.target.value) as 1 | 2 | 3))
+            }
+            title="Show nodes within N links of the focused node"
+          >
+            <option value="all">depth: all</option>
+            <option value="1">depth: 1</option>
+            <option value="2">depth: 2</option>
+            <option value="3">depth: 3</option>
+          </select>
+          {root && (
+            <button type="button" className="graph-root-chip" onClick={clearRoot} title="Clear focus">
+              {root.label} <X size={11} />
+            </button>
+          )}
+          <span className="graph-count" data-node-count={visibleCount.shown}>
+            {visibleCount.shown === visibleCount.total
+              ? `${visibleCount.total} nodes`
+              : `${visibleCount.shown} / ${visibleCount.total} nodes`}
+          </span>
+        </div>
+
         <button
           type="button"
           onClick={refresh}
