@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
 import { devCliArgs, extractWorkspaceArg } from './cliArgs'
 import { registerGhostedDB } from './ghostdb'
+import { startRpcServer } from './rpc'
 
 const isDev = !app.isPackaged
 const VITE_DEV_SERVER = 'http://localhost:5173'
@@ -516,7 +517,7 @@ ipcMain.handle('pty:create', (_e, id: string, cwd: string, cols?: number, rows?:
       cols: cols || 80,
       rows: rows || 24,
       cwd: cwd || os.homedir(),
-      env: process.env as Record<string, string>,
+      env: { ...process.env, GHOSTED_SOCKET: rpcSocketPath } as Record<string, string>,
     })
     terminals.set(id, t)
     const win = BrowserWindow.getAllWindows()[0]
@@ -904,6 +905,80 @@ ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
   piSessions.delete(sessionId)
 })
 
+// ── Terminal RPC (pi.dev / scripts / `ghosted open`) ─────────────────────────
+// A local socket that lets processes inside Ghosted's terminal drive the app.
+// The path is exported to every PTY as GHOSTED_SOCKET.
+const rpcSocketPath =
+  process.platform === 'win32'
+    ? `\\\\.\\pipe\\ghosted-${Buffer.from(app.getPath('userData')).toString('hex').slice(0, 24)}`
+    : path.join(app.getPath('userData'), 'rpc.sock')
+let rpcServer: import('node:net').Server | null = null
+
+const PANE_IDS = new Set(['editor', 'terminal', 'graph', 'canvas', 'kanban', 'ai'])
+const RPC_MAX_FILE = 1024 * 1024
+
+function sendToRenderer(action: Record<string, unknown>) {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win && !win.isDestroyed()) win.webContents.send('pi:action', action)
+}
+
+function startGhostedRpc() {
+  if (process.platform !== 'win32') {
+    try {
+      fs.rmSync(rpcSocketPath, { force: true })
+    } catch {}
+  }
+  rpcServer = startRpcServer(rpcSocketPath, {
+    ping: () => 'pong',
+    workspaces: () => [...grantedRoots],
+    openFile: ({ path: p }) => {
+      if (typeof p !== 'string' || !p || !path.isAbsolute(p))
+        throw new Error('openFile needs an absolute path')
+      const resolved = path.resolve(p)
+      const stat = fs.statSync(resolved)
+      if (!stat.isFile()) throw new Error(`not a file: ${resolved}`)
+      if (stat.size > RPC_MAX_FILE) throw new Error('file too large for editor open')
+      // Local socket = same-user intent, equivalent trust to a file drop
+      droppedGrants.add(resolved)
+      const content = fs.readFileSync(resolved, 'utf-8')
+      sendToRenderer({
+        type: 'openFile',
+        filePath: resolved,
+        name: resolved.split(path.sep).pop() ?? resolved,
+        content,
+      })
+      return true
+    },
+    switchPane: ({ pane }) => {
+      if (typeof pane !== 'string' || !PANE_IDS.has(pane)) {
+        throw new Error(`pane must be one of: ${[...PANE_IDS].join(', ')}`)
+      }
+      sendToRenderer({ type: 'switchPane', pane })
+      return true
+    },
+    notify: ({ level, text }) => {
+      if (typeof text !== 'string' || !text) throw new Error('notify needs text')
+      const lvl = level === 'warn' || level === 'error' ? level : 'info'
+      sendToRenderer({ type: 'notify', level: lvl, text: text.slice(0, 500) })
+      return true
+    },
+  })
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(rpcSocketPath, 0o600)
+    } catch {}
+  }
+}
+
+app.on('will-quit', () => {
+  rpcServer?.close()
+  if (process.platform !== 'win32') {
+    try {
+      fs.rmSync(rpcSocketPath, { force: true })
+    } catch {}
+  }
+})
+
 // Register protocol to serve local files (images, videos) to the renderer.
 // Reads are confined to granted workspace roots; the scheme is listed in the
 // CSP (img-src/media-src) instead of bypassing it.
@@ -913,6 +988,7 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   registerGhostedDB(isAllowedPath)
+  startGhostedRpc()
   protocol.handle('ghosted-file', (request) => {
     const filePath = decodeURIComponent(request.url.replace('ghosted-file://', ''))
     if (!isAllowedPath(filePath)) return new Response('Forbidden', { status: 403 })

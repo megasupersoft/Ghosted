@@ -55,6 +55,9 @@ export default function App() {
         case 'switchPane':
           store.addTab(store.focusedLeafId, action.pane)
           break
+        case 'notify':
+          store.addStatus(action.level ?? 'info', action.text)
+          break
       }
     })
     return () => window.electron.pi.offAction()

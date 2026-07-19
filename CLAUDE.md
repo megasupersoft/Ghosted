@@ -127,7 +127,7 @@ npm run test:e2e     # Playwright Electron smoke test (needs npm run build first
 - [x] `ghosted .` CLI launcher (bin/ghosted + single-instance handoff; palette: "Install ghosted CLI")
 - [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible
 - [x] Graph search + depth control — live match highlighting, focus root via click/Enter, BFS depth 1/2/3/all local view
-- [ ] pi.dev RPC in terminal pane
+- [x] pi.dev RPC in terminal pane — GHOSTED_SOCKET JSON-RPC (openFile/switchPane/notify/workspaces), `ghosted open <file>`
 - [ ] BruceOS AppImage packaging
 - [ ] Supermemory integration for persistent workspace context
 

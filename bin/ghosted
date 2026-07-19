@@ -6,10 +6,31 @@ TARGET="${1:-.}"
 
 case "$TARGET" in
   -h|--help)
-    echo "usage: ghosted [dir]"
-    echo "Opens the directory (default: .) as a Ghosted workspace."
+    echo "usage: ghosted [dir]           open a directory as a Ghosted workspace"
+    echo "       ghosted open <file>     open a file in the running Ghosted editor"
+    echo "                               (inside Ghosted's terminal, via \$GHOSTED_SOCKET)"
     echo "Set GHOSTED_BIN to point at a custom app binary."
     exit 0
+    ;;
+  open)
+    # RPC into the running instance — available inside Ghosted's terminal
+    FILE="$2"
+    [ -n "$FILE" ] || { echo "usage: ghosted open <file>" >&2; exit 1; }
+    [ -n "$GHOSTED_SOCKET" ] || { echo "ghosted: GHOSTED_SOCKET not set — run inside Ghosted's terminal" >&2; exit 1; }
+    DIR="$(cd "$(dirname "$FILE")" 2>/dev/null && pwd)" || { echo "ghosted: no such file: $FILE" >&2; exit 1; }
+    ABSFILE="$DIR/$(basename "$FILE")"
+    python3 - "$GHOSTED_SOCKET" "$ABSFILE" <<'PY'
+import json, socket, sys
+sock, target = sys.argv[1], sys.argv[2]
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect(sock)
+s.sendall((json.dumps({"id": 1, "method": "openFile", "params": {"path": target}}) + "\n").encode())
+res = json.loads(s.makefile().readline())
+if not res.get("ok"):
+    print(f"ghosted: {res.get('error')}", file=sys.stderr)
+    sys.exit(1)
+PY
+    exit $?
     ;;
 esac
 

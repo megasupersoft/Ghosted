@@ -97,10 +97,15 @@ v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19,
 - [x] Dirty dot indicator on tabs with unsaved changes
 - [x] node-pty spawn-helper asar path fix for packaged builds
 
+## Next block: project management features
+- [ ] GitHub Projects two-way sync (currently read-only kanban via gh CLI)
+- [ ] Kanban upgrades — local columns, drag persistence, issue create/edit
+- [ ] Gantt chart pane — timeline view over issues/milestones
+
 ## In Flight
 - [x] Canvas JSON export/import — JSON Canvas 1.0 spec interop (jsoncanvas.org), Obsidian-compatible
 - [x] Graph search + depth control — live match highlighting, focus root via click/Enter, BFS depth 1/2/3/all local view
-- [ ] pi.dev RPC integration in terminal pane
+- [x] pi.dev RPC integration in terminal pane — GHOSTED_SOCKET JSON-RPC, `ghosted open <file>`
 - [x] `ghosted .` CLI launcher — bin/ghosted script, single-instance lock with workspace handoff, palette installer
 - [ ] BruceOS AppImage packaging
 
