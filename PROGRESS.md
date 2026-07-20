@@ -6,7 +6,30 @@ updated: 2026-07-20
 # Ghosted Progress
 
 ## Current status
-v0.1.2 + modernization sweep — full 2026 stack (Electron 43, Vite 8, React 19, Zustand 5, @xterm/xterm 6, Tailwind 4), IPC security hardening, Biome + Vitest + 10-test Playwright regression suite green on macOS and Linux CI, ⌘K palette, packaged build verified (boots with working PTY). Pre-feature gates cleared — ready for feature work.
+v0.1.2 + modernized stack + feature wave: `ghosted .` CLI with single-instance handoff, JSON Canvas 1.0 export/import, graph search + depth control, terminal RPC socket, and the PM suite — GitHub Projects v2 sync engine (optimistic op queue, adaptive polling), Linear-style kanban with keyboard contract + local offline board, roadmap timeline pane. Settings is a pane tab. 77 unit tests + 17 e2e green on macOS and Linux CI. Verified read-only against real Project #5.
+
+## Session 2026-07-20 (evening)
+
+**Shipped**
+- `ghosted .` CLI launcher: bin/ghosted script, single-instance workspace handoff, palette installer, `ghosted open <file>` via RPC
+- Canvas JSON Canvas 1.0 export/import (Obsidian-compatible, lossless round-trip via ghosted extension field), save/open file dialog IPC with path grants
+- Graph search + depth control: live highlight, focus root, BFS local view (1/2/3/all), node count badge
+- Terminal RPC socket (GHOSTED_SOCKET): openFile/switchPane/notify/workspaces for pi.dev and scripts
+- PM research (two web sweeps) → PM suite: main-process GitHub Projects v2 sync engine (raw GraphQL, persistent optimistic op queue, change-probe adaptive polling, rate-limit metering); kanban rebuilt with Linear keyboard contract, Triage column, sync affordances, local .ghosted/kanban.json fallback; roadmap timeline pane (8th pane region) with drag-to-reschedule
+- Settings moved from sidebar to a pane tab (store openPane focus-or-create)
+- Fixes en route: capture-phase Ctrl+K (xterm swallowed it), electron-builder 26 desktop.entry schema, smoke e2e profile isolation
+- Suite: 77 unit / 17 e2e, all green; GitHub mode smoke-tested read-only against Project #5
+
+**In flight**
+- None — working tree clean
+
+**Blockers**
+- electron-builder 26 node-modules collector OOM (noted earlier) still open; packaging deferred until release time
+
+**Next**
+- Agent-assignable issues: kanban issue → local pi/Claude Code session via RPC socket, mirrored to GitHub assignee
+- Palette-integrated bulk ops + iteration/milestone markers on the timeline
+- UI migration continues: shadcn components, inline styles → Tailwind
 
 ## Session 2026-07-20 (later)
 
