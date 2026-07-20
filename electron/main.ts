@@ -958,7 +958,7 @@ const rpcSocketPath =
     : path.join(app.getPath('userData'), 'rpc.sock')
 let rpcServer: import('node:net').Server | null = null
 
-const PANE_IDS = new Set(['editor', 'terminal', 'graph', 'canvas', 'kanban', 'timeline', 'ai'])
+const PANE_IDS = new Set(['editor', 'terminal', 'graph', 'canvas', 'kanban', 'timeline', 'ai', 'settings'])
 const RPC_MAX_FILE = 1024 * 1024
 
 function sendToRenderer(action: Record<string, unknown>) {

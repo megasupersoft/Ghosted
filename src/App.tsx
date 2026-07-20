@@ -8,7 +8,6 @@ import StatusBar from '@/components/StatusBar'
 import Titlebar from '@/components/Titlebar'
 import { useGhostDB } from '@/lib/useGhostDB'
 import FileTree from '@/panes/FileTree'
-import SettingsPane from '@/panes/SettingsPane'
 import SourceControlPane from '@/panes/SourceControlPane'
 import { useStore } from '@/store'
 
@@ -18,8 +17,6 @@ function SidebarContent({ id }: { id: string }) {
       return <FileTree />
     case 'source-control':
       return <SourceControlPane />
-    case 'settings':
-      return <SettingsPane />
     default:
       return null
   }

@@ -90,6 +90,7 @@ interface GhostedState {
   splitLeaf: (leafId: string, direction: 'horizontal' | 'vertical') => void
   closeLeaf: (leafId: string) => void
   addTab: (leafId: string, paneType: PaneId, label?: string, filePath?: string) => void
+  openPane: (paneType: PaneId) => void
   closeTab: (leafId: string, tabId: string) => void
   setActiveTab: (leafId: string, tabId: string) => void
   reorderTab: (leafId: string, tabId: string, toIndex: number) => void
@@ -256,6 +257,19 @@ export const useStore = create<GhostedState>((set, get) => ({
     const newNextId = nextNodeId + 1
     saveLayout(newLayout, newNextId)
     set({ layout: newLayout, nextNodeId: newNextId })
+  },
+
+  openPane: (paneType) => {
+    const { layout, focusedLeafId, nextNodeId } = get()
+    const leaf = findFirstLeafByPane(layout, paneType)
+    const tab = leaf?.tabs.find((t) => t.paneType === paneType)
+    if (leaf && tab) {
+      const newLayout = setActiveTabFn(layout, leaf.id, tab.id)
+      saveLayout(newLayout, nextNodeId)
+      set({ layout: newLayout, focusedLeafId: leaf.id })
+      return
+    }
+    get().addTab(focusedLeafId, paneType)
   },
 
   closeTab: (leafId, tabId) => {

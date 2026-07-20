@@ -24,6 +24,7 @@ const CanvasPane = React.lazy(() => import('@/panes/CanvasPane'))
 const KanbanPane = React.lazy(() => import('@/panes/KanbanPane'))
 const AiPane = React.lazy(() => import('@/panes/AiPane'))
 const TimelinePane = React.lazy(() => import('@/panes/TimelinePane'))
+const SettingsPane = React.lazy(() => import('@/panes/SettingsPane'))
 
 function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: string; filePath?: string }) {
   return (
@@ -51,6 +52,7 @@ function PaneContent({ paneType, tabId, filePath }: { paneType: PaneId; tabId: s
       {paneType === 'kanban' && <KanbanPane leafId={tabId} />}
       {paneType === 'ai' && <AiPane leafId={tabId} />}
       {paneType === 'timeline' && <TimelinePane leafId={tabId} />}
+      {paneType === 'settings' && <SettingsPane />}
     </React.Suspense>
   )
 }

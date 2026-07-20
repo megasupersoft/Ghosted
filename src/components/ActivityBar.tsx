@@ -5,7 +5,7 @@ import { useStore } from '@/store'
 const BOTTOM_ITEMS = [{ id: 'settings', icon: Settings, label: 'Settings' }] as const
 
 export default function ActivityBar() {
-  const { activeSidebar, toggleSidebar, workspacePath } = useStore()
+  const { activeSidebar, toggleSidebar, openPane, workspacePath } = useStore()
   const [changeCount, setChangeCount] = useState(0)
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function ActivityBar() {
             type="button"
             key={item.id}
             className={`activity-bar-btn ${activeSidebar === item.id ? 'active' : ''}`}
-            onClick={() => toggleSidebar(item.id)}
+            onClick={() => (item.id === 'settings' ? openPane('settings') : toggleSidebar(item.id))}
             title={item.label}
           >
             <item.icon size={24} />

@@ -26,13 +26,13 @@ const PANES: { id: PaneId; label: string; icon: React.ReactNode }[] = [
   { id: 'canvas', label: 'Canvas', icon: <LayoutGrid size={16} /> },
   { id: 'kanban', label: 'Kanban', icon: <Kanban size={16} /> },
   { id: 'timeline', label: 'Timeline', icon: <CalendarRange size={16} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
   { id: 'ai', label: 'AI', icon: <Sparkles size={16} /> },
 ]
 
 const SIDEBARS = [
   { id: 'explorer', label: 'Explorer', icon: <PanelLeft size={16} /> },
   { id: 'source-control', label: 'Source Control', icon: <GitBranch size={16} /> },
-  { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
 ]
 
 export default function CommandPalette() {

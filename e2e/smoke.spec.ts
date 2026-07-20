@@ -1,8 +1,16 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { _electron as electron, expect, test } from '@playwright/test'
 
 // Requires a prior `npm run build` — launches the real app against dist/.
 test('app boots, loads the workspace shell, and PTY is available', async () => {
-  const app = await electron.launch({ args: ['.'] })
+  // Isolated profile: never touches the real userData, never collides with a
+  // running dev instance's single-instance lock
+  const app = await electron.launch({
+    args: ['.'],
+    env: { ...process.env, GHOSTED_USER_DATA: mkdtempSync(path.join(tmpdir(), 'ghosted-smoke-')) },
+  })
 
   const window = await app.firstWindow()
   await expect(window.locator('#root')).not.toBeEmpty({ timeout: 15000 })

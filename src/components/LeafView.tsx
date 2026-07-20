@@ -7,6 +7,7 @@ import {
   PanelRight,
   Pin,
   Plus,
+  Settings,
   Share2,
   Terminal,
   Workflow,
@@ -39,6 +40,7 @@ const PANE_ICONS: Record<PaneId, React.ReactNode> = {
   kanban: <Kanban size={TAB_ICON_SIZE} />,
   timeline: <CalendarRange size={TAB_ICON_SIZE} />,
   ai: <Bot size={TAB_ICON_SIZE} />,
+  settings: <Settings size={TAB_ICON_SIZE} />,
 }
 
 const PANE_LABELS: Record<PaneId, string> = {
@@ -49,9 +51,10 @@ const PANE_LABELS: Record<PaneId, string> = {
   kanban: 'Kanban',
   timeline: 'Timeline',
   ai: 'Pi',
+  settings: 'Settings',
 }
 
-const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban', 'timeline', 'ai']
+const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban', 'timeline', 'ai', 'settings']
 
 // --- Drop zone detection (Obsidian's 33% threshold algorithm) ---
 
