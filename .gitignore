@@ -23,3 +23,6 @@ site/.vitepress/cache/
 coverage/
 playwright-report/
 test-results/
+
+# dogfood artifacts (mock agent writes into the workspace)
+.ghosted2-mock-output.md

@@ -57,18 +57,57 @@ github_project: 5
 
 ---
 
+## AGENTS RUNNING INSIDE GHOSTED — READ THIS FIRST
+
+If you are a coding agent spawned from Ghosted's Agents pane (via ACP), your host is
+`ghosted2/server/` running under this very repo. Self-edit rules:
+
+- **`src/**` (renderer) is safe to edit** — Vite HMR reloads the UI live; the web
+  bridge reconnects and replays your session. Ghosted updates itself around the user.
+- **`ghosted2/server/**` is NOT safe while you run** — in `dev:server` (watch mode) any
+  edit restarts the host, which kills YOUR process mid-turn. In dogfood mode
+  (`npm run start --prefix ghosted2`, no watch) edits don't apply until a human restarts
+  the server. Either way: propose server changes, let the human apply/restart.
+- `electron/**` changes don't affect the web host but keep IPC parity in mind (see below).
+- The mock agent writes `.ghosted2-mock-output.md` to the workspace root (gitignored).
+
+## Web mode (Ghosted 2.0)
+
+The renderer runs unmodified in a browser: `src/lib/webBridge.ts` implements the whole
+`window.electron` surface over WebSocket (`ws://localhost:4821/bridge`) to
+`ghosted2/server/` — real node-pty PTYs, grant-confined fs, git, reused projectSync, and
+the `acp:*` agent-host namespace. Electron behavior is unchanged.
+
+```bash
+# dogfood mode (server does NOT watch — safe for self-editing agents):
+GHOSTED2_ROOT="$(pwd)" npm run start --prefix ghosted2   # bridge + ACP host :4821
+npm run dev                                              # renderer :5173
+# dev mode for humans working ON the server: npm run dev:server --prefix ghosted2
+cd ghosted2 && npm run smoke                             # e2e: session→permission→write
+```
+
+- **Touching the IPC surface?** Update `electron/main.ts` + `electron/preload.ts` +
+  `src/types/electron.d.ts` **and** `ghosted2/server/bridge.ts` + `src/lib/webBridge.ts`
+  together — the bridge mirrors main.ts shapes exactly.
+- Agent host: `ghosted2/server/acpHost.ts` (ACP client side over `@agentclientprotocol/sdk`),
+  agents registry in `ghosted2/server/agents.ts` (mock + Claude Code via
+  `@agentclientprotocol/claude-agent-acp`). Wire contract: `ghosted2/shared/protocol.ts`
+  + `ghosted2/shared/bridge.ts`.
+
 ## Architecture
 
 ### Pane model
-Eight panes, always mounted, shown/hidden via CSS (not unmounted). This preserves terminal state and graph positions.
+Ten panes, always mounted, shown/hidden via CSS (not unmounted). This preserves terminal state and graph positions.
 - `editor` — Monaco multi-tab + TerminalPane split (default view)
 - `terminal` — standalone TerminalPane
-- `graph` — force-graph canvas knowledge graph, scans [[wikilinks]]
+- `graph` — force-graph canvas knowledge graph: Files mode scans [[wikilinks]]/imports; Agents mode is a live force graph of ACP sessions/tools/files (src/lib/agentGraph.ts)
 - `canvas` — @xyflow/react agent workflow editor
 - `kanban` — Linear-style board on the PM sync engine (electron/projectSync.ts): GitHub Projects v2 two-way sync or local .ghosted/kanban.json; keyboard contract (X/S/C/Enter//)
 - `timeline` — roadmap view over Start/Target fields, drag-to-reschedule through the same op queue
 - `settings` — app settings as a pane tab (activity-bar gear → store.openPane)
-- `filetree` — custom tree component (src/panes/FileTree.tsx), Electron IPC fs
+- `agents` — ACP agent sessions: picker/chat/plan/tool cards/permission gate (src/panes/AgentsPane.tsx, store: src/store/agents.ts, types: src/types/acp.ts)
+- `ai` — legacy pi.dev chat pane (Electron only; superseded by `agents` on web)
+- `filetree` — custom tree component (src/panes/FileTree.tsx), Electron IPC fs (sidebar, not a pane tab)
 
 Active pane stored in Zustand + localStorage. Never unmount panes — use `display:none` / `visibility:hidden` pattern.
 

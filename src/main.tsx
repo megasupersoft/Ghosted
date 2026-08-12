@@ -11,6 +11,11 @@ import './styles/global.css'
 // setup: the store snapshots localStorage at module-evaluation time, so it must
 // not load until the workspace key is final.
 async function boot() {
+  if (!('electron' in window)) {
+    const { installWebBridge } = await import('./lib/webBridge')
+    await installWebBridge()
+  }
+
   try {
     const cliWorkspace = await window.electron.workspace.initial()
     if (cliWorkspace) localStorage.setItem('ghosted:workspacePath', cliWorkspace)

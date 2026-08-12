@@ -1,6 +1,15 @@
 // Layout tree types and pure transform functions
 
-export type PaneId = 'editor' | 'terminal' | 'graph' | 'canvas' | 'kanban' | 'timeline' | 'ai' | 'settings'
+export type PaneId =
+  | 'editor'
+  | 'terminal'
+  | 'graph'
+  | 'canvas'
+  | 'kanban'
+  | 'timeline'
+  | 'ai'
+  | 'settings'
+  | 'agents'
 
 export interface TabEntry {
   id: string // unique tab ID, used as leafId for pane components

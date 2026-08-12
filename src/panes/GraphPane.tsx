@@ -1,8 +1,54 @@
 import ForceGraph2D from 'force-graph'
 import { Ghost, RefreshCw, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { type AgentGraphData, type AgentGraphNode, deriveAgentGraph } from '@/lib/agentGraph'
 import { filterGraph, type GraphDepth, matchNodes } from '@/lib/graphFilter'
 import { useStore } from '@/store'
+import { useAgentsStore } from '@/store/agents'
+
+type GraphSource = 'files' | 'agents'
+
+// ---------- Agents-mode canvas painting (ported from ghosted2/src/components/AgentGraph.tsx) ----------
+
+interface AgentSimNode extends AgentGraphNode {
+  x?: number
+  y?: number
+  vx?: number
+  vy?: number
+  fx?: number
+  fy?: number
+}
+
+interface AgentSimLink {
+  source: string | AgentSimNode
+  target: string | AgentSimNode
+}
+
+const AGENT_STATUS_COLOR: Record<AgentGraphNode['status'], string> = {
+  active: '#7ee8c7',
+  blocked: '#fbbf24',
+  error: '#f87171',
+  done: '#55636f',
+  idle: '#3a4653',
+}
+const AGENT_LINK_COLOR = 'rgba(139, 124, 248, 0.25)'
+const AGENT_LABEL_COLOR = 'rgba(172, 186, 199, 0.8)'
+const AGENT_ACCENT_COLOR = '#c8c2f5'
+const AGENT_DIM_ALPHA = 0.35
+
+const AGENT_NODE_RADIUS = 9
+const TOOL_NODE_RADIUS = 5
+const FILE_NODE_HALF_SIZE = 4
+
+function agentNodeRadius(kind: AgentGraphNode['kind']): number {
+  if (kind === 'agent') return AGENT_NODE_RADIUS
+  if (kind === 'tool') return TOOL_NODE_RADIUS
+  return FILE_NODE_HALF_SIZE
+}
+
+function resolveAgentNode(ref: string | AgentSimNode | undefined): AgentSimNode | undefined {
+  return typeof ref === 'object' ? ref : undefined
+}
 
 interface GNode {
   id: string
@@ -168,6 +214,273 @@ export default function GraphPane(_props: { leafId?: string }) {
     applyView(null, depthRef.current)
   }, [applyView])
 
+  // ---------- Agents source (additive) ----------
+  // Default source is 'files' — everything above this point is the
+  // pre-existing knowledge-graph pane, untouched.
+  const [source, setSource] = useState<GraphSource>('files')
+  const agentGraphElRef = useRef<HTMLDivElement | null>(null)
+  const agentGraphRef = useRef<any>(null)
+  const agentNodeMapRef = useRef(new Map<string, AgentSimNode>())
+  const agentMatchesRef = useRef<Set<string>>(new Set())
+  const agentHoveredIdRef = useRef<string | null>(null)
+  const agentsInitedRef = useRef(false)
+  const selectedSessionIdRef = useRef<string | null>(null)
+  const selectSessionRef = useRef<(id: string | null) => void>(() => {})
+  const agentQueryRef = useRef('')
+  // Throttle: re-derives coalesce to at most one push per 100ms (<=10fps)
+  // so a chatty ACP update stream doesn't hammer the force simulation.
+  const agentDeriveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const agentLastDeriveAtRef = useRef(0)
+  const agentInputsRef = useRef<{
+    sessions: Parameters<typeof deriveAgentGraph>[0]
+    updates: Parameters<typeof deriveAgentGraph>[1]
+    pendingPermissions: Parameters<typeof deriveAgentGraph>[2]
+  }>({ sessions: [], updates: [], pendingPermissions: [] })
+
+  const available = useAgentsStore((s) => s.available)
+  const agentSessions = useAgentsStore((s) => s.sessions)
+  const agentUpdates = useAgentsStore((s) => s.updates)
+  const agentPendingPermissions = useAgentsStore((s) => s.pendingPermissions)
+  const agentSelectedSessionId = useAgentsStore((s) => s.selectedSessionId)
+  const initAgentsStore = useAgentsStore((s) => s.init)
+  const selectAgentSession = useAgentsStore((s) => s.select)
+
+  useEffect(() => {
+    selectedSessionIdRef.current = agentSelectedSessionId
+  }, [agentSelectedSessionId])
+
+  useEffect(() => {
+    selectSessionRef.current = selectAgentSession
+  }, [selectAgentSession])
+
+  useEffect(() => {
+    agentQueryRef.current = query
+    agentMatchesRef.current = matchNodes(
+      Array.from(agentNodeMapRef.current.values()).map((n) => ({ id: n.id, label: n.label })),
+      query,
+    )
+  }, [query])
+
+  const [agentNodeCount, setAgentNodeCount] = useState(0)
+
+  const selectSource = useCallback(
+    (next: GraphSource) => {
+      setSource(next)
+      if (next === 'agents' && !agentsInitedRef.current) {
+        agentsInitedRef.current = true
+        initAgentsStore()
+      }
+    },
+    [initAgentsStore],
+  )
+
+  // Push a derived AgentGraphData snapshot into the agent force-graph
+  // instance, reusing existing node objects by id so the simulation keeps
+  // their positions stable across live updates (same pattern as ghosted2's
+  // AgentGraph.tsx and this pane's own file-mode node-object reuse).
+  const pushAgentGraphData = useCallback((data: AgentGraphData) => {
+    const graph = agentGraphRef.current
+    if (!graph) return
+
+    const nodeMap = agentNodeMapRef.current
+    const seen = new Set<string>()
+    const nodes: AgentSimNode[] = []
+    for (const n of data.nodes) {
+      let obj = nodeMap.get(n.id)
+      if (!obj) {
+        obj = { ...n }
+        nodeMap.set(n.id, obj)
+      } else {
+        obj.kind = n.kind
+        obj.label = n.label
+        obj.status = n.status
+        obj.sessionId = n.sessionId
+      }
+      seen.add(n.id)
+      nodes.push(obj)
+    }
+    for (const id of nodeMap.keys()) {
+      if (!seen.has(id)) nodeMap.delete(id)
+    }
+
+    // Fresh link objects every pass — force-graph mutates .source/.target
+    // into node references in place, so the canonical id list must stay clean.
+    const links: AgentSimLink[] = data.links.map((l) => ({ source: l.source, target: l.target }))
+
+    graph.graphData({ nodes, links })
+    agentMatchesRef.current = matchNodes(
+      nodes.map((n) => ({ id: n.id, label: n.label })),
+      agentQueryRef.current,
+    )
+    setAgentNodeCount(nodes.length)
+  }, [])
+
+  const deriveAndPushAgentGraph = useCallback(() => {
+    const { sessions, updates, pendingPermissions } = agentInputsRef.current
+    pushAgentGraphData(deriveAgentGraph(sessions, updates, pendingPermissions))
+  }, [pushAgentGraphData])
+
+  const scheduleAgentDerive = useCallback(() => {
+    const now = Date.now()
+    const elapsed = now - agentLastDeriveAtRef.current
+    if (elapsed >= 100) {
+      agentLastDeriveAtRef.current = now
+      deriveAndPushAgentGraph()
+      return
+    }
+    if (agentDeriveTimerRef.current) return
+    agentDeriveTimerRef.current = setTimeout(() => {
+      agentDeriveTimerRef.current = null
+      agentLastDeriveAtRef.current = Date.now()
+      deriveAndPushAgentGraph()
+    }, 100 - elapsed)
+  }, [deriveAndPushAgentGraph])
+
+  useEffect(() => {
+    agentInputsRef.current = {
+      sessions: agentSessions,
+      updates: agentUpdates,
+      pendingPermissions: agentPendingPermissions,
+    }
+    scheduleAgentDerive()
+  }, [agentSessions, agentUpdates, agentPendingPermissions, scheduleAgentDerive])
+
+  useEffect(() => {
+    return () => {
+      if (agentDeriveTimerRef.current) clearTimeout(agentDeriveTimerRef.current)
+    }
+  }, [])
+
+  // Mount the agent-mode force-graph instance once, alongside (not instead
+  // of) the file-mode one — both containers live under wrapperRef and are
+  // toggled via visibility so force-graph always has real dimensions.
+  useEffect(() => {
+    if (!wrapperRef.current) return
+    const el = document.createElement('div')
+    el.style.cssText = 'position:absolute;inset:0;'
+    wrapperRef.current.appendChild(el)
+    agentGraphElRef.current = el
+
+    const { width, height } = el.getBoundingClientRect()
+
+    // Cast to `any`: unlike file-mode's builder chain (typed via
+    // src/types/force-graph.d.ts), agent-mode uses a few force-graph methods
+    // that shim doesn't declare (nodePointerAreaPaint, onNodeHover,
+    // 'replace' canvas mode). Not touching the shim's typing approach here.
+    const graph = (ForceGraph2D()(el) as any)
+      .graphData({ nodes: [], links: [] })
+      .width(width)
+      .height(height)
+      .backgroundColor('rgba(0,0,0,0)') // pane root already paints var(--bg-surface)
+      .autoPauseRedraw(false) // keep redrawing so the blocked-node pulse animates
+      .nodeLabel(() => '') // labels are drawn on canvas, not via native tooltip
+      .nodeRelSize(4)
+      .linkColor(() => AGENT_LINK_COLOR)
+      .linkWidth(1)
+      .linkDirectionalParticleWidth(2)
+      .linkDirectionalParticleColor(() => AGENT_STATUS_COLOR.active)
+      .linkDirectionalParticles((link: any) => {
+        // Live activity flows only into tool/file nodes that are currently active.
+        const target = resolveAgentNode(link.target)
+        return target?.status === 'active' ? 2 : 0
+      })
+      .nodeCanvasObjectMode(() => 'replace')
+      .nodeCanvasObject((node: AgentSimNode, ctx: CanvasRenderingContext2D) => {
+        const selected = selectedSessionIdRef.current
+        const hasQuery = agentQueryRef.current.trim().length > 0
+        const matches = agentMatchesRef.current.has(node.id)
+        const dimmed =
+          (node.kind !== 'file' && !!selected && node.sessionId !== selected) || (hasQuery && !matches)
+        const x = node.x ?? 0
+        const y = node.y ?? 0
+        const r = agentNodeRadius(node.kind)
+        const color = AGENT_STATUS_COLOR[node.status]
+
+        ctx.save()
+        ctx.globalAlpha = dimmed ? AGENT_DIM_ALPHA : 1
+
+        if (node.kind === 'file') {
+          ctx.beginPath()
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x - r, y - r, r * 2, r * 2, 1.5)
+          } else {
+            ctx.rect(x - r, y - r, r * 2, r * 2)
+          }
+          ctx.fillStyle = color
+          ctx.fill()
+        } else {
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, 2 * Math.PI)
+          ctx.fillStyle = color
+          ctx.fill()
+          if (node.kind === 'agent') {
+            ctx.lineWidth = 2
+            ctx.strokeStyle = color
+            ctx.stroke()
+          }
+        }
+
+        if (node.kind === 'agent' && selected && node.sessionId === selected) {
+          ctx.beginPath()
+          ctx.arc(x, y, r + 3, 0, 2 * Math.PI)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = AGENT_ACCENT_COLOR
+          ctx.stroke()
+        }
+
+        if (node.status === 'blocked') {
+          const pulse = 0.35 + 0.45 * Math.abs(Math.sin(performance.now() / 320))
+          ctx.beginPath()
+          ctx.arc(x, y, r + 4, 0, 2 * Math.PI)
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = AGENT_STATUS_COLOR.blocked
+          ctx.globalAlpha = (dimmed ? AGENT_DIM_ALPHA : 1) * pulse
+          ctx.stroke()
+          ctx.globalAlpha = dimmed ? AGENT_DIM_ALPHA : 1
+        }
+
+        const showLabel = node.kind === 'agent' || agentHoveredIdRef.current === node.id || matches
+        if (showLabel) {
+          ctx.font = '11px ui-monospace, monospace'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'top'
+          ctx.fillStyle = matches ? 'rgba(240,240,245,0.95)' : AGENT_LABEL_COLOR
+          ctx.fillText(node.label, x, y + r + 3)
+        }
+
+        ctx.restore()
+      })
+      .nodePointerAreaPaint((node: AgentSimNode, color: string, ctx: CanvasRenderingContext2D) => {
+        const x = node.x ?? 0
+        const y = node.y ?? 0
+        const r = agentNodeRadius(node.kind) + 2
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x, y, r, 0, 2 * Math.PI)
+        ctx.fill()
+      })
+      .onNodeHover((node: AgentSimNode | null) => {
+        agentHoveredIdRef.current = node?.id ?? null
+      })
+      .onNodeClick((node: AgentSimNode) => {
+        if (node.kind === 'agent' && node.sessionId) {
+          selectSessionRef.current(node.sessionId)
+        }
+      })
+      .warmupTicks(30)
+      .cooldownTime(4000)
+
+    agentGraphRef.current = graph
+
+    return () => {
+      graph._destructor()
+      agentGraphRef.current = null
+      el.remove()
+      agentGraphElRef.current = null
+      agentNodeMapRef.current.clear()
+    }
+  }, [])
+
   // Create a dedicated DOM element for force-graph
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -184,6 +497,21 @@ export default function GraphPane(_props: { leafId?: string }) {
       graphElRef.current = null
     }
   }, [])
+
+  // Toggle the two graph containers via visibility (not display:none, so
+  // force-graph always sees real dimensions) — mirrors the app-wide "never
+  // unmount, show/hide" pane pattern for the two source views within this pane.
+  useEffect(() => {
+    const filesVisible = source === 'files'
+    if (graphElRef.current) {
+      graphElRef.current.style.visibility = filesVisible ? 'visible' : 'hidden'
+      graphElRef.current.style.pointerEvents = filesVisible ? 'auto' : 'none'
+    }
+    if (agentGraphElRef.current) {
+      agentGraphElRef.current.style.visibility = filesVisible ? 'hidden' : 'visible'
+      agentGraphElRef.current.style.pointerEvents = filesVisible ? 'none' : 'auto'
+    }
+  }, [source])
 
   const refresh = useCallback(async () => {
     if (!workspacePath || !graphElRef.current) return
@@ -282,6 +610,10 @@ export default function GraphPane(_props: { leafId?: string }) {
           const { width, height } = graphElRef.current.getBoundingClientRect()
           graphRef.current.width(width).height(height)
         }
+        if (agentGraphRef.current && agentGraphElRef.current) {
+          const { width, height } = agentGraphElRef.current.getBoundingClientRect()
+          agentGraphRef.current.width(width).height(height)
+        }
       }, 100)
     })
     ro.observe(el)
@@ -296,7 +628,7 @@ export default function GraphPane(_props: { leafId?: string }) {
       style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}
     >
       <div ref={wrapperRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {loading && (
+        {source === 'files' && loading && (
           <div
             style={{
               position: 'absolute',
@@ -314,7 +646,7 @@ export default function GraphPane(_props: { leafId?: string }) {
             scanning workspace...
           </div>
         )}
-        {!workspacePath && (
+        {source === 'files' && !workspacePath && (
           <div
             style={{
               position: 'absolute',
@@ -333,8 +665,72 @@ export default function GraphPane(_props: { leafId?: string }) {
             <span style={{ fontSize: 13 }}>open a workspace to see the graph</span>
           </div>
         )}
+        {source === 'agents' && agentSessions.length === 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-ghost)',
+              gap: 8,
+              zIndex: 10,
+              pointerEvents: 'none',
+            }}
+          >
+            <Ghost size={32} color="var(--accent)" style={{ opacity: 0.15 }} />
+            <span style={{ fontSize: 13 }}>
+              {available === false ? 'agents unavailable' : 'no agent sessions — spawn one to see the graph'}
+            </span>
+          </div>
+        )}
         {/* Search + depth controls */}
         <div className="graph-controls">
+          {/* Files | Agents source toggle */}
+          <div
+            style={{
+              display: 'flex',
+              border: '1px solid var(--border-mid)',
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => selectSource('files')}
+              aria-pressed={source === 'files'}
+              style={{
+                fontSize: 12,
+                fontFamily: 'var(--font-ui)',
+                padding: '4px 8px',
+                border: 'none',
+                cursor: 'pointer',
+                background: source === 'files' ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                color: source === 'files' ? 'var(--accent-bright)' : 'var(--text-secondary)',
+              }}
+            >
+              Files
+            </button>
+            <button
+              type="button"
+              onClick={() => selectSource('agents')}
+              aria-pressed={source === 'agents'}
+              style={{
+                fontSize: 12,
+                fontFamily: 'var(--font-ui)',
+                padding: '4px 8px',
+                borderLeft: '1px solid var(--border-mid)',
+                cursor: 'pointer',
+                background: source === 'agents' ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                color: source === 'agents' ? 'var(--accent-bright)' : 'var(--text-secondary)',
+              }}
+            >
+              Agents
+            </button>
+          </div>
           <input
             className="graph-search"
             placeholder="search nodes…"
@@ -348,6 +744,9 @@ export default function GraphPane(_props: { leafId?: string }) {
               }
             }}
           />
+          {/* Depth filtering only applies to the file-mode local view — kept
+              in the layout (visibility:hidden, not removed) in agents mode
+              so the control row never jumps on toggle. */}
           <select
             className="graph-depth"
             value={String(depth)}
@@ -355,22 +754,29 @@ export default function GraphPane(_props: { leafId?: string }) {
               setDepth(e.target.value === 'all' ? 'all' : (Number(e.target.value) as 1 | 2 | 3))
             }
             title="Show nodes within N links of the focused node"
+            style={source === 'agents' ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
           >
             <option value="all">depth: all</option>
             <option value="1">depth: 1</option>
             <option value="2">depth: 2</option>
             <option value="3">depth: 3</option>
           </select>
-          {root && (
+          {source === 'files' && root && (
             <button type="button" className="graph-root-chip" onClick={clearRoot} title="Clear focus">
               {root.label} <X size={11} />
             </button>
           )}
-          <span className="graph-count" data-node-count={visibleCount.shown}>
-            {visibleCount.shown === visibleCount.total
-              ? `${visibleCount.total} nodes`
-              : `${visibleCount.shown} / ${visibleCount.total} nodes`}
-          </span>
+          {source === 'files' ? (
+            <span className="graph-count" data-node-count={visibleCount.shown}>
+              {visibleCount.shown === visibleCount.total
+                ? `${visibleCount.total} nodes`
+                : `${visibleCount.shown} / ${visibleCount.total} nodes`}
+            </span>
+          ) : (
+            <span className="graph-count" data-node-count={agentNodeCount}>
+              {agentNodeCount} nodes
+            </span>
+          )}
         </div>
 
         <button

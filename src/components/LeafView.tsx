@@ -1,5 +1,6 @@
 import {
   Bot,
+  BotMessageSquare,
   CalendarRange,
   Code,
   Kanban,
@@ -41,6 +42,7 @@ const PANE_ICONS: Record<PaneId, React.ReactNode> = {
   timeline: <CalendarRange size={TAB_ICON_SIZE} />,
   ai: <Bot size={TAB_ICON_SIZE} />,
   settings: <Settings size={TAB_ICON_SIZE} />,
+  agents: <BotMessageSquare size={TAB_ICON_SIZE} />,
 }
 
 const PANE_LABELS: Record<PaneId, string> = {
@@ -52,9 +54,20 @@ const PANE_LABELS: Record<PaneId, string> = {
   timeline: 'Timeline',
   ai: 'Pi',
   settings: 'Settings',
+  agents: 'Agents',
 }
 
-const ALL_PANES: PaneId[] = ['editor', 'terminal', 'graph', 'canvas', 'kanban', 'timeline', 'ai', 'settings']
+const ALL_PANES: PaneId[] = [
+  'editor',
+  'terminal',
+  'graph',
+  'canvas',
+  'kanban',
+  'timeline',
+  'ai',
+  'settings',
+  'agents',
+]
 
 // --- Drop zone detection (Obsidian's 33% threshold algorithm) ---
 

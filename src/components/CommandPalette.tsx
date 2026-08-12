@@ -1,5 +1,6 @@
 import { Command } from 'cmdk'
 import {
+  BotMessageSquare,
   CalendarRange,
   FilePlus,
   FileText,
@@ -28,6 +29,7 @@ const PANES: { id: PaneId; label: string; icon: React.ReactNode }[] = [
   { id: 'timeline', label: 'Timeline', icon: <CalendarRange size={16} /> },
   { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
   { id: 'ai', label: 'AI', icon: <Sparkles size={16} /> },
+  { id: 'agents', label: 'Agents', icon: <BotMessageSquare size={16} /> },
 ]
 
 const SIDEBARS = [

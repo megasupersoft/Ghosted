@@ -1,4 +1,5 @@
 import type { PmSnapshot } from '../../electron/pmShared'
+import type { AgentInfo, PermissionRequest, SessionMeta, SessionStatus, UpdateRecord } from './acp'
 
 // GhostedDB types (mirror of electron/ghostdb.ts)
 export interface GhostedFile {
@@ -161,6 +162,29 @@ declare global {
         discard: (cwd: string, path: string) => Promise<boolean>
         remote: (cwd: string) => Promise<{ owner: string; repo: string } | null>
         gh: (cwd: string, args: string) => Promise<{ ok: boolean; data?: string; error?: string }>
+      }
+      /**
+       * ACP (Agent Client Protocol) bridge — optional because Electron support
+       * is landing incrementally; the web build (ghosted2) is the reference
+       * host today. Feature-detect with `window.electron.acp` before use.
+       */
+      acp?: {
+        agents: () => Promise<AgentInfo[]>
+        sessions: () => Promise<SessionMeta[]>
+        create: (agentId: string) => Promise<SessionMeta>
+        prompt: (sessionId: string, text: string) => Promise<void>
+        cancel: (sessionId: string) => Promise<void>
+        decide: (sessionId: string, requestId: string, optionId: string) => Promise<void>
+        onUpdate: (cb: (record: UpdateRecord) => void) => void
+        onStatus: (
+          cb: (payload: { sessionId: string; status: SessionStatus; error?: string }) => void,
+        ) => void
+        onPermission: (cb: (request: PermissionRequest) => void) => void
+        onPermissionResolved: (
+          cb: (payload: { sessionId: string; requestId: string; optionId: string }) => void,
+        ) => void
+        onSession: (cb: (session: SessionMeta) => void) => void
+        offAll: () => void
       }
     }
   }
