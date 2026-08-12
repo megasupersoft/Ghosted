@@ -19,6 +19,15 @@ export interface AgentInfo {
   description?: string
 }
 
+/**
+ * Per-session permission gating. 'full' auto-allows every permission request
+ * on the host side (requests never pend, but 'permission.resolved' /
+ * acp:permission-resolved events still fire); 'default' is the current
+ * gating behavior; 'safe' is the strictest available (may behave as
+ * 'default' initially).
+ */
+export type PermissionMode = 'safe' | 'default' | 'full'
+
 export interface SessionMeta {
   id: string
   agentId: string
@@ -28,6 +37,8 @@ export interface SessionMeta {
   status: SessionStatus
   /** last error message when status === 'error' */
   error?: string
+  /** how permission requests are gated for this session; omitted means 'default' */
+  permissionMode?: PermissionMode
 }
 
 export interface PermissionOption {

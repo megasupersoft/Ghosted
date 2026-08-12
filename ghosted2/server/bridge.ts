@@ -695,9 +695,13 @@ export function createBridge(opts: BridgeOptions): Bridge {
     'acp:agents': () => listAgents(),
     'acp:sessions': () => host.getSessions(),
     'acp:create': (a) => {
-      const p = (a[0] ?? {}) as { agentId?: string; cwd?: string };
+      const p = (a[0] ?? {}) as {
+        agentId?: string;
+        cwd?: string;
+        permissionMode?: 'safe' | 'default' | 'full';
+      };
       if (typeof p.agentId !== 'string' || !p.agentId) throw new Error('acp:create needs an agentId');
-      return host.createSession(p.agentId, p.cwd);
+      return host.createSession(p.agentId, { cwd: p.cwd, permissionMode: p.permissionMode });
     },
     'acp:prompt': (a) => {
       const p = (a[0] ?? {}) as { sessionId?: string; text?: string };

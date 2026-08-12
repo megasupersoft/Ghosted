@@ -19,10 +19,16 @@ import PlanCard from '@/panes/agents/PlanCard'
 import { buildActivityLabels } from '@/panes/agents/sessionActivity'
 import ToolCallCard from '@/panes/agents/ToolCallCard'
 import { useAgentsStore } from '@/store/agents'
-import type { SessionStatus } from '@/types/acp'
+import type { PermissionMode, SessionStatus } from '@/types/acp'
 
 const SCROLL_THRESHOLD = 80
 const BUSY_STATUSES: SessionStatus[] = ['running', 'awaiting-permission', 'starting']
+
+const PERMISSION_MODE_OPTIONS: { mode: PermissionMode; label: string }[] = [
+  { mode: 'safe', label: 'Gated' },
+  { mode: 'default', label: 'Default' },
+  { mode: 'full', label: 'Full access' },
+]
 
 function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id
@@ -43,6 +49,73 @@ function StatusChip({ status }: { status: SessionStatus }) {
     >
       {status}
     </span>
+  )
+}
+
+function FullAccessBadge() {
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        color: 'var(--amber)',
+        fontFamily: 'var(--font-mono)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+        flexShrink: 0,
+      }}
+    >
+      FULL
+    </span>
+  )
+}
+
+function PermissionModeControl() {
+  const defaultPermissionMode = useAgentsStore((s) => s.defaultPermissionMode)
+  const setDefaultPermissionMode = useAgentsStore((s) => s.setDefaultPermissionMode)
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 2,
+        padding: 2,
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      {PERMISSION_MODE_OPTIONS.map(({ mode, label }) => {
+        const selected = defaultPermissionMode === mode
+        const isFull = mode === 'full'
+        return (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setDefaultPermissionMode(mode)}
+            title={
+              isFull
+                ? 'Full access — the agent writes without asking'
+                : mode === 'safe'
+                  ? 'Gated — strictest permission gating'
+                  : 'Default permission gating'
+            }
+            style={{
+              flex: 1,
+              padding: '4px 6px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 11,
+              fontFamily: 'var(--font-ui)',
+              background: selected ? 'var(--bg-surface)' : 'transparent',
+              color: selected ? (isFull ? 'var(--amber)' : 'var(--text-primary)') : 'var(--text-muted)',
+              border: selected && isFull ? '1px solid var(--amber)' : '1px solid transparent',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -79,6 +152,9 @@ function AgentsSidebar() {
         >
           New session
         </span>
+      </div>
+      <div style={{ padding: '0 12px 8px', flexShrink: 0 }}>
+        <PermissionModeControl />
       </div>
       <div style={{ padding: '0 8px 10px', display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
         {agents.length === 0 && (
@@ -170,6 +246,7 @@ function AgentsSidebar() {
               >
                 {session.agentName}
               </span>
+              {session.permissionMode === 'full' && <FullAccessBadge />}
               <StatusChip status={session.status} />
             </div>
             <span style={{ fontSize: 10, color: 'var(--text-ghost)', fontFamily: 'var(--font-mono)' }}>

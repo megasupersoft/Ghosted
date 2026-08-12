@@ -8,9 +8,21 @@
  */
 
 import { create } from 'zustand'
-import type { AgentInfo, PermissionRequest, SessionMeta, UpdateRecord } from '@/types/acp'
+import type { AgentInfo, PermissionMode, PermissionRequest, SessionMeta, UpdateRecord } from '@/types/acp'
 
 const MAX_UPDATES = 5000
+const PERMISSION_MODE_STORAGE_KEY = 'ghosted:agents:permissionMode'
+const DEFAULT_PERMISSION_MODE: PermissionMode = 'default'
+
+function loadStoredPermissionMode(): PermissionMode {
+  try {
+    const stored = localStorage.getItem(PERMISSION_MODE_STORAGE_KEY)
+    if (stored === 'safe' || stored === 'default' || stored === 'full') return stored
+  } catch {
+    // localStorage unavailable (SSR/private mode) — fall back to default
+  }
+  return DEFAULT_PERMISSION_MODE
+}
 
 export interface AgentsState {
   available: boolean
@@ -19,12 +31,14 @@ export interface AgentsState {
   updates: UpdateRecord[] // flat, capped at 5000, oldest dropped
   pendingPermissions: PermissionRequest[]
   selectedSessionId: string | null
+  defaultPermissionMode: PermissionMode // persisted to localStorage, used for new sessions
   init(): void // idempotent; feature-detects window.electron.acp, subscribes pushes, fetches agents+sessions
-  newSession(agentId: string): Promise<void> // selects the new session
+  newSession(agentId: string, permissionMode?: PermissionMode): Promise<void> // selects the new session
   prompt(text: string): Promise<void> // acts on selectedSessionId
   cancel(): void
   decide(requestId: string, optionId: string): void
   select(id: string | null): void
+  setDefaultPermissionMode(mode: PermissionMode): void
 }
 
 let initialized = false
@@ -40,6 +54,7 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   updates: [],
   pendingPermissions: [],
   selectedSessionId: null,
+  defaultPermissionMode: loadStoredPermissionMode(),
 
   init: () => {
     if (initialized) return
@@ -92,10 +107,10 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
       .catch(() => {})
   },
 
-  newSession: async (agentId) => {
+  newSession: async (agentId, permissionMode) => {
     const acp = window.electron?.acp
     if (!acp) return
-    const session = await acp.create(agentId)
+    const session = await acp.create(agentId, permissionMode ?? get().defaultPermissionMode)
     set((s) => ({ sessions: upsertSession(s.sessions, session), selectedSessionId: session.id }))
   },
 
@@ -121,4 +136,13 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
   },
 
   select: (id) => set({ selectedSessionId: id }),
+
+  setDefaultPermissionMode: (mode) => {
+    try {
+      localStorage.setItem(PERMISSION_MODE_STORAGE_KEY, mode)
+    } catch {
+      // localStorage unavailable — mode still applies for this session
+    }
+    set({ defaultPermissionMode: mode })
+  },
 }))

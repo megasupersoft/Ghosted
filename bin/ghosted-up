@@ -1,0 +1,70 @@
+#!/bin/sh
+# ghosted-up — self-updating launcher: pull, install/build only when needed, run.
+# The clone IS the install: run this once per session and you are always on the
+# latest main, including commits made by Ghosted's own agents on other machines.
+#
+# usage: ghosted-up            update + launch desktop Ghosted (Electron)
+#        ghosted-up --server   update + launch web mode (ACP host + Vite dev)
+#        ghosted-up --no-pull  skip the git pull (launch what you have)
+#
+# Auto-update rules:
+#   - `git pull --ff-only` on main (never rewrites local work; fails loudly on
+#     divergence so a human decides)
+#   - `npm install` only when a package-lock.json changed (root or ghosted2/) —
+#     native modules (node-pty) rebuild HERE, on this machine's own toolchain
+#   - `npm run build` only when HEAD moved or dist/ is missing
+
+set -e
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$DIR"
+
+MODE="desktop"
+PULL="yes"
+for arg in "$@"; do
+  case "$arg" in
+    --server) MODE="server" ;;
+    --no-pull) PULL="no" ;;
+    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  esac
+done
+
+BEFORE="$(git rev-parse HEAD)"
+LOCK_BEFORE="$(git rev-parse HEAD:package-lock.json 2>/dev/null || echo none)"
+LOCK2_BEFORE="$(git rev-parse HEAD:ghosted2/package-lock.json 2>/dev/null || echo none)"
+
+if [ "$PULL" = "yes" ]; then
+  echo "ghosted-up: pulling latest…"
+  git pull --ff-only || {
+    echo "ghosted-up: pull failed (diverged or offline) — launching current checkout" >&2
+  }
+fi
+
+AFTER="$(git rev-parse HEAD)"
+LOCK_AFTER="$(git rev-parse HEAD:package-lock.json 2>/dev/null || echo none)"
+LOCK2_AFTER="$(git rev-parse HEAD:ghosted2/package-lock.json 2>/dev/null || echo none)"
+
+if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -d node_modules ]; then
+  echo "ghosted-up: root deps changed — npm install…"
+  npm install --no-audit --no-fund
+fi
+if [ "$LOCK2_BEFORE" != "$LOCK2_AFTER" ] || [ ! -d ghosted2/node_modules ]; then
+  echo "ghosted-up: ghosted2 deps changed — npm install…"
+  npm install --prefix ghosted2 --no-audit --no-fund
+fi
+
+if [ "$MODE" = "server" ]; then
+  ROOT="${GHOSTED2_ROOT:-$PWD}"
+  echo "ghosted-up: web mode — ACP host :4821 (root $ROOT) + renderer :5173"
+  GHOSTED2_ROOT="$ROOT" npm run start --prefix ghosted2 &
+  SERVER_PID=$!
+  trap 'kill "$SERVER_PID" 2>/dev/null' EXIT INT TERM
+  npm run dev
+else
+  if [ "$BEFORE" != "$AFTER" ] || [ ! -d dist ]; then
+    echo "ghosted-up: building…"
+    npm run build
+  fi
+  echo "ghosted-up: launching desktop Ghosted"
+  npm run preview
+fi

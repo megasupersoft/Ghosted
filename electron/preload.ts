@@ -123,6 +123,44 @@ contextBridge.exposeInMainWorld('electron', {
     },
     offAction: () => ipcRenderer.removeAllListeners('pi:action'),
   },
+  acp: {
+    agents: () => ipcRenderer.invoke('acp:agents'),
+    sessions: () => ipcRenderer.invoke('acp:sessions'),
+    pending: () => ipcRenderer.invoke('acp:pending'),
+    create: (agentId: string, opts?: { cwd?: string; permissionMode?: 'safe' | 'default' | 'full' }) =>
+      ipcRenderer.invoke('acp:create', agentId, opts),
+    prompt: (sessionId: string, text: string) => ipcRenderer.invoke('acp:prompt', sessionId, text),
+    cancel: (sessionId: string) => ipcRenderer.invoke('acp:cancel', sessionId),
+    decide: (sessionId: string, requestId: string, optionId: string) =>
+      ipcRenderer.invoke('acp:decide', sessionId, requestId, optionId),
+    onUpdate: (cb: (record: any) => void) => {
+      ipcRenderer.removeAllListeners('acp:update')
+      ipcRenderer.on('acp:update', (_e, record) => cb(record))
+    },
+    onStatus: (cb: (payload: any) => void) => {
+      ipcRenderer.removeAllListeners('acp:status')
+      ipcRenderer.on('acp:status', (_e, payload) => cb(payload))
+    },
+    onPermission: (cb: (request: any) => void) => {
+      ipcRenderer.removeAllListeners('acp:permission')
+      ipcRenderer.on('acp:permission', (_e, request) => cb(request))
+    },
+    onPermissionResolved: (cb: (payload: any) => void) => {
+      ipcRenderer.removeAllListeners('acp:permission-resolved')
+      ipcRenderer.on('acp:permission-resolved', (_e, payload) => cb(payload))
+    },
+    onSession: (cb: (session: any) => void) => {
+      ipcRenderer.removeAllListeners('acp:session')
+      ipcRenderer.on('acp:session', (_e, session) => cb(session))
+    },
+    offAll: () => {
+      ipcRenderer.removeAllListeners('acp:update')
+      ipcRenderer.removeAllListeners('acp:status')
+      ipcRenderer.removeAllListeners('acp:permission')
+      ipcRenderer.removeAllListeners('acp:permission-resolved')
+      ipcRenderer.removeAllListeners('acp:session')
+    },
+  },
   git: {
     log: (cwd: string, count?: number) => ipcRenderer.invoke('git:log', cwd, count),
     diffSummary: (cwd: string) => ipcRenderer.invoke('git:diffSummary', cwd),

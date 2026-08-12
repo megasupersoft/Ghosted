@@ -1,5 +1,12 @@
 import type { PmSnapshot } from '../../electron/pmShared'
-import type { AgentInfo, PermissionRequest, SessionMeta, SessionStatus, UpdateRecord } from './acp'
+import type {
+  AgentInfo,
+  PermissionMode,
+  PermissionRequest,
+  SessionMeta,
+  SessionStatus,
+  UpdateRecord,
+} from './acp'
 
 // GhostedDB types (mirror of electron/ghostdb.ts)
 export interface GhostedFile {
@@ -171,7 +178,7 @@ declare global {
       acp?: {
         agents: () => Promise<AgentInfo[]>
         sessions: () => Promise<SessionMeta[]>
-        create: (agentId: string) => Promise<SessionMeta>
+        create: (agentId: string, permissionMode?: PermissionMode) => Promise<SessionMeta>
         prompt: (sessionId: string, text: string) => Promise<void>
         cancel: (sessionId: string) => Promise<void>
         decide: (sessionId: string, requestId: string, optionId: string) => Promise<void>

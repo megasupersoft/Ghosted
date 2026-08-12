@@ -9,6 +9,7 @@
 // envelope types below are a deliberate copy, not a re-export.
 
 import type { PmSnapshot } from '../../electron/pmShared'
+import type { PermissionMode } from '../types/acp'
 
 const DEFAULT_BRIDGE_URL = 'ws://localhost:4821/bridge'
 const READY_TIMEOUT_MS = 10_000
@@ -291,7 +292,7 @@ function inv<T>(ch: string, args: unknown[] = []): Promise<T> {
 interface AcpApi {
   agents: () => Promise<unknown[]>
   sessions: () => Promise<unknown[]>
-  create: (agentId: string) => Promise<unknown>
+  create: (agentId: string, permissionMode?: PermissionMode) => Promise<unknown>
   prompt: (sessionId: string, text: string) => Promise<unknown>
   cancel: (sessionId: string) => Promise<unknown>
   decide: (sessionId: string, requestId: string, optionId: string) => Promise<unknown>
@@ -306,7 +307,7 @@ interface AcpApi {
 const acp: AcpApi = {
   agents: () => inv('acp:agents'),
   sessions: () => inv('acp:sessions'),
-  create: (agentId) => inv('acp:create', [{ agentId }]),
+  create: (agentId, permissionMode) => inv('acp:create', [{ agentId, permissionMode }]),
   prompt: (sessionId, text) => inv('acp:prompt', [{ sessionId, text }]),
   cancel: (sessionId) => inv('acp:cancel', [{ sessionId }]),
   decide: (sessionId, requestId, optionId) => inv('acp:decide', [{ sessionId, requestId, optionId }]),

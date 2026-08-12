@@ -35,9 +35,21 @@ import { createGuard, type Guard } from './fsGuard';
 
 const HISTORY_CAP = 2000;
 
+/**
+ * Agent modes, in descending order of restrictiveness. Used by 'safe' sessions
+ * to pick a mode out of whatever the agent advertised in its session/new
+ * response (the claude adapter offers plan / default / acceptEdits / …).
+ */
+const RESTRICTIVE_MODE_PATTERNS = [/^plan$/i, /plan/i, /^ask$/i, /read[-_ ]?only/i, /safe/i, /review/i];
+
 interface PendingPermission {
   request: PermissionRequest;
   resolve: (response: RequestPermissionResponse) => void;
+}
+
+interface AgentMode {
+  id: string;
+  name: string;
 }
 
 interface SessionRecord {
@@ -50,15 +62,42 @@ interface SessionRecord {
   seq: number;
   history: UpdateRecord[];
   pending: Map<string, PendingPermission>;
+  /** modes the agent advertised at session/new, if any */
+  modes: { currentModeId: string; availableModes: AgentMode[] } | null;
+}
+
+export type PermissionMode = NonNullable<SessionMeta['permissionMode']>;
+
+export interface CreateSessionOptions {
+  cwd?: string;
+  /** defaults to 'default' */
+  permissionMode?: PermissionMode;
 }
 
 export interface AcpHostOptions {
-  root: string;
+  /** workspace root — used to build the default single-root guard */
+  root?: string;
+  /**
+   * Custom path confinement. Hosts with a live grant system (the Electron main
+   * process) pass their own `assertAllowed` here instead of a fixed root.
+   */
+  guard?: Guard;
   broadcast: (msg: ServerMsg) => void;
 }
 
 function errText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/** The most permissive option an agent offered, or null if it offered none. */
+function pickAllowOption(options: PermissionRequest['options']): string | null {
+  const byKind = (kind: string) => options.find((o) => o.kind === kind)?.optionId;
+  return (
+    byKind('allow_always') ??
+    byKind('allow_once') ??
+    options.find((o) => /allow/i.test(o.kind ?? '') || /allow/i.test(o.name))?.optionId ??
+    null
+  );
 }
 
 export class AcpHost {
@@ -67,7 +106,7 @@ export class AcpHost {
   private readonly sessions = new Map<string, SessionRecord>();
 
   constructor(opts: AcpHostOptions) {
-    this.guard = createGuard(opts.root);
+    this.guard = opts.guard ?? createGuard(opts.root ?? process.cwd());
     this.broadcast = opts.broadcast;
   }
 
@@ -77,9 +116,16 @@ export class AcpHost {
 
   // ---------- lifecycle ----------
 
-  async createSession(agentId: string, cwd?: string): Promise<SessionMeta> {
+  /**
+   * `opts` is backward compatible: a bare string is still read as the cwd, so
+   * existing `createSession(agentId, cwd)` call sites keep working untouched.
+   */
+  async createSession(agentId: string, opts?: string | CreateSessionOptions): Promise<SessionMeta> {
     const cmd = resolveAgentCommand(agentId);
     if (!cmd) throw new Error(`unknown agent: ${agentId}`);
+
+    const { cwd, permissionMode = 'default' }: CreateSessionOptions =
+      typeof opts === 'string' ? { cwd: opts } : (opts ?? {});
 
     const agentName = listAgents().find((a) => a.id === agentId)?.name ?? agentId;
     const sessionCwd = cwd ? this.guard.assertAllowed(cwd) : this.guard.root;
@@ -102,6 +148,7 @@ export class AcpHost {
       cwd: sessionCwd,
       createdAt: Date.now(),
       status: 'starting',
+      permissionMode,
     };
     const rec: SessionRecord = {
       meta,
@@ -111,6 +158,7 @@ export class AcpHost {
       seq: 0,
       history: [],
       pending: new Map(),
+      modes: null,
     };
     this.sessions.set(id, rec);
 
@@ -137,16 +185,43 @@ export class AcpHost {
       });
       const created = await conn.newSession({ cwd: sessionCwd, mcpServers: [] });
       rec.acpSessionId = created.sessionId;
+      rec.modes = created.modes ?? null;
     } catch (e) {
       this.sessions.delete(id);
       child.kill();
       throw new Error(`agent handshake failed: ${errText(e)}`);
     }
 
+    if (permissionMode === 'safe') await this.applySafeMode(rec);
+
     meta.status = 'idle';
     this.broadcast({ type: 'session.created', session: { ...meta } });
     this.broadcast({ type: 'session.status', sessionId: id, status: 'idle' });
     return { ...meta };
+  }
+
+  /**
+   * 'safe' sessions ask the agent for its most restrictive advertised mode via
+   * session/set_mode. Agents that advertise no modes (the mock, and any agent
+   * predating session modes) simply behave like 'default'.
+   */
+  private async applySafeMode(rec: SessionRecord): Promise<void> {
+    const available = rec.modes?.availableModes ?? [];
+    if (available.length === 0) return;
+
+    let target: AgentMode | undefined;
+    for (const pattern of RESTRICTIVE_MODE_PATTERNS) {
+      target = available.find((m) => pattern.test(m.id) || pattern.test(m.name));
+      if (target) break;
+    }
+    if (!target || target.id === rec.modes?.currentModeId) return;
+
+    try {
+      await this.conn(rec).setSessionMode({ sessionId: rec.acpSessionId, modeId: target.id });
+      if (rec.modes) rec.modes.currentModeId = target.id;
+    } catch (e) {
+      console.warn(`[acp] set_mode(${target.id}) rejected by ${rec.meta.agentId}: ${errText(e)}`);
+    }
   }
 
   async prompt(sessionId: string, text: string): Promise<void> {
@@ -255,6 +330,22 @@ export class AcpHost {
         kind: o.kind,
       })),
     };
+
+    // 'full' never blocks on a human: take the most permissive option the agent
+    // offered and only announce the resolution, so UIs can still log the grant.
+    // Agents that offer no allow-ish option fall through to the pending path.
+    if (rec.meta.permissionMode === 'full') {
+      const optionId = pickAllowOption(request.options);
+      if (optionId) {
+        this.broadcast({
+          type: 'permission.resolved',
+          sessionId: rec.meta.id,
+          requestId,
+          optionId,
+        });
+        return Promise.resolve({ outcome: { outcome: 'selected', optionId } });
+      }
+    }
 
     return new Promise<RequestPermissionResponse>((resolve) => {
       rec.pending.set(requestId, { request, resolve });

@@ -4,6 +4,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
+import { AcpHost, type CreateSessionOptions } from '../ghosted2/server/acpHost'
+import { listAgents } from '../ghosted2/server/agents'
+import type { ServerMsg } from '../ghosted2/shared/protocol'
 import { devCliArgs, extractWorkspaceArg } from './cliArgs'
 import { registerGhostedDB } from './ghostdb'
 import { startRpcServer } from './rpc'
@@ -181,8 +184,15 @@ function loadGrantedRoots(): string[] {
 }
 const grantedRoots: string[] = loadGrantedRoots()
 
+// The workspace the renderer is actually looking at. Tracked so agent sessions
+// spawned from the Agents pane get a sensible cwd without the renderer having
+// to pass one. Every grant is a fresh statement of user intent, so the newest
+// grant wins.
+let activeWorkspace: string | null = null
+
 function grantRoot(dir: string) {
   const resolved = path.resolve(dir)
+  activeWorkspace = resolved
   if (!grantedRoots.includes(resolved)) {
     grantedRoots.push(resolved)
     try {
@@ -225,7 +235,10 @@ function assertAllowed(p: string): string {
 ipcMain.handle('workspace:restore', (_e, dir: string) => {
   if (typeof dir !== 'string' || !dir) return false
   const resolved = path.resolve(dir)
-  if (grantedRoots.includes(resolved)) return true
+  if (grantedRoots.includes(resolved)) {
+    activeWorkspace = resolved
+    return true
+  }
   if (!fs.existsSync(ROOTS_FILE)) {
     try {
       const stat = fs.statSync(resolved)
@@ -948,6 +961,86 @@ ipcMain.handle('pi:dispose', async (_e, sessionId: string) => {
   } catch {}
   piSessions.delete(sessionId)
 })
+
+// ── ACP agent host (Agents pane) ─────────────────────────────────────────────
+// The very same host the web build runs (ghosted2/server/acpHost), wired to
+// this process's live grant system instead of a fixed single root: every path
+// an agent reads or writes goes through `assertAllowed`, exactly like the fs:*
+// handlers do. The acp:* push channels mirror the web bridge's mapping 1:1 so
+// both backends look identical to the renderer.
+let acpHost: AcpHost | null = null
+
+function acpBroadcast(msg: ServerMsg) {
+  let channel: string
+  let payload: unknown
+  switch (msg.type) {
+    case 'session.update':
+      channel = 'acp:update'
+      payload = msg.record
+      break
+    case 'session.status':
+      channel = 'acp:status'
+      payload = { sessionId: msg.sessionId, status: msg.status, error: msg.error }
+      break
+    case 'permission.request':
+      channel = 'acp:permission'
+      payload = msg.request
+      break
+    case 'permission.resolved':
+      channel = 'acp:permission-resolved'
+      payload = { sessionId: msg.sessionId, requestId: msg.requestId, optionId: msg.optionId }
+      break
+    case 'session.created':
+      channel = 'acp:session'
+      payload = msg.session
+      break
+    default:
+      return
+  }
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send(channel, payload)
+  }
+}
+
+function getAcpHost(): AcpHost {
+  if (!acpHost) {
+    acpHost = new AcpHost({
+      guard: {
+        // Read live: a session created before the user opens another folder
+        // still resolves against whatever is granted right now.
+        get root() {
+          return activeWorkspace ?? grantedRoots[grantedRoots.length - 1] ?? cliWorkspace ?? process.cwd()
+        },
+        assertAllowed,
+      },
+      broadcast: acpBroadcast,
+    })
+  }
+  return acpHost
+}
+
+ipcMain.handle('acp:agents', () => listAgents())
+ipcMain.handle('acp:sessions', () => getAcpHost().getSessions())
+// Renderers ask for these on mount — the Electron host has no replay-on-connect
+// step the way the WebSocket bridge does.
+ipcMain.handle('acp:pending', () => getAcpHost().getPendingPermissions())
+ipcMain.handle('acp:create', async (_e, agentId: string, opts?: CreateSessionOptions) => {
+  if (typeof agentId !== 'string' || !agentId) throw new Error('acp:create needs an agentId')
+  const cwd = opts?.cwd ? assertAllowed(opts.cwd) : undefined
+  return getAcpHost().createSession(agentId, { cwd, permissionMode: opts?.permissionMode })
+})
+ipcMain.handle('acp:prompt', (_e, sessionId: string, text: string) => {
+  // Fire-and-forget: the end of the turn arrives as an acp:status push.
+  void getAcpHost()
+    .prompt(sessionId, String(text ?? ''))
+    .catch(() => {})
+})
+ipcMain.handle('acp:cancel', async (_e, sessionId: string) => getAcpHost().cancel(sessionId))
+ipcMain.handle('acp:decide', (_e, sessionId: string, requestId: string, optionId: string) => {
+  getAcpHost().resolvePermission(sessionId, requestId, String(optionId ?? ''))
+})
+
+app.on('before-quit', () => acpHost?.shutdown())
 
 // ── Terminal RPC (pi.dev / scripts / `ghosted open`) ─────────────────────────
 // A local socket that lets processes inside Ghosted's terminal drive the app.

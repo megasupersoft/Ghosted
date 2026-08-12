@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    // ESM syntax level: electron/main.ts imports the shared ACP host out of
+    // ghosted2/, which is an ESM package and uses import.meta. Vite emits the
+    // CommonJS bundle that Electron actually loads.
+    "module": "ES2022",
+    "moduleResolution": "bundler",
     "outDir": "dist-electron",
-    "rootDir": "electron",
     "skipLibCheck": true,
     "strict": true,
     "esModuleInterop": true

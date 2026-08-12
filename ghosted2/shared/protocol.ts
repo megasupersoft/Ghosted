@@ -34,6 +34,13 @@ export interface SessionMeta {
   status: SessionStatus;
   /** last error message when status === 'error' */
   error?: string;
+  /**
+   * How permission requests are handled for this session.
+   *   'safe'    — most restrictive agent mode when one is advertised, else 'default'
+   *   'default' — every request is forwarded to the UI (the historical behaviour)
+   *   'full'    — allow-ish options are auto-selected; nothing blocks on the UI
+   */
+  permissionMode?: 'safe' | 'default' | 'full';
 }
 
 export interface PermissionOption {
