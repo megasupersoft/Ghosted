@@ -16,6 +16,7 @@ import ReactMarkdown from 'react-markdown'
 import { buildChatItems, statusColor } from '@/panes/agents/chatItems'
 import PermissionCard from '@/panes/agents/PermissionCard'
 import PlanCard from '@/panes/agents/PlanCard'
+import { buildActivityLabels } from '@/panes/agents/sessionActivity'
 import ToolCallCard from '@/panes/agents/ToolCallCard'
 import { useAgentsStore } from '@/store/agents'
 import type { SessionStatus } from '@/types/acp'
@@ -51,6 +52,9 @@ function AgentsSidebar() {
   const selectedSessionId = useAgentsStore((s) => s.selectedSessionId)
   const select = useAgentsStore((s) => s.select)
   const newSession = useAgentsStore((s) => s.newSession)
+  const updates = useAgentsStore((s) => s.updates)
+
+  const activityLabels = useMemo(() => buildActivityLabels(updates), [updates])
 
   return (
     <div
@@ -170,6 +174,9 @@ function AgentsSidebar() {
             </div>
             <span style={{ fontSize: 10, color: 'var(--text-ghost)', fontFamily: 'var(--font-mono)' }}>
               {shortId(session.id)}
+            </span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              {activityLabels.get(session.id) ?? '0 updates · 0 tools'}
             </span>
           </button>
         ))}
