@@ -1132,6 +1132,19 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(path.resolve(filePath)).toString())
   })
   createWindow()
+
+  // Auto-update from GitHub Releases (packaged builds only). On macOS this is
+  // a no-op until builds are signed — Squirrel.Mac refuses unsigned updates —
+  // so failures here must never break app startup.
+  if (app.isPackaged) {
+    import('electron-updater')
+      .then(({ autoUpdater }) => {
+        autoUpdater.autoDownload = true
+        autoUpdater.on('error', (err) => console.warn('[updater]', err.message))
+        return autoUpdater.checkForUpdatesAndNotify()
+      })
+      .catch((err) => console.warn('[updater] unavailable:', err?.message ?? err))
+  }
 })
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

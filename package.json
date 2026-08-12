@@ -56,6 +56,7 @@
     "chokidar": "^4.0.3",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "electron-updater": "^6.8.9",
     "force-graph": "^1.51.4",
     "gray-matter": "^4.0.3",
     "lucide-react": "^1.25.0",
@@ -103,7 +104,9 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/icon-1024.png"
+      "icon": "build/icon-1024.png",
+      "notarize": true,
+      "hardenedRuntime": true
     },
     "win": {
       "target": "nsis"
@@ -120,6 +123,11 @@
           "ghosted"
         ]
       }
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "megasupersoft",
+      "repo": "Ghosted"
+    }
   }
 }
