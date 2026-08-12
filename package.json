@@ -1,7 +1,7 @@
 {
   "name": "ghosted",
-  "version": "0.1.2",
-  "description": "Ghosted \u2014 the dev workspace that never sleeps.",
+  "version": "0.2.0",
+  "description": "Ghosted — the dev workspace that never sleeps.",
   "main": "dist-electron/main.js",
   "scripts": {
     "postinstall": "bash scripts/setup-mac.sh && node scripts/rebuild-pty.js",
