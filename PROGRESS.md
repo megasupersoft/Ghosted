@@ -1,12 +1,32 @@
 ---
 project: Ghosted
-updated: 2026-07-20
+updated: 2026-08-13
 ---
 
 # Ghosted Progress
 
 ## Current status
-v0.1.2 + modernized stack + feature wave: `ghosted .` CLI with single-instance handoff, JSON Canvas 1.0 export/import, graph search + depth control, terminal RPC socket, and the PM suite — GitHub Projects v2 sync engine (optimistic op queue, adaptive polling), Linear-style kanban with keyboard contract + local offline board, roadmap timeline pane. Settings is a pane tab. 77 unit tests + 17 e2e green on macOS and Linux CI. Verified read-only against real Project #5.
+Ghosted 2.0: the renderer now runs unmodified in a browser (webBridge shim → ghosted2/ Node backend with real PTYs, grant-confined fs, git, reused projectSync) and hosts LLM-agnostic coding agents over ACP — Agents pane (sessions, streamed chat, permission gate) + live agent graph as a GraphPane source toggle. Mock agent for token-free iteration; Claude Code adapter handshake verified. Dogfooding mode active: Ghosted develops Ghosted. 77 unit tests green; e2e smoke for the agent loop.
+
+## Session 2026-08-13
+
+### Shipped
+- Research + gap analysis: Aug-2026 agentic-IDE landscape, protocol bets (ACP core, MCP both ways, skip A2A), published as artifact; strategy in project memory
+- `feat: web mode + ACP agent host + Agents pane + live agent graph` (bc7eaac, 51 files): ghosted2/ ACP host (`@agentclientprotocol/sdk`, mock + claude-agent-acp agents, fs guard, permission relay, e2e smoke), src/lib/webBridge.ts full `window.electron` over WS, Agents pane registered like settings pane, GraphPane Files|Agents toggle, CLAUDE.md web-mode + agent self-edit rules
+- Orchestrated build: opus/sonnet/haiku workers against locked contracts; integration caught 3 smoke-test bugs (ESM `require`, stale-message race, `process.exit` skipping cleanup → orphaned server)
+- Root node_modules restored with `--ignore-scripts` (node-pty binary preserved per memory rule); Electron binary re-fetched
+
+### In flight
+- Dogfood servers running: ACP host :4821 (stable, no watch), renderer :5173 (Vite HMR)
+- ghosted2/src standalone shell now redundant (superseded by real renderer on web) — not yet removed
+
+### Blockers
+None
+
+### Next
+- First self-update run: Claude Code session inside Ghosted editing src/** (renderer-only tasks)
+- Electron parity for acp:* (host into electron/main.ts + preload) and worktree-per-session isolation
+- Session persistence for the ACP host (survive server restart); fix main.ts `git:status` first-line trim bug (bridge mirrors it)
 
 ## Session 2026-07-20 (evening)
 
